@@ -39,6 +39,12 @@ An alphabetical ring lets users spell words by visiting letter tiles in one cont
 
 This environment adapts the [Cirrin interaction introduced by Jennifer Mankoff and Gregory Abowd in 1998](https://sites.cc.gatech.edu/fce/pendragon/publications/cirrin98.pdf) to Relay's webcam controls. It shares the same message, undo history, and speech output as the other environments.
 
+### Chord: gesture shorthand for everyday productivity
+
+Chord explores a broader use for Relay: typing chunks instead of individual characters. One hand browses six banks; the other selects one of five slots. A brief stable pose arms the text, and closing both fists sends it. Twenty fixed shortcuts can contain personal phrases or whitespace-preserving code snippets; a local word palette and spelling pages handle other text.
+
+A built-in keyboard/camera comparison uses the same target and includes correction time. Reusable phrase results measure text expansion, not general prose speed. The interface is implemented and covered by controlled-input tests; faster-than-keyboard performance has not yet been demonstrated by a live user.
+
 ## How we built it
 
 - **MediaPipe Tasks Vision** locates facial features and hand landmarks from webcam frames.

@@ -3,7 +3,8 @@ export const ENVIRONMENTS=Object.freeze([
  {id:'classic',cameraMode:'profile',handDelegate:'GPU',name:'Classic keyboard',description:'Your learned gestures: Next, Select, and direct text.'},
  {id:'finger-grid',cameraMode:'combined',handDelegate:'CPU',name:'Finger grid',description:'Two hands, six counts each. Choose a row and a column.'},
  {id:'air-letters',cameraMode:'hand',handDelegate:'GPU',name:'Air letters',description:'Trace a letter with your fingertip. Local handwriting AI reads the strokes.'},
- {id:'cirrin',cameraMode:'hand',handDelegate:'GPU',name:'Cirrin ring',description:'One continuous stroke per word. Visit letters around the circular keyboard.'}
+ {id:'cirrin',cameraMode:'hand',handDelegate:'GPU',name:'Cirrin ring',description:'One continuous stroke per word. Visit letters around the circular keyboard.'},
+ {id:'chord',cameraMode:'hands',handDelegate:'CPU',name:'Chord · speed writing',description:'Two-hand shorthand for words, reusable phrases, and code snippets.'}
 ]);
 export const environmentById=id=>ENVIRONMENTS.find(e=>e.id===id)||ENVIRONMENTS[0];
 export const GRID_PAGES=['letters','numbers','symbols','phrases'];

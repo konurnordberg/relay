@@ -1,9 +1,11 @@
+import {ChordBook,ChordGate,DEFAULT_SHORTCUTS,validShortcuts,chordCode} from './chord-core.js';
+import {ChordRace,RACE_SCENARIOS} from './chord-race.js';
 import {CirrinInput} from './cirrin-input.js';
 import {drawCirrin} from './cirrin-view.js';
 import {wordInsertion} from './cirrin-core.js';
 import {AirWriter} from './air-writing.js';
 import {ENVIRONMENTS,environmentById,GRID_PAGES,PAGE_NAMES,gridKeys,applyGridKey} from './environments.js';
-import {FingerPairTracker,FingerIndexGate} from './finger-index.js';
+import {fingerPair,FingerPairTracker,FingerIndexGate} from './finger-index.js';
 import {trainCombined,predictCombined,CombinedGate,resample,requiredTracking} from './combined.js';
 import {CHANNELS,channelIndices} from './features.js';
 import {REST,UNKNOWN,train,predict,summarize,EventGate,Composer,trialSummary} from './core.js';
@@ -24,21 +26,28 @@ let cameraState='off',cameraMessage='Your camera stays off until you start it.',
 let teachingPhase=null,lastGestureMessage='';
 let toastTimer,scanVoice='',speechStatus='',activeDialog=null;
 let draftSavedText=null,draftNotice='',speakingMessage=false;
-let guestEnvironment={environment:'classic',gridHoldMs:850,gridSwap:false,cirrinGain:2.4};
-try{const saved=JSON.parse(localStorage.getItem('relay.environment.v1')||'{}');if(ENVIRONMENTS.some(e=>e.id===saved.environment))guestEnvironment.environment=saved.environment;if([600,850,1200,1600].includes(saved.gridHoldMs))guestEnvironment.gridHoldMs=saved.gridHoldMs;if([1.3,1.8,2.4].includes(saved.cirrinGain))guestEnvironment.cirrinGain=saved.cirrinGain;if(typeof saved.gridSwap==='boolean')guestEnvironment.gridSwap=saved.gridSwap;}catch{}
+let guestEnvironment={environment:'classic',gridHoldMs:850,gridSwap:false,cirrinGain:2.4,chordHoldMs:180};
+try{const saved=JSON.parse(localStorage.getItem('relay.environment.v1')||'{}');if(ENVIRONMENTS.some(e=>e.id===saved.environment))guestEnvironment.environment=saved.environment;if([600,850,1200,1600].includes(saved.gridHoldMs))guestEnvironment.gridHoldMs=saved.gridHoldMs;if([1.3,1.8,2.4].includes(saved.cirrinGain))guestEnvironment.cirrinGain=saved.cirrinGain;if([120,180,260].includes(saved.chordHoldMs))guestEnvironment.chordHoldMs=saved.chordHoldMs;if(typeof saved.gridSwap==='boolean')guestEnvironment.gridSwap=saved.gridSwap;}catch{}
 const environmentSettings=()=>profile?.settings||guestEnvironment;
 let environment=environmentById(environmentSettings().environment).id,fingerPage='letters',fingerStatus=null;
 const fingerTracker=new FingerPairTracker();
 const air=new AirWriter(()=>{if(airWriting())updateAirDisplay();},letter=>{if(!airWriting()||composer.confirm||composer.paused)return;handleEffect(composer.apply({type:'text',value:composer.caps?letter:letter.toLowerCase()}));renderWriter();});
 const cirrin=new CirrinInput(()=>{if(cirrinWriting())updateCirrinDisplay();},word=>{if(!cirrinWriting()||composer.confirm||composer.paused)return;handleEffect(composer.apply({type:'text',value:wordInsertion(composer.text,word,composer.caps)}));renderWriter();});
+let guestShortcuts=DEFAULT_SHORTCUTS.map(s=>({...s}));
+try{const saved=JSON.parse(localStorage.getItem('relay.chord.shortcuts.v1')||'null');if(validShortcuts(saved))guestShortcuts=saved;}catch{}
+const chordBook=new ChordBook(),chordGate=new ChordGate(environmentSettings().chordHoldMs||180),chordRace=new ChordRace();
+let chordStatus=null,chordBenchmarkOpen=false,chordBank=0;
+const shortcuts=()=>chordRace.active&&chordRace.scenario==='reusable'?DEFAULT_SHORTCUTS:(profile?(profile.chordShortcuts||DEFAULT_SHORTCUTS):guestShortcuts);
+const chordComposer=()=>chordRace.active?chordRace.composer:composer;
 const fingerGate=new FingerIndexGate(environmentSettings().gridHoldMs||850);
+const chordWriting=()=>view==='write'&&environment==='chord';
 const cirrinWriting=()=>view==='write'&&environment==='cirrin';
 const airWriting=()=>view==='write'&&environment==='air-letters';
 const fingerWriting=()=>view==='write'&&environment==='finger-grid';
 const cameraMode=()=>view==='write'&&environmentById(environment).cameraMode!=='profile'?environmentById(environment).cameraMode:profile?.modality||'combined';
 const handDelegate=()=>view==='write'?environmentById(environment).handDelegate:'GPU';
 const startCamera=()=>camera.start(cameraMode(),'',handDelegate());
-function resetInput(){gate.reset();fingerGate.reset();fingerTracker.reset();fingerStatus=null;air.reset();cirrin.reset();}
+function resetInput(){gate.reset();fingerGate.reset();fingerTracker.reset();fingerStatus=null;air.reset();cirrin.reset();chordGate.reset();chordStatus=null;}
 function syncCameraForContext(){if(camera.running&&(camera.mode!==cameraMode()||(camera.handDelegate!==undefined&&camera.handDelegate!==handDelegate())))startCamera();}
 
 const actions={select:'Select',next:'Next',delete:'Delete',undo:'Undo',speak:'Speak',pause:'Pause',insert:'Insert text'};
@@ -51,10 +60,10 @@ rebuild();restoreDraft();
 $('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home"><img src="./favicon.svg" alt="">relay<span class="sr-only">home</span></a><div><div class="eyebrow nav-label">YOUR WORKSPACE</div><nav class="nav" aria-label="Main navigation">'+navigation.map(([id,label,icon])=>'<button data-action="nav-'+id+'" data-nav="'+id+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+label+'</span></button>').join('')+'</nav></div><div class="side-bottom"><div class="privacy-note"><strong>◌ &nbsp; Built around you.</strong>Your camera is processed on this device. Your gesture profile stays in this browser.</div><div class="side-foot">TRIANGLE AI HACKATHON · 2026</div></div></aside><div class="workspace"><header class="topbar"><div class="breadcrumb">Your movement <span>/</span> <b id="page-label">Overview</b></div><div class="profile-switch"><span class="avatar" aria-hidden="true">↗</span><label class="sr-only" for="profile-select">Active profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3 id="camera-heading">Your signal</h3><span class="pill" id="camera-pill">CAMERA OFF</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><canvas id="air-overlay" aria-hidden="true" hidden></canvas><div class="camera-placeholder" id="camera-placeholder"><div class="face-outline" aria-hidden="true"></div><p>A little movement goes a long way.</p></div><div class="air-camera-hud" id="air-camera-hud" hidden></div><div class="finger-camera-hud" id="finger-camera-hud" hidden><span id="camera-row-count">Row —</span><span id="camera-col-count">Column —</span></div><div class="camera-corners"></div><span class="camera-tag">LOCAL VISION · NO VIDEO UPLOAD</span></div><div class="camera-prompt" id="camera-prompt" hidden><div class="eyebrow">FOLLOW ALONG</div><h3 id="camera-prompt-title"></h3><p id="camera-prompt-detail"></p><progress id="camera-prompt-progress" max="1" value="0" aria-label="Current recording phase"></progress><button class="button small secondary" data-action="cancel-task" id="camera-prompt-cancel">Cancel recording</button></div><div class="camera-controls"><div class="finger-camera-message" id="finger-camera-message" hidden><span>YOUR MESSAGE</span><p id="finger-camera-text"></p></div><p class="camera-status" id="camera-status"></p><button class="button" id="camera-button" data-action="camera">Enable camera ↗</button></div><div class="trail-controls"><label class="trail-toggle"><input id="trails-toggle" type="checkbox" role="switch" aria-describedby="trails-help"><span class="trail-switch" aria-hidden="true"></span><span>Enable trails</span><span class="trail-spark" aria-hidden="true">✧</span></label><p id="trails-help">Draw with your index fingers. Neon trails fade in a moment.</p></div><p id="camera-performance" class="camera-performance" hidden></p><div id="tracking-parts" class="tracking-parts" aria-label="Visible body parts"></div><div class="recognition"><div class="eyebrow">LIVE RECOGNITION</div><div class="signal-name"><span id="signal-name">Waiting for you</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div></section><section class="card rail-quote"><div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><h3>Your words.<br>Your way.</h3><p>One reliable movement can open an entire alphabet. You decide what to say.</p></section><p class="rail-note">Teach a face, hand, two-hand, or movement signal. Keep the parts you use visible.</p></aside></div><footer class="footer"><span>DESIGNED FOR INDIVIDUAL EXPRESSION</span><span>Research prototype · Check recognition before use</span></footer></div></div>';
 const camera=new VisionCamera($('#video'),$('#overlay'),onFrame,onCameraState);
 function updateTeachingPreview(){
- const teaching=view==='teach'||busy;document.body.classList.toggle('air-writing',airWriting()||cirrinWriting());document.body.classList.toggle('cirrin-writing',cirrinWriting());$('#air-overlay').hidden=!(airWriting()||cirrinWriting());$('#air-camera-hud').hidden=!(airWriting()||cirrinWriting());document.body.classList.toggle('finger-writing',fingerWriting()||airWriting()||cirrinWriting());$('#finger-camera-hud').hidden=!fingerWriting();$('#finger-camera-message').hidden=!(fingerWriting()||airWriting()||cirrinWriting());
+ const teaching=view==='teach'||busy;document.body.classList.toggle('air-writing',airWriting()||cirrinWriting());document.body.classList.toggle('cirrin-writing',cirrinWriting());document.body.classList.toggle('chord-writing',chordWriting());$('#air-overlay').hidden=!(airWriting()||cirrinWriting());$('#air-camera-hud').hidden=!(airWriting()||cirrinWriting());document.body.classList.toggle('finger-writing',fingerWriting()||airWriting()||cirrinWriting()||chordWriting());$('#finger-camera-hud').hidden=!(fingerWriting()||chordWriting());$('#finger-camera-message').hidden=!(fingerWriting()||airWriting()||cirrinWriting()||chordWriting());
  document.body.classList.toggle('teaching-view',teaching);
  document.body.classList.toggle('teaching-active',busy);
- document.body.classList.toggle('camera-docked',(teaching||fingerWriting()||airWriting()||cirrinWriting())&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
+ document.body.classList.toggle('camera-docked',(teaching||fingerWriting()||airWriting()||cirrinWriting()||chordWriting())&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
  $('#camera-heading').textContent=teaching?'Your live camera':'Your signal';
  const prompt=$('#camera-prompt');prompt.hidden=!teaching;
  const phase=teachingPhase||{title:'See yourself as you learn',detail:'Keep the parts you use in view. Your recording instructions will appear here.',fraction:0};
@@ -68,7 +77,7 @@ new ResizeObserver(syncCameraDock).observe($('.camera-card'));
 window.addEventListener('resize',updateTeachingPreview);
 
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),6500);}
-function setView(next){if(busy){toast('Finish or cancel the current recording first.');return;}view=next;live=false;resetInput();render();syncCameraForContext();$('#main').focus({preventScroll:true});}
+function setView(next){if(chordRace.active){chordRace.cancel();live=false;}if(busy){toast('Finish or cancel the current recording first.');return;}view=next;live=false;resetInput();render();syncCameraForContext();$('#main').focus({preventScroll:true});}
 function render(){
  document.body.dataset.view=view;updateTeachingPreview();
  $('#profile-select').innerHTML=profiles.length?profiles.map(p=>'<option value="'+esc(p.id)+'" '+(p===profile?'selected':'')+'>'+esc(p.name)+'</option>').join(''):'<option>No profile yet</option>';
@@ -98,6 +107,7 @@ function writingGuide(capabilities){
 function renderWriter(){
  if(view!=='write')return;
  composer.configure(profile);saveDraft();renderEnvironmentPicker();
+ if(chordWriting()){renderChordWriter();return;}
  if(cirrinWriting()){renderCirrinWriter();return;}
  if(airWriting()){renderAirWriter();return;}
  if(fingerWriting()){renderFingerWriter();return;}
@@ -171,12 +181,101 @@ function saveEnvironmentSetting(key,value){
  if(profile)persist();else try{localStorage.setItem('relay.environment.v1',JSON.stringify(guestEnvironment));}catch{toast('Environment is available for this session; browser settings could not be saved.');}
 }
 function selectEnvironment(id){
+ chordRace.cancel();chordBook.reset();
  environment=environmentById(id).id;saveEnvironmentSetting('environment',environment);live=false;resetInput();fingerPage='letters';composer.resetFocus();render();syncCameraForContext();
 }
 
 
 
 
+
+
+function renderChordWriter(){
+ const target=chordComposer();target.configure(profile);
+ $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot" style="background:'+(live?'#5a8b38':'#aa9164')+'"></span>'+(chordRace.active?(chordRace.method==='camera'?'Timed camera trial':'Timed keyboard trial'):live?'Chord · camera input active':'Chord · preview your shorthand')+'</span>'+btn(live?'Stop Chord input':'Start Chord input',live?'stop-live':'start-live',live?'small secondary':'small',cameraState==='loading'||chordRace.active?'disabled':'')+'</div>';
+ renderMessage();$('#draft-status').textContent=draftNotice;$('#focus-label').textContent='Chord · words and phrases';
+ $('#keyboard').classList.remove('finger-keyboard');$('#keyboard').setAttribute('aria-label','Chord shorthand');
+ $('#keyboard').innerHTML='<section class="chord-workspace"><div class="chord-heading"><span class="badge">GESTURE SHORTHAND</span><h3>More words. Fewer moves.</h3><p>Close both fists to begin. Your <b>'+(environmentSettings().gridSwap?'right':'left')+' hand chooses bank 0–5</b>; the other hand chooses slot 1–5. When the text is armed, <b>close both fists to send</b>. Keep the slot hand closed while browsing.</p></div><div class="chord-live"><div><span>BANK</span><b id="chord-bank-count">—</b></div><div><span>SLOT</span><b id="chord-slot-count">—</b></div><section><strong id="chord-stage">Ready to practice</strong><p id="chord-preview">One code can write a whole phrase.</p><div class="meter"><div id="chord-meter" style="width:0"></div></div></section></div><div class="chord-mode-row">'+['shortcuts','words','spell'].map(mode=>btn(({shortcuts:'Shortcuts',words:'Word palette',spell:'Spell'})[mode],'chord-mode','small '+(chordBook.mode===mode?'':'secondary'),'data-mode="'+mode+'" '+(chordRace.active?'disabled':'')+' aria-pressed="'+(chordBook.mode===mode)+'"')).join('')+'</div><div id="chord-filter"></div><div id="chord-banks" class="chord-banks" aria-label="Chord banks"></div><div id="chord-deck" class="chord-deck"></div><details class="chord-settings"><summary>Timing & hand roles</summary><label>Time to arm<select id="chord-hold" '+(chordRace.active?'disabled':'')+'>'+[[120,'Fast · 0.12 s'],[180,'Balanced · 0.18 s'],[260,'Steady · 0.26 s']].map(([v,t])=>'<option value="'+v+'" '+((environmentSettings().chordHoldMs||180)===v?'selected':'')+'>'+t+'</option>').join('')+'</select></label><label class="toggle"><input type="checkbox" id="chord-swap" '+(environmentSettings().gridSwap?'checked':'')+' '+(chordRace.active?'disabled':'')+'> Swap bank and slot hands</label><p>If the wrong text arms, lower a hand briefly to cancel, then close both fists to restart.</p></details><details class="chord-codebook"><summary>Full codebook & shortcut editing</summary><div id="chord-codebook"></div></details></section>';
+ $('#writer-help').innerHTML=chordBenchmarkHTML();
+ $('#writer-actions').innerHTML=btn('Focus view','focus','secondary');$('#speech-status').textContent=speechStatus;
+ const details=$('#chord-benchmark');details.addEventListener('toggle',()=>chordBenchmarkOpen=details.open);
+ updateChordDisplay();updateChordBenchmark();updateTeachingPreview();
+}
+function updateChordDeck(){
+ const target=chordComposer(),keys=chordBook.keys(target,shortcuts()),pending=chordStatus?.out?.pending;
+ if(Number.isInteger(pending))chordBank=Math.floor(pending/5);
+ const bank=Math.max(0,Math.min(5,chordBank)),deck=$('#chord-deck');
+ const stamp=JSON.stringify([keys,bank,chordRace.active]);
+ if(deck.dataset.stamp!==stamp){
+  deck.dataset.stamp=stamp;
+  $('#chord-banks').innerHTML=Array.from({length:6},(_,b)=>'<button class="chord-bank '+(b===bank?'selected':'')+'" data-action="chord-bank" data-bank="'+b+'" aria-label="Bank '+b+'" '+(chordRace.active?'disabled':'')+'><b>'+b+'</b><span>'+esc(keys.slice(b*5,b*5+5).filter(k=>k.kind!=='noop').slice(0,2).map(k=>k.label).join(' / ')||'Empty bank')+'</span></button>').join('');
+  deck.innerHTML=keys.slice(bank*5,bank*5+5).map((k,i)=>{const index=bank*5+i;return '<div class="chord-tile"><button class="chord-key" data-action="chord-key" data-index="'+index+'" '+(k.kind==='noop'||chordRace.active?'disabled':'')+'><span class="chord-code">'+chordCode(index)+'</span><span><strong>'+esc(k.label)+'</strong><small>'+esc(k.kind==='shortcut'?k.value:k.kind==='filter'?'Narrow the next letter':k.kind==='word'?'Insert word + space':k.kind==='noop'?'Choose another bank':'Control')+'</small></span></button>'+(k.kind==='shortcut'?btn('Edit','chord-edit','chord-edit secondary small','data-slot="'+k.slot+'" aria-label="Edit shortcut '+chordCode(index)+'" '+(chordRace.active?'disabled':'')):'')+'</div>';}).join('');
+  $('#chord-codebook').innerHTML=keys.map((k,i)=>'<div><b>'+chordCode(i)+'</b><span>'+esc(k.label)+'</span>'+(k.kind==='shortcut'?btn('Edit','chord-edit','small secondary','data-slot="'+k.slot+'" '+(chordRace.active?'disabled':'')):'')+'</div>').join('');
+  $('#chord-filter').innerHTML=chordBook.filters.length?'<div class="chord-filter">Letter groups: '+chordBook.filters.map(g=>['A–E','F–J','K–O','P–T','U–Z'][g]).join(' → ')+' '+btn('Back one group','chord-back-filter','small secondary',chordRace.active?'disabled':'')+'</div>':chordBook.mode==='words'?'<p class="chord-word-help">Choose a word, or use bank 3 to narrow its next letter. Words are matched locally; names can be spelled.</p>':'';
+ }
+ document.querySelectorAll('.chord-key').forEach(b=>b.classList.toggle('armed',Number(b.dataset.index)===pending));
+}
+function updateChordDisplay(){
+ if(!chordWriting()||!$('#chord-stage'))return;
+ updateChordDeck();
+ const pair=chordStatus?.pair||{},out=chordStatus?.out,pending=out?.pending,keys=chordBook.keys(chordComposer(),shortcuts()),k=Number.isInteger(pending)?keys[pending]:null;
+ $('#chord-bank-count').textContent=pair.row??'—';$('#chord-slot-count').textContent=pair.col??'—';
+ $('#chord-stage').textContent=chordRace.active&&chordRace.method==='keyboard'?'Keyboard trial below':!live?'Preview · start when ready':k?'Armed '+chordCode(pending)+' · close both fists':!out?.armed?'Close both fists to begin':pair.col===0?'Browse a bank, then raise 1–5 fingers':'Hold the code briefly';
+ $('#chord-preview').textContent=k?(k.value&&typeof k.value==='string'&&k.kind==='shortcut'?k.value:k.label):pair.reason||'Your slot hand can stay closed while you choose a bank.';
+ $('#chord-meter').style.width=(live?(out?.progress||0)*100:0)+'%';
+ $('#finger-camera-text').textContent=(k?'Armed: '+(k.kind==='shortcut'?k.value:k.label):chordComposer().text.slice(-90))||'Close fists → code → close fists';
+ const swap=environmentSettings().gridSwap;
+ $('#camera-row-count').textContent=(swap?'Slot ':'Bank ')+(swap?pair.col??'—':pair.row??'—');
+ $('#camera-col-count').textContent=(swap?'Bank ':'Slot ')+(swap?pair.row??'—':pair.col??'—');
+ $('#signal-name').textContent=k?k.label:'Chord '+(out?.armed?'ready':'waiting');$('#signal-detail').textContent=k?'Close fists to send':live?'Form a code':'Preview';$('#signal-meter').style.width=(live?(out?.progress||0)*100:0)+'%';
+}
+function onChordFrame(frame){
+ const pair=fingerPair(frame,environmentSettings().gridSwap),out=live&&!activeDialog?chordGate.update(pair,frame.handFrameAt,frame.now):null;
+ chordStatus={pair,out};
+ if(live&&Number.isInteger(pair.row)&&!Number.isInteger(out?.pending))chordBank=pair.row;
+ if(out?.index!==null&&out?.index!==undefined)useChordKey(out.index,'camera');
+ if(frame.now-lastUI>60){lastUI=frame.now;updateChordDisplay();}
+}
+function useChordKey(index,source){
+ if(!chordWriting()||chordRace.active&&(source!=='camera'||chordRace.method!=='camera'))return;
+ const target=chordComposer(),k=chordBook.keys(target,shortcuts())[index];if(!k||k.kind==='noop')return;
+ if(chordRace.active&&k.kind==='action'&&['speak','clear','pause'].includes(k.value)){toast('Finish or stop the trial before using this control.');return;}
+ const effect=chordBook.apply(target,k);
+ if(chordRace.active){
+  const complete=chordRace.update(target.text,performance.now(),{action:true});
+  if(complete){live=false;resetInput();toast('Trial complete. Your comparison is below.');}
+ }else handleEffect(effect);
+ if(k.kind==='mode'||k.kind==='filter')chordBank=0;
+ renderWriter();
+}
+function chordBenchmarkHTML(){
+ return '<details id="chord-benchmark" class="chord-benchmark" '+(chordBenchmarkOpen?'open':'')+'><summary>Race your keyboard</summary><p>Practice the codes first. Compare the same text using ordinary keyboard typing and camera chords. Each trial has a separate draft.</p><label>Scenario<select id="chord-scenario" '+(chordRace.active?'disabled':'')+'>'+Object.entries(RACE_SCENARIOS).map(([id,s])=>'<option value="'+id+'" '+(id===chordRace.scenario?'selected':'')+'>'+s.name+'</option>').join('')+'</select></label><blockquote class="chord-target">'+esc(chordRace.target)+'</blockquote><p class="chord-trial-note">'+esc(RACE_SCENARIOS[chordRace.scenario].note)+'</p><div class="button-row">'+btn('Start keyboard trial','chord-race-start','small secondary','data-method="keyboard" '+(chordRace.active?'disabled':''))+btn('Start camera trial','chord-race-start','small','data-method="camera" '+(chordRace.active?'disabled':''))+btn('Stop trial','chord-race-stop','small secondary',chordRace.active?'':'disabled')+'</div><div class="chord-race-clock"><b id="chord-elapsed">0.0 s</b><span id="chord-race-status"></span></div><label class="field" '+(chordRace.method==='keyboard'?'':'hidden')+'>Keyboard trial text<textarea id="chord-keyboard-trial" rows="4" autocomplete="off" autocapitalize="off" spellcheck="false" '+(chordRace.active&&chordRace.method==='keyboard'?'':'readonly')+'>'+esc(chordRace.method==='keyboard'?chordRace.composer.text:'')+'</textarea></label><pre id="chord-trial-output" '+(chordRace.method==='camera'?'':'hidden')+'></pre><div id="chord-race-results" class="chord-race-results"></div><p class="chord-trial-note">The timer includes selection and corrections, and stops only when the target matches. WPM = characters ÷ 5 ÷ minutes. Camera trials use camera input; keyboard trials block paste and drop. A result on reusable phrases does not establish general typing speed. Results last for this session; export to keep them.</p>'+btn('Export comparison','chord-race-export','small secondary')+'</details>';
+}
+function updateChordBenchmark(){
+ if(!chordWriting()||!$('#chord-race-status'))return;
+ $('#chord-race-status').textContent=chordRace.status;
+ const result=chordRace.completed[chordRace.method],ms=chordRace.active?performance.now()-chordRace.started:result?.elapsedMs||0;
+ $('#chord-elapsed').textContent=(ms/1000).toFixed(1)+' s';
+ $('#chord-trial-output').textContent=chordRace.composer.text||'Your trial text appears here.';
+ const results=chordRace.completed,stamp=JSON.stringify(results),el=$('#chord-race-results');
+ if(el.dataset.stamp!==stamp){el.dataset.stamp=stamp;el.innerHTML=['keyboard','camera'].map(method=>'<div><span>'+method.toUpperCase()+'</span><b>'+(results[method]?results[method].wpm.toFixed(1):'—')+'</b><small>corrected WPM'+(results[method]?' · '+(results[method].elapsedMs/1000).toFixed(1)+' s':'')+'</small></div>').join('')+(results.camera&&results.keyboard?'<p>Camera: <strong>'+(results.camera.wpm/results.keyboard.wpm).toFixed(2)+'×</strong> keyboard throughput on this target. One trial per method.</p>':'');}
+}
+async function startChordRace(method){
+ if(!chordWriting())return;live=false;chordRace.cancel();resetInput();chordBenchmarkOpen=true;
+ if(method==='camera'&&cameraState!=='ready'){await startCamera();if(!chordWriting()||cameraState!=='ready')return;}
+ chordBook.mode=RACE_SCENARIOS[chordRace.scenario].mode;chordBook.filters=[];chordBank=0;chordGate.holdMs=environmentSettings().chordHoldMs||180;
+ chordRace.start(method,performance.now());live=method==='camera';renderWriter();
+ if(method==='keyboard')$('#chord-keyboard-trial').focus();
+}
+document.addEventListener('input',e=>{
+ if(e.target.id==='chord-keyboard-trial'&&chordRace.active&&chordRace.method==='keyboard'){
+  if(chordRace.update(e.target.value,performance.now(),{action:true})){renderWriter();toast('Keyboard trial complete.');}else updateChordBenchmark();
+ }
+});
+for(const event of ['paste','drop','beforeinput'])document.addEventListener(event,e=>{
+ if(e.target.id==='chord-keyboard-trial'&&chordRace.active&&(event!=='beforeinput'||/insertFromPaste|insertFromDrop/.test(e.inputType))){e.preventDefault();chordRace.status='Paste and drop are disabled during keyboard trials.';updateChordBenchmark();}
+});
+setInterval(()=>{if(chordRace.active)updateChordBenchmark();},100);
 
 function renderCirrinWriter(){
  $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot" style="background:'+(live?'#5a8b38':'#aa9164')+'"></span>'+(live?'Cirrin · camera input active':'Cirrin · drag on the ring or start your camera')+'</span>'+btn(live?'Stop Cirrin input':'Start Cirrin input',live?'stop-live':'start-live',live?'small secondary':'small',cameraState==='loading'?'disabled':'')+'</div>';
@@ -265,7 +364,7 @@ function gestureDialog(id,writing=false){
 function selectProfile(id){lastGestureMessage='';if(busy)return;const p=profiles.find(p=>p.id===id);if(!p)return;camera.stop();cameraState='off';cameraMessage='Profile changed. Enable the camera when you’re ready.';profile=p;composer=new RelayComposer(profile);restoreDraft();live=false;latest=null;rebuild();render();}
 function updateCamera(){
  updateTeachingPreview();
- const trailsAllowed=cirrinWriting()||airWriting()||fingerWriting()||profile?.modality!=='face';
+ const trailsAllowed=chordWriting()||cirrinWriting()||airWriting()||fingerWriting()||profile?.modality!=='face';
  $('#trails-toggle').checked=trailsEnabled;$('#trails-toggle').disabled=!trailsAllowed;
  $('#trails-help').textContent=cirrinWriting()?'Your word path stays visible until you insert or clear it.':airWriting()?'Fading trails are optional. Letter ink stays until you insert or clear it.':trailsAllowed?'Trace with your index fingers. Brief tracking gaps reconnect; trails fade in 1.4 seconds.':'Use an all-signals or hand profile for fingertip trails.';
  camera.setTrails?.(trailsEnabled&&trailsAllowed);
@@ -281,7 +380,7 @@ function updateCamera(){
 }
 function onCameraState(state,message){if(state==='ready')queueMicrotask(syncCameraForContext);cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){live=false;resetInput();}updateCamera();if(view==='write')renderWriter();}
 function onFrame(frame){
- latest=frame;if(cirrinWriting()){if(!cirrin.pointerActive)cirrin.update(frame,live&&!activeDialog&&!composer.confirm&&!composer.paused);return;}if(airWriting()){if(live)air.update(frame,!activeDialog&&!composer.confirm&&!composer.paused);return;}if(fingerWriting()){onFingerFrame(frame);return;}if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
+ latest=frame;if(chordWriting()){onChordFrame(frame);return;}if(cirrinWriting()){if(!cirrin.pointerActive)cirrin.update(frame,live&&!activeDialog&&!composer.confirm&&!composer.paused);return;}if(airWriting()){if(live)air.update(frame,!activeDialog&&!composer.confirm&&!composer.paused);return;}if(fingerWriting()){onFingerFrame(frame);return;}if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
  if(recording){recording.total++;if(frame.vector){recording.frames.push(frame.vector);recording.tracked++;}}
  let result=frame.vector?(model?.combined?predictCombined(model,frame.vector):predict(model,frame.vector)):{id:UNKNOWN,reason:'No tracking',score:0};
  let event=null;
@@ -327,7 +426,7 @@ function say(text,cue=false){
  if(!cue)speakingMessage=true;
  speechSynthesis.speak(u);
 }
-async function enableCamera(){if(!profile&&!fingerWriting()&&!airWriting()&&!cirrinWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;resetInput();updateCamera();renderWriter();return;}await startCamera();}
+async function enableCamera(){if(!profile&&!fingerWriting()&&!airWriting()&&!cirrinWriting()&&!chordWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;resetInput();updateCamera();renderWriter();return;}await startCamera();}
 function requireCamera(){if(cameraState!=='ready'){toast('Enable the camera before recording.');return false;}if(!latest?.vector||performance.now()-latest.now>700){toast('Move into view so the camera can track you.');return false;}return true;}
 function progress(title,detail,fraction=0){teachingPhase={title,detail,fraction};updateTeachingPreview();const area=$('#record-area');if(!area)return;area.innerHTML='<div class="record-panel" role="status"><div class="eyebrow">GUIDED PRACTICE</div><h3 style="margin-top:12px">'+esc(title)+'</h3><p>'+esc(detail)+'</p><progress max="1" value="'+fraction+'"></progress><div style="margin-top:16px">'+btn('Cancel','cancel-task','small secondary')+'</div></div>';}
 async function waitPhase(ms,title,detail,token){const start=performance.now();while(performance.now()-start<ms){if(token!==task)throw new Error('Cancelled');progress(title,detail,Math.min(1,(performance.now()-start)/ms));await sleep(100);}}
@@ -390,6 +489,11 @@ function download(name,data){const url=URL.createObjectURL(new Blob([data],{type
 function exportOne(id){const p=profiles.find(p=>p.id===id);if(p)download('relay-'+p.name.replace(/[^a-z0-9]/gi,'-')+'.json',exportProfile(p));}
 function deleteProfile(id){const p=profiles.find(p=>p.id===id);if(!p)return;openDialog(dialogHeader('Delete this profile?')+'<p>'+esc(p.name)+' and its recordings will be removed from this browser. Export a backup first if you want to keep it.</p><div class="button-row">'+btn('Export backup','export-profile','secondary','data-id="'+p.id+'"')+btn('Delete profile','confirm-delete-profile','danger','data-id="'+p.id+'"')+'</div>');}
 async function startLive(){
+ if(chordWriting()){
+  chordRace.cancel();resetInput();chordGate.holdMs=environmentSettings().chordHoldMs||180;
+  if(cameraState!=='ready'){await startCamera();if(!chordWriting()||cameraState!=='ready')return;}
+  live=true;renderWriter();toast('Close both fists to arm. Form a code, then close both fists to send.');return;
+ }
  if(cirrinWriting()){
   resetInput();if(cameraState!=='ready'){await startCamera();if(!cirrinWriting()||cameraState!=='ready')return;}
   live=true;renderWriter();toast('Pinch in the center, visit letters, then release to review your word.');return;
@@ -412,6 +516,7 @@ async function startLive(){
 document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-action]');if(!b)return;e.preventDefault();const a=b.dataset.action,id=b.dataset.id;
  try{
+  if(chordRace.active&&!a.startsWith('chord-')){chordRace.cancel('Trial cancelled when leaving the test controls.');live=false;resetInput();renderWriter();}
   if(a.startsWith('nav-'))return setView(a.slice(4));
   if(a==='close-dialog'){activeDialog?.close();return;}
   if(a==='cancel-task'){cancelTask();return;}
@@ -439,6 +544,14 @@ document.addEventListener('click',async e=>{
   if(a==='import')return $('#import-file').click();
   if(a==='export-report'){download('relay-validation.json',JSON.stringify({app:'Relay',profile:profile.name,modality:profile.modality,revision:profile.revision||0,settings:profile.settings,summary:trialSummary(currentTrials()),breakdown:confusionRows(profile),trainingDiagnostics:signalDiagnostics(model),practiceMilestones:readiness(profile,model),trials:profile.trials,limitations:'User-recorded practice results, not clinical validation. Separate attempts; no frame-level train/test split.'},null,2));return;}
   if(a==='start-live')return await startLive();
+  if(a==='chord-bank'){if(chordRace.active)return;live=false;resetInput();chordBank=Number(b.dataset.bank);renderWriter();return;}
+  if(a==='chord-key'){if(chordRace.active){toast('Use the selected input method during the timed trial.');return;}live=false;resetInput();useChordKey(Number(b.dataset.index),'pointer');return;}
+  if(a==='chord-mode'){if(chordRace.active)return;chordBank=0;chordBook.mode=b.dataset.mode;chordBook.filters=[];resetInput();renderWriter();return;}
+  if(a==='chord-back-filter'){if(chordRace.active)return;chordBook.filters.pop();resetInput();renderWriter();return;}
+  if(a==='chord-edit'){if(chordRace.active)return;live=false;resetInput();const slot=Number(b.dataset.slot||0),entry=shortcuts()[slot];renderWriter();openDialog(dialogHeader('Shortcut '+chordCode(slot))+'<form id="chord-shortcut-form" data-slot="'+slot+'"><label class="field">Label<input name="title" maxlength="50" required value="'+esc(entry.title)+'"></label><label class="field">Text to insert<textarea name="text" maxlength="500" rows="6" required>'+esc(entry.text)+'</textarea></label><label class="toggle"><input type="checkbox" name="verbatim" '+(entry.verbatim?'checked':'')+'> Insert exactly, preserving whitespace (useful for code)</label><p class="small-text muted">Otherwise, Relay adds spaces between text blocks. This shortcut keeps its code and is saved in this browser.</p><button class="button" type="submit">Save shortcut</button></form>');return;}
+  if(a==='chord-race-start'){await startChordRace(b.dataset.method);return;}
+  if(a==='chord-race-stop'){chordRace.cancel();live=false;resetInput();renderWriter();return;}
+  if(a==='chord-race-export'){download('relay-speed-comparison.json',JSON.stringify({app:'Relay',protocol:'Same target, explicit start, exact-text completion, timing includes corrections. WPM = target characters / 5 / elapsed minutes. Camera trial blocks pointer text entry; keyboard trial blocks paste/drop. Reusable-text results measure text expansion.',results:chordRace.results},null,2));return;}
   if(a==='cirrin-guide'){cirrin.guide=!cirrin.guide;updateCirrinDisplay();return;}
   if(a==='cirrin-center'){if(!cirrin.centerOnHand(performance.now()))toast('Enable the camera and keep your drawing hand visible, then center again.');updateCirrinDisplay();return;}
   if(a==='cirrin-clear'){cirrin.reset();updateCirrinDisplay();return;}
@@ -462,7 +575,7 @@ document.addEventListener('click',async e=>{
   if(a==='inspect-gesture'){setView('teach');gestureDialog(id);return;}
   if(a==='writer-settings')return setView('profiles');
   if(a==='copy'){try{await navigator.clipboard.writeText(composer.text);toast('Message copied.');}catch{toast('Clipboard is unavailable in this browser.');}return;}
-  if(a==='speak'){handleEffect(composer.apply({type:'speak'}));renderWriter();return;}
+  if(a==='speak'){if(chordWriting())chordGate.reset();handleEffect(composer.apply({type:'speak'}));renderWriter();return;}
   if(['manual-next','manual-select','key','back-rows'].includes(a)){
    if(live){live=false;resetInput();toast('Switched to pointer preview. Use my gestures to resume camera input.');}
    let effect;if(a==='manual-next')composer.next();if(a==='manual-select')effect=composer.select();if(a==='back-rows')composer.resetFocus();
@@ -474,6 +587,12 @@ document.addEventListener('click',async e=>{
 document.addEventListener('submit',async e=>{
  e.preventDefault();const f=e.target,data=new FormData(f);
  try{
+  if(f.id==='chord-shortcut-form'){
+   const slot=Number(f.dataset.slot),entries=shortcuts().map(s=>({...s}));entries[slot]={title:String(data.get('title')).trim(),text:String(data.get('text')),verbatim:data.has('verbatim')};
+   if(!validShortcuts(entries))throw new Error('Use a label and up to 500 characters of text for each shortcut.');
+   if(profile){profile.chordShortcuts=entries;persist();}else{localStorage.setItem('relay.chord.shortcuts.v1',JSON.stringify(entries));guestShortcuts=entries;}
+   activeDialog?.close();renderWriter();toast('Shortcut saved at '+chordCode(slot)+'.');return;
+  }
   if(f.id==='profile-form'){profile=createProfile(String(data.get('name')),'combined');profiles.push(profile);camera.stop();cameraState='off';cameraMessage='Enable your camera to begin calibration.';live=false;composer=new RelayComposer(profile);restoreDraft();persist();rebuild();activeDialog?.close();setView('teach');return;}
   if(f.id==='gesture-form'){
    if(data.get('action')==='insert'&&!String(data.get('value')).length)throw new Error('Enter the letter, word, or phrase this gesture should write.');
@@ -496,6 +615,9 @@ document.addEventListener('submit',async e=>{
  }catch(err){toast(err.message);}
 });
 document.addEventListener('change',async e=>{
+ if(e.target.id==='chord-swap'){if(chordRace.active)return;saveEnvironmentSetting('gridSwap',e.target.checked);live=false;resetInput();renderWriter();return;}
+ if(e.target.id==='chord-hold'){if(chordRace.active)return;saveEnvironmentSetting('chordHoldMs',Number(e.target.value));chordGate.holdMs=Number(e.target.value);live=false;resetInput();renderWriter();return;}
+ if(e.target.id==='chord-scenario'){if(chordRace.select(e.target.value)){live=false;resetInput();renderWriter();}return;}
  if(e.target.id==='environment-select'){selectEnvironment(e.target.value);return;}
  if(e.target.id==='cirrin-gain'){saveEnvironmentSetting('cirrinGain',Number(e.target.value));cirrin.setGain(Number(e.target.value));live=false;renderWriter();return;}
  if(e.target.id==='finger-hold'||e.target.id==='finger-swap'){saveEnvironmentSetting(e.target.id==='finger-hold'?'gridHoldMs':'gridSwap',e.target.id==='finger-hold'?Number(e.target.value):e.target.checked);live=false;resetInput();fingerGate.holdMs=environmentSettings().gridHoldMs||850;renderWriter();return;}
@@ -510,14 +632,14 @@ document.addEventListener('change',async e=>{
  if(e.target.id==='import-file'){try{const file=e.target.files[0];if(!file)return;const p=importProfile(await file.text());profiles.push(p);persist();selectProfile(p.id);toast('Profile imported. Check recognition in your current camera setup.');}catch(err){toast('Import failed: '+err.message);}}
 });
 document.addEventListener('keydown',e=>{
- if(cirrinWriting()||airWriting()||fingerWriting()||view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+ if(chordWriting()||cirrinWriting()||airWriting()||fingerWriting()||view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
  if(e.key==='ArrowRight'){e.preventDefault();composer.next();renderWriter();}
  if(e.key==='Enter'&&e.target===document.body){e.preventDefault();handleEffect(composer.select());renderWriter();}
 });
-document.addEventListener('visibilitychange',()=>{resetInput();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
+document.addEventListener('visibilitychange',()=>{const wasTrial=chordRace.active;if(document.hidden)chordRace.cancel('Trial cancelled while the app was hidden.');resetInput();if(document.hidden&&wasTrial&&chordWriting())renderWriter();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
 window.addEventListener('beforeunload',()=>{camera.stop();air.model.close();});
 setInterval(()=>{
- if(!cirrinWriting()&&!airWriting()&&!fingerWriting()&&live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
+ if(!chordWriting()&&!cirrinWriting()&&!airWriting()&&!fingerWriting()&&live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
   const now=performance.now();if(now-lastTracking>700){lastScan=now;return;}
   // Stop the scanning highlight while a deliberate selection is in progress.
   if(gate.candidate||gate.progress>0||gate.motionActive){lastScan=now;return;}
@@ -528,6 +650,7 @@ render();
 
 
 function restoreDraft(){
+ chordRace.cancel();chordRace.results={};chordBook.reset();chordGate.holdMs=environmentSettings().chordHoldMs||180;
  cirrin.setGain(environmentSettings().cirrinGain||2.4);cirrin.centered=false;environment=environmentById(environmentSettings().environment).id;fingerPage='letters';fingerGate.holdMs=environmentSettings().gridHoldMs||850;resetInput();lastGestureMessage='';
  draftSavedText=null;draftNotice='';
  try{composer.text=readDraft(profile);draftSavedText=composer.text;if(composer.text)draftNotice='· Draft restored';}

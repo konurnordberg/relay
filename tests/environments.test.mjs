@@ -6,7 +6,7 @@ import {RelayComposer} from '../dist/src/communication.js';
 import {createProfile,exportProfile,importProfile} from '../dist/src/storage.js';
 import {hand,pairHands} from './hand-fixture.mjs';
 test('classic is default; environment preferences roundtrip without retraining',()=>{
- assert.equal(environmentById(undefined).id,'classic');assert.equal(ENVIRONMENTS.length,4);
+ assert.equal(environmentById(undefined).id,'classic');assert.equal(ENVIRONMENTS.length,5);
  const p=createProfile('Environment');p.settings.environment='finger-grid';p.settings.gridSwap=true;p.settings.gridHoldMs=1200;
  const imported=importProfile(exportProfile(p));assert.equal(imported.settings.environment,'finger-grid');assert.equal(imported.settings.gridSwap,true);
  assert.equal(imported.settings.gridHoldMs,1200);p.settings.environment='unrecognized';assert.throws(()=>exportProfile(p),/environment/);

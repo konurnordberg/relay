@@ -3,6 +3,25 @@
 
 Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held poses and short movements, then turns recognized signals into controls for writing and speaking original text.
 
+## New in 1.6 — Chord speed writing
+
+Chord uses gesture shorthand to insert whole words or reusable text blocks. The speed hypothesis is **more text per deliberate action**, inspired by chorded input such as [Open Steno](https://www.openstenoproject.org/), not faster letter-by-letter finger tracing.
+
+1. Open **Write & speak → Chord · speed writing → Start Chord input**. No calibration or paid API is needed.
+2. Keep both whole hands visible on opposite sides of the mirrored preview. Close both fists to begin.
+3. The hand on the preview's left chooses **bank 0–5**. Keep the other hand closed while browsing. Raise **1–5 fingers** on that other hand to choose a slot.
+4. The selected text turns green after a short stable hold. **Close both fists to send it.** Intermediate finger counts while closing cannot change the armed choice. To cancel an armed choice, lower one hand for at least 0.3 seconds, then show both fists again.
+5. Twenty editable shortcuts keep fixed codes; edit one to contain a frequently used phrase or code snippet. **Insert exactly** preserves whitespace for code. Word palette offers local next-word choices and five ambiguous prefix groups in bank 3; Spell and Symbols reach the full printable ASCII set.
+6. **Race your keyboard** compares the same target with keyboard and camera input. The reusable-phrase scenario uses the starter codebook during the timed trial (0·1, 0·3, 1·3), even if personal shortcuts have been edited. The word scenario requires word selection/spelling. Practice first. Export the comparison to preserve session results.
+
+Each trial starts explicitly, ends only on an exact target match (trailing whitespace allowed), and includes correction time. WPM is target characters / 5 / elapsed minutes. Keyboard paste/drop and pointer text entry during camera trials are blocked. Separate trial drafts protect the regular message. Results are the most recent trial per method/scenario, not population averages. Exported results are a local practice log, not tamper-proof evidence.
+
+**We have not established that Chord beats a physical keyboard on novel prose.** Reusable phrase throughput measures text expansion, which also has keyboard-based alternatives. Learning time, camera latency, correction rate, fatigue and live recognition require user testing. No language model writes or guesses sentences for the user.
+
+Chord runs one local two-hand MediaPipe worker on CPU; no face model is loaded. Its release gate requires fresh frames and cancels on loss or staleness. Timing is configurable at 120/180/260 ms. Existing environments retain their camera settings. Shortcuts persist per profile (and in profile backups), or in a separate guest store. No video or landmark stream is saved.
+
+Validation: node tests/chord.test.mjs covers all 30 codes, cancellation, stale frames, text/undo, full ASCII, profile validation and timing math. node tests/chord-browser.mjs exercises controlled hand landmarks through phrases, word composition, editable literal snippets, benchmark isolation, mobile layout and persistence. node tests/chord-camera.mjs checks worker setup, startup/runtime fallback and real bundled MediaPipe initialization. These automated inputs are not live-user speed or accuracy measurements.
+
 ## New in 1.5: Cirrin ring
 A fourth communication environment follows the word-level circular keyboard interaction introduced by Jennifer Mankoff and Gregory Abowd in 1998: https://sites.cc.gatech.edu/fce/pendragon/publications/cirrin98.pdf
 

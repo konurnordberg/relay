@@ -17,11 +17,11 @@ export class VisionCamera{
    const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},frameRate:{ideal:60,max:60},...(deviceId?{deviceId:{exact:deviceId}}:{facingMode:'user'})},audio:false});
    if(session!==this.session){stream.getTracks().forEach(t=>t.stop());return;}
    this.stream=stream;this.cameraSettings=stream.getVideoTracks()[0].getSettings();this.video.srcObject=stream;await this.video.play();if(session!==this.session)return;
-   const kinds=mode==='combined'?['hand','face']:[mode];
+   const kinds=mode==='combined'?['hand','face']:mode==='hands'?['hand']:[mode];
    if(typeof Worker!=='undefined'&&typeof OffscreenCanvas!=='undefined'&&typeof createImageBitmap==='function'){
     try{
      this.lanes=kinds.map(kind=>new VisionLane(kind,data=>this.receive(data,session),error=>this.recover(error,session)));
-     await Promise.all(this.lanes.map(l=>l.start(mode==='combined'?2:1,l.kind==='hand'?this.handDelegate:'GPU')));
+     await Promise.all(this.lanes.map(l=>l.start(['combined','hands'].includes(mode)?2:1,l.kind==='hand'?this.handDelegate:'GPU')));
      this.backend='workers';
     }catch(error){
      if(session!==this.session)return;this.lanes.forEach(l=>l.close());this.lanes=[];
@@ -39,7 +39,7 @@ export class VisionCamera{
   for(const kind of kinds){
    const options={baseOptions:{modelAssetPath:new URL('../models/'+kind+'_landmarker.task',import.meta.url).href,delegate:kind==='hand'?this.handDelegate:'GPU'},runningMode:'VIDEO'};
    if(kind==='face')Object.assign(options,{numFaces:1,outputFaceBlendshapes:true,minFaceDetectionConfidence:.6,minFacePresenceConfidence:.6,minTrackingConfidence:.6});
-   else Object.assign(options,{numHands:this.mode==='combined'?2:1,minHandDetectionConfidence:.6,minHandPresenceConfidence:.6,minTrackingConfidence:.35});
+   else Object.assign(options,{numHands:['combined','hands'].includes(this.mode)?2:1,minHandDetectionConfidence:.6,minHandPresenceConfidence:.6,minTrackingConfidence:.35});
    const Factory=kind==='face'?FaceLandmarker:HandLandmarker;let model;
    try{model=await Factory.createFromOptions(files,options);}catch{options.baseOptions.delegate='CPU';model=await Factory.createFromOptions(files,options);}
    if(session!==this.session){model.close();return;}
@@ -53,7 +53,7 @@ export class VisionCamera{
   this.onFrame({vector:null,now:performance.now(),latency:0});
   this.onState('loading','Restarting camera tracking…');
   try{
-   await this.loadMain(this.mode==='combined'?['hand','face']:[this.mode],session);
+   await this.loadMain(this.mode==='combined'?['hand','face']:this.mode==='hands'?['hand']:[this.mode],session);
    if(session!==this.session)return;
    this.running=true;this.onState('ready','Camera ready');this.scheduleVideo();this.loop();
   }catch(e){if(session===this.session){this.stop();this.onState('error',friendlyCameraError(e));}}
