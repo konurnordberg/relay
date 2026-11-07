@@ -1,3 +1,6 @@
+import {CirrinInput} from './cirrin-input.js';
+import {drawCirrin} from './cirrin-view.js';
+import {wordInsertion} from './cirrin-core.js';
 import {AirWriter} from './air-writing.js';
 import {ENVIRONMENTS,environmentById,GRID_PAGES,PAGE_NAMES,gridKeys,applyGridKey} from './environments.js';
 import {FingerPairTracker,FingerIndexGate} from './finger-index.js';
@@ -6,7 +9,7 @@ import {CHANNELS,channelIndices} from './features.js';
 import {REST,UNKNOWN,train,predict,summarize,EventGate,Composer,trialSummary} from './core.js';
 import {createProfile,loadProfiles,saveProfiles,exportProfile,importProfile} from './storage.js';
 import {VisionCamera} from './camera.js';
-import {RelayComposer,STARTER_PHRASES,writingCapabilities} from './communication.js';
+import {RelayComposer,STARTER_PHRASES,writingCapabilities,COMMON} from './communication.js';
 import {studioView,liveInsightHTML,vocabularyView} from './views.js';
 import {signalDiagnostics,confusionRows,readiness} from './insights.js';
 import {readDraft,writeDraft,removeDraft} from './drafts.js';
@@ -21,19 +24,21 @@ let cameraState='off',cameraMessage='Your camera stays off until you start it.',
 let teachingPhase=null,lastGestureMessage='';
 let toastTimer,scanVoice='',speechStatus='',activeDialog=null;
 let draftSavedText=null,draftNotice='',speakingMessage=false;
-let guestEnvironment={environment:'classic',gridHoldMs:850,gridSwap:false};
-try{const saved=JSON.parse(localStorage.getItem('relay.environment.v1')||'{}');if(ENVIRONMENTS.some(e=>e.id===saved.environment))guestEnvironment.environment=saved.environment;if([600,850,1200,1600].includes(saved.gridHoldMs))guestEnvironment.gridHoldMs=saved.gridHoldMs;if(typeof saved.gridSwap==='boolean')guestEnvironment.gridSwap=saved.gridSwap;}catch{}
+let guestEnvironment={environment:'classic',gridHoldMs:850,gridSwap:false,cirrinGain:2.4};
+try{const saved=JSON.parse(localStorage.getItem('relay.environment.v1')||'{}');if(ENVIRONMENTS.some(e=>e.id===saved.environment))guestEnvironment.environment=saved.environment;if([600,850,1200,1600].includes(saved.gridHoldMs))guestEnvironment.gridHoldMs=saved.gridHoldMs;if([1.3,1.8,2.4].includes(saved.cirrinGain))guestEnvironment.cirrinGain=saved.cirrinGain;if(typeof saved.gridSwap==='boolean')guestEnvironment.gridSwap=saved.gridSwap;}catch{}
 const environmentSettings=()=>profile?.settings||guestEnvironment;
 let environment=environmentById(environmentSettings().environment).id,fingerPage='letters',fingerStatus=null;
 const fingerTracker=new FingerPairTracker();
 const air=new AirWriter(()=>{if(airWriting())updateAirDisplay();},letter=>{if(!airWriting()||composer.confirm||composer.paused)return;handleEffect(composer.apply({type:'text',value:composer.caps?letter:letter.toLowerCase()}));renderWriter();});
+const cirrin=new CirrinInput(()=>{if(cirrinWriting())updateCirrinDisplay();},word=>{if(!cirrinWriting()||composer.confirm||composer.paused)return;handleEffect(composer.apply({type:'text',value:wordInsertion(composer.text,word,composer.caps)}));renderWriter();});
 const fingerGate=new FingerIndexGate(environmentSettings().gridHoldMs||850);
+const cirrinWriting=()=>view==='write'&&environment==='cirrin';
 const airWriting=()=>view==='write'&&environment==='air-letters';
 const fingerWriting=()=>view==='write'&&environment==='finger-grid';
 const cameraMode=()=>view==='write'&&environmentById(environment).cameraMode!=='profile'?environmentById(environment).cameraMode:profile?.modality||'combined';
 const handDelegate=()=>view==='write'?environmentById(environment).handDelegate:'GPU';
 const startCamera=()=>camera.start(cameraMode(),'',handDelegate());
-function resetInput(){gate.reset();fingerGate.reset();fingerTracker.reset();fingerStatus=null;air.reset();}
+function resetInput(){gate.reset();fingerGate.reset();fingerTracker.reset();fingerStatus=null;air.reset();cirrin.reset();}
 function syncCameraForContext(){if(camera.running&&(camera.mode!==cameraMode()||(camera.handDelegate!==undefined&&camera.handDelegate!==handDelegate())))startCamera();}
 
 const actions={select:'Select',next:'Next',delete:'Delete',undo:'Undo',speak:'Speak',pause:'Pause',insert:'Insert text'};
@@ -46,10 +51,10 @@ rebuild();restoreDraft();
 $('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home"><img src="./favicon.svg" alt="">relay<span class="sr-only">home</span></a><div><div class="eyebrow nav-label">YOUR WORKSPACE</div><nav class="nav" aria-label="Main navigation">'+navigation.map(([id,label,icon])=>'<button data-action="nav-'+id+'" data-nav="'+id+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+label+'</span></button>').join('')+'</nav></div><div class="side-bottom"><div class="privacy-note"><strong>◌ &nbsp; Built around you.</strong>Your camera is processed on this device. Your gesture profile stays in this browser.</div><div class="side-foot">TRIANGLE AI HACKATHON · 2026</div></div></aside><div class="workspace"><header class="topbar"><div class="breadcrumb">Your movement <span>/</span> <b id="page-label">Overview</b></div><div class="profile-switch"><span class="avatar" aria-hidden="true">↗</span><label class="sr-only" for="profile-select">Active profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3 id="camera-heading">Your signal</h3><span class="pill" id="camera-pill">CAMERA OFF</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><canvas id="air-overlay" aria-hidden="true" hidden></canvas><div class="camera-placeholder" id="camera-placeholder"><div class="face-outline" aria-hidden="true"></div><p>A little movement goes a long way.</p></div><div class="air-camera-hud" id="air-camera-hud" hidden></div><div class="finger-camera-hud" id="finger-camera-hud" hidden><span id="camera-row-count">Row —</span><span id="camera-col-count">Column —</span></div><div class="camera-corners"></div><span class="camera-tag">LOCAL VISION · NO VIDEO UPLOAD</span></div><div class="camera-prompt" id="camera-prompt" hidden><div class="eyebrow">FOLLOW ALONG</div><h3 id="camera-prompt-title"></h3><p id="camera-prompt-detail"></p><progress id="camera-prompt-progress" max="1" value="0" aria-label="Current recording phase"></progress><button class="button small secondary" data-action="cancel-task" id="camera-prompt-cancel">Cancel recording</button></div><div class="camera-controls"><div class="finger-camera-message" id="finger-camera-message" hidden><span>YOUR MESSAGE</span><p id="finger-camera-text"></p></div><p class="camera-status" id="camera-status"></p><button class="button" id="camera-button" data-action="camera">Enable camera ↗</button></div><div class="trail-controls"><label class="trail-toggle"><input id="trails-toggle" type="checkbox" role="switch" aria-describedby="trails-help"><span class="trail-switch" aria-hidden="true"></span><span>Enable trails</span><span class="trail-spark" aria-hidden="true">✧</span></label><p id="trails-help">Draw with your index fingers. Neon trails fade in a moment.</p></div><p id="camera-performance" class="camera-performance" hidden></p><div id="tracking-parts" class="tracking-parts" aria-label="Visible body parts"></div><div class="recognition"><div class="eyebrow">LIVE RECOGNITION</div><div class="signal-name"><span id="signal-name">Waiting for you</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div></section><section class="card rail-quote"><div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><h3>Your words.<br>Your way.</h3><p>One reliable movement can open an entire alphabet. You decide what to say.</p></section><p class="rail-note">Teach a face, hand, two-hand, or movement signal. Keep the parts you use visible.</p></aside></div><footer class="footer"><span>DESIGNED FOR INDIVIDUAL EXPRESSION</span><span>Research prototype · Check recognition before use</span></footer></div></div>';
 const camera=new VisionCamera($('#video'),$('#overlay'),onFrame,onCameraState);
 function updateTeachingPreview(){
- const teaching=view==='teach'||busy;document.body.classList.toggle('air-writing',airWriting());$('#air-overlay').hidden=!airWriting();$('#air-camera-hud').hidden=!airWriting();document.body.classList.toggle('finger-writing',fingerWriting()||airWriting());$('#finger-camera-hud').hidden=!fingerWriting();$('#finger-camera-message').hidden=!(fingerWriting()||airWriting());
+ const teaching=view==='teach'||busy;document.body.classList.toggle('air-writing',airWriting()||cirrinWriting());document.body.classList.toggle('cirrin-writing',cirrinWriting());$('#air-overlay').hidden=!(airWriting()||cirrinWriting());$('#air-camera-hud').hidden=!(airWriting()||cirrinWriting());document.body.classList.toggle('finger-writing',fingerWriting()||airWriting()||cirrinWriting());$('#finger-camera-hud').hidden=!fingerWriting();$('#finger-camera-message').hidden=!(fingerWriting()||airWriting()||cirrinWriting());
  document.body.classList.toggle('teaching-view',teaching);
  document.body.classList.toggle('teaching-active',busy);
- document.body.classList.toggle('camera-docked',(teaching||fingerWriting()||airWriting())&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
+ document.body.classList.toggle('camera-docked',(teaching||fingerWriting()||airWriting()||cirrinWriting())&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
  $('#camera-heading').textContent=teaching?'Your live camera':'Your signal';
  const prompt=$('#camera-prompt');prompt.hidden=!teaching;
  const phase=teachingPhase||{title:'See yourself as you learn',detail:'Keep the parts you use in view. Your recording instructions will appear here.',fraction:0};
@@ -93,6 +98,7 @@ function writingGuide(capabilities){
 function renderWriter(){
  if(view!=='write')return;
  composer.configure(profile);saveDraft();renderEnvironmentPicker();
+ if(cirrinWriting()){renderCirrinWriter();return;}
  if(airWriting()){renderAirWriter();return;}
  if(fingerWriting()){renderFingerWriter();return;}
  $('#keyboard').classList.remove('finger-keyboard');$('#keyboard').setAttribute('aria-label','Accessible keyboard');
@@ -171,6 +177,39 @@ function selectEnvironment(id){
 
 
 
+
+function renderCirrinWriter(){
+ $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot" style="background:'+(live?'#5a8b38':'#aa9164')+'"></span>'+(live?'Cirrin · camera input active':'Cirrin · drag on the ring or start your camera')+'</span>'+btn(live?'Stop Cirrin input':'Start Cirrin input',live?'stop-live':'start-live',live?'small secondary':'small',cameraState==='loading'?'disabled':'')+'</div>';
+ renderMessage();$('#draft-status').textContent=draftNotice;$('#focus-label').textContent=composer.confirm?'Confirm '+composer.confirm:composer.paused?'Paused':'Cirrin · one stroke per word';
+ const command=(label,type,value='')=>btn(label,'cirrin-command','secondary small','data-kind="'+type+'" data-value="'+esc(value)+'"');
+ const controls=composer.confirm?command('Cancel','cancel')+command(composer.confirm==='speak'?'Speak now':'Clear message','confirm'):composer.paused?command('Resume','resume'):command('Space','text',' ')+command('.','punctuation','.')+command(',','punctuation',',')+command('?','punctuation','?')+command('Delete','delete')+command('Undo','undo')+command(composer.caps?'abc':'ABC','caps')+command('Clear message','clear');
+ const keyboard=$('#keyboard');keyboard.classList.remove('finger-keyboard');keyboard.setAttribute('aria-label','Cirrin circular keyboard');
+ keyboard.innerHTML='<section class="cirrin-workspace"><div class="cirrin-heading"><div><span class="badge">CIRCULAR WORD INPUT</span><h3>A word in one stroke.</h3></div><button class="button small secondary" data-action="cirrin-guide" id="cirrin-guide-button" aria-pressed="'+cirrin.guide+'">Show HELLO route</button></div><p class="cirrin-instructions" id="cirrin-instructions"><b>Pinch in the center</b> to start. Keep pinching as you visit each letter tile. Travel through the open center to skip other letters. <b>Release to review</b>, then hold a thumbs-up to insert your word and a space.</p><div class="cirrin-board"><canvas id="cirrin-canvas" width="640" height="640" aria-label="Circular alphabet keyboard" aria-describedby="cirrin-instructions" tabindex="0"></canvas></div><div class="cirrin-feedback" aria-live="polite"><span class="eyebrow">CAPTURED WORD</span><strong id="cirrin-word">Your word will appear here</strong><p id="cirrin-status"></p></div><div class="cirrin-choices" id="cirrin-choices" aria-label="Word insertion choices"></div><div class="button-row cirrin-tools">'+btn('Review trace','cirrin-review','secondary small')+btn('Remove last letter','cirrin-back','secondary small')+btn('Clear trace','cirrin-clear','secondary small')+'</div><p class="cirrin-repeat">Double letter? Move inward, then back to the same tile. For <b>hello</b>: H → E → L → inward → L → O.</p><details class="cirrin-options"><summary>Movement range & positioning</summary><label>Movement needed<select id="cirrin-gain" aria-label="Cirrin movement range">'+[[2.4,'Small movements'],[1.8,'Medium movements'],[1.3,'Large movements']].map(([v,label])=>'<option value="'+v+'" '+(cirrin.gain===v?'selected':'')+'>'+label+'</option>').join('')+'</select></label><p>To reposition the dial, hold your drawing fingertip comfortably in view and use your other hand to press this button.</p>'+btn('Center on my finger','cirrin-center','small secondary')+'</details><details class="cirrin-manual"><summary>Click letters to spell or correct</summary><div>'+Array.from('abcdefghijklmnopqrstuvwxyz',c=>btn(c.toUpperCase(),'cirrin-letter','secondary small','data-letter="'+c+'" aria-label="Add '+c.toUpperCase()+' to word"')).join('')+'</div></details><p class="cirrin-credit">Inspired by <a href="https://sites.cc.gatech.edu/fce/pendragon/publications/cirrin98.pdf" target="_blank" rel="noopener noreferrer">Cirrin, Mankoff & Abowd (1998)</a>. Relay uses an alphabetical layout, webcam input, and explicit word review. Nearby words are optional local vocabulary suggestions.</p></section><div class="button-row cirrin-message-tools">'+controls+'</div>';
+ $('#writer-help').innerHTML='<div class="keyboard-help"><span>Thumbs-up inserts your exact captured spelling.</span><span>Each inserted word can be undone in one step.</span></div>';
+ $('#writer-actions').innerHTML=btn('Focus view','focus','secondary');$('#speech-status').textContent=speechStatus;
+ const canvas=$('#cirrin-canvas'),point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height};};
+ canvas.addEventListener('pointerdown',e=>{if(composer.confirm||composer.paused)return;e.preventDefault();live=false;cirrin.pointerActive=true;canvas.setPointerCapture(e.pointerId);cirrin.pointer(point(e),true,performance.now());$('#writer-status .status').textContent='Ring pointer · camera input paused';const b=$('#writer-status button');b.textContent='Start Cirrin input';b.dataset.action='start-live';});
+ canvas.addEventListener('pointermove',e=>{if(cirrin.pointerActive){const samples=e.getCoalescedEvents?.()||[];for(const p of samples.length?samples:[e])cirrin.pointer(point(p),true,p.timeStamp);}});
+ const up=e=>{if(!cirrin.pointerActive)return;cirrin.pointerActive=false;if(e.type==='pointercancel')cirrin.trace.interrupt();else cirrin.pointer(point(e),false,performance.now());updateCirrinDisplay();};
+ canvas.addEventListener('pointerup',up);canvas.addEventListener('pointercancel',up);
+ updateCirrinDisplay();updateTeachingPreview();
+}
+function updateCirrinDisplay(){
+ if(!cirrinWriting()||!$('#cirrin-canvas'))return;
+ const trace=cirrin.trace,choices=cirrin.choices([...composer.personalWords,...COMMON]),blocked=!!composer.confirm||composer.paused;
+ drawCirrin($('#cirrin-canvas'),cirrin);drawCirrin($('#air-overlay'),cirrin,{camera:true});
+ $('#finger-camera-text').textContent=composer.text.slice(-60)||'Your next thought…';
+ $('#air-camera-hud').textContent=trace.word?trace.word.toUpperCase()+(trace.phase==='review'?' · review':''):'Pinch in center';
+ $('#cirrin-word').textContent=trace.word?(composer.caps?trace.word.toUpperCase():trace.word):'Your word will appear here';
+ $('#cirrin-status').textContent=blocked?'Finish the message confirmation before tracing.':trace.interrupted?'Tracking interrupted. Check the captured spelling before inserting.':trace.hint;
+ const el=$('#cirrin-choices'),stamp=JSON.stringify([choices,composer.caps,blocked]);
+ if(el.dataset.stamp!==stamp){el.dataset.stamp=stamp;el.innerHTML=choices.map((c,i)=>btn(esc(composer.caps?c.word.toUpperCase():c.word)+'<small>'+c.kind+' · insert + space</small>','cirrin-accept','cirrin-choice '+(i===0?'primary':''),'data-word="'+esc(c.word)+'" '+(blocked?'disabled':''))).join('');}
+ for(const action of ['cirrin-review','cirrin-back'])$('[data-action="'+action+'"]').disabled=!trace.word||blocked;
+ const guide=$('#cirrin-guide-button');guide.textContent=cirrin.guide?'Hide HELLO route':'Show HELLO route';guide.setAttribute('aria-pressed',String(cirrin.guide));
+ $('#signal-name').textContent=trace.word||'Cirrin ready';$('#signal-detail').textContent=trace.phase==='tracing'?'Tracing':trace.phase==='review'?'Thumbs-up to insert':'Start in center';
+ $('#signal-meter').style.width=(cirrin.thumbSince===null?0:Math.min(100,(performance.now()-cirrin.thumbSince)/850*100))+'%';
+}
+
 function renderAirWriter(){
  $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot" style="background:'+(live?'#5a8b38':'#aa9164')+'"></span>'+(live?'Air writing · camera active':'Air writing · draw on the pad or start your camera')+'</span>'+btn(live?'Stop air writing':'Start air writing',live?'stop-live':'start-live',live?'small secondary':'small',cameraState==='loading'||air.state==='loading'?'disabled':'')+'</div>';
  renderMessage();$('#draft-status').textContent=draftNotice;
@@ -226,9 +265,9 @@ function gestureDialog(id,writing=false){
 function selectProfile(id){lastGestureMessage='';if(busy)return;const p=profiles.find(p=>p.id===id);if(!p)return;camera.stop();cameraState='off';cameraMessage='Profile changed. Enable the camera when you’re ready.';profile=p;composer=new RelayComposer(profile);restoreDraft();live=false;latest=null;rebuild();render();}
 function updateCamera(){
  updateTeachingPreview();
- const trailsAllowed=airWriting()||fingerWriting()||profile?.modality!=='face';
+ const trailsAllowed=cirrinWriting()||airWriting()||fingerWriting()||profile?.modality!=='face';
  $('#trails-toggle').checked=trailsEnabled;$('#trails-toggle').disabled=!trailsAllowed;
- $('#trails-help').textContent=airWriting()?'Fading trails are optional. Letter ink stays until you insert or clear it.':trailsAllowed?'Trace with your index fingers. Brief tracking gaps reconnect; trails fade in 1.4 seconds.':'Use an all-signals or hand profile for fingertip trails.';
+ $('#trails-help').textContent=cirrinWriting()?'Your word path stays visible until you insert or clear it.':airWriting()?'Fading trails are optional. Letter ink stays until you insert or clear it.':trailsAllowed?'Trace with your index fingers. Brief tracking gaps reconnect; trails fade in 1.4 seconds.':'Use an all-signals or hand profile for fingertip trails.';
  camera.setTrails?.(trailsEnabled&&trailsAllowed);
 
  if(cameraState!=='ready')$('#camera-performance').hidden=true;
@@ -242,7 +281,7 @@ function updateCamera(){
 }
 function onCameraState(state,message){if(state==='ready')queueMicrotask(syncCameraForContext);cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){live=false;resetInput();}updateCamera();if(view==='write')renderWriter();}
 function onFrame(frame){
- latest=frame;if(airWriting()){if(live)air.update(frame,!activeDialog&&!composer.confirm&&!composer.paused);return;}if(fingerWriting()){onFingerFrame(frame);return;}if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
+ latest=frame;if(cirrinWriting()){if(!cirrin.pointerActive)cirrin.update(frame,live&&!activeDialog&&!composer.confirm&&!composer.paused);return;}if(airWriting()){if(live)air.update(frame,!activeDialog&&!composer.confirm&&!composer.paused);return;}if(fingerWriting()){onFingerFrame(frame);return;}if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
  if(recording){recording.total++;if(frame.vector){recording.frames.push(frame.vector);recording.tracked++;}}
  let result=frame.vector?(model?.combined?predictCombined(model,frame.vector):predict(model,frame.vector)):{id:UNKNOWN,reason:'No tracking',score:0};
  let event=null;
@@ -288,7 +327,7 @@ function say(text,cue=false){
  if(!cue)speakingMessage=true;
  speechSynthesis.speak(u);
 }
-async function enableCamera(){if(!profile&&!fingerWriting()&&!airWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;resetInput();updateCamera();renderWriter();return;}await startCamera();}
+async function enableCamera(){if(!profile&&!fingerWriting()&&!airWriting()&&!cirrinWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;resetInput();updateCamera();renderWriter();return;}await startCamera();}
 function requireCamera(){if(cameraState!=='ready'){toast('Enable the camera before recording.');return false;}if(!latest?.vector||performance.now()-latest.now>700){toast('Move into view so the camera can track you.');return false;}return true;}
 function progress(title,detail,fraction=0){teachingPhase={title,detail,fraction};updateTeachingPreview();const area=$('#record-area');if(!area)return;area.innerHTML='<div class="record-panel" role="status"><div class="eyebrow">GUIDED PRACTICE</div><h3 style="margin-top:12px">'+esc(title)+'</h3><p>'+esc(detail)+'</p><progress max="1" value="'+fraction+'"></progress><div style="margin-top:16px">'+btn('Cancel','cancel-task','small secondary')+'</div></div>';}
 async function waitPhase(ms,title,detail,token){const start=performance.now();while(performance.now()-start<ms){if(token!==task)throw new Error('Cancelled');progress(title,detail,Math.min(1,(performance.now()-start)/ms));await sleep(100);}}
@@ -351,6 +390,10 @@ function download(name,data){const url=URL.createObjectURL(new Blob([data],{type
 function exportOne(id){const p=profiles.find(p=>p.id===id);if(p)download('relay-'+p.name.replace(/[^a-z0-9]/gi,'-')+'.json',exportProfile(p));}
 function deleteProfile(id){const p=profiles.find(p=>p.id===id);if(!p)return;openDialog(dialogHeader('Delete this profile?')+'<p>'+esc(p.name)+' and its recordings will be removed from this browser. Export a backup first if you want to keep it.</p><div class="button-row">'+btn('Export backup','export-profile','secondary','data-id="'+p.id+'"')+btn('Delete profile','confirm-delete-profile','danger','data-id="'+p.id+'"')+'</div>');}
 async function startLive(){
+ if(cirrinWriting()){
+  resetInput();if(cameraState!=='ready'){await startCamera();if(!cirrinWriting()||cameraState!=='ready')return;}
+  live=true;renderWriter();toast('Pinch in the center, visit letters, then release to review your word.');return;
+ }
  if(airWriting()){
   resetInput();await air.load();if(!airWriting())return;
   if(cameraState!=='ready'){await startCamera();if(!airWriting()||cameraState!=='ready')return;}
@@ -396,6 +439,19 @@ document.addEventListener('click',async e=>{
   if(a==='import')return $('#import-file').click();
   if(a==='export-report'){download('relay-validation.json',JSON.stringify({app:'Relay',profile:profile.name,modality:profile.modality,revision:profile.revision||0,settings:profile.settings,summary:trialSummary(currentTrials()),breakdown:confusionRows(profile),trainingDiagnostics:signalDiagnostics(model),practiceMilestones:readiness(profile,model),trials:profile.trials,limitations:'User-recorded practice results, not clinical validation. Separate attempts; no frame-level train/test split.'},null,2));return;}
   if(a==='start-live')return await startLive();
+  if(a==='cirrin-guide'){cirrin.guide=!cirrin.guide;updateCirrinDisplay();return;}
+  if(a==='cirrin-center'){if(!cirrin.centerOnHand(performance.now()))toast('Enable the camera and keep your drawing hand visible, then center again.');updateCirrinDisplay();return;}
+  if(a==='cirrin-clear'){cirrin.reset();updateCirrinDisplay();return;}
+  if(a==='cirrin-back'){cirrin.trace.removeLast();cirrin.trace.mustRelease=true;cirrin.thumbSince=null;updateCirrinDisplay();return;}
+  if(a==='cirrin-review'){cirrin.trace.finish();cirrin.trace.mustRelease=true;cirrin.thumbSince=null;updateCirrinDisplay();return;}
+  if(a==='cirrin-accept'){cirrin.accept(b.dataset.word);return;}
+  if(a==='cirrin-letter'){live=false;cirrin.trace.append(b.dataset.letter);cirrin.thumbSince=null;renderWriter();return;}
+  if(a==='cirrin-command'){
+   cirrin.reset();
+   if(b.dataset.kind==='punctuation'&&!composer.confirm&&!composer.paused)composer.change(composer.text.replace(/ +$/,'')+b.dataset.value+' ');
+   else handleEffect(composer.apply({type:b.dataset.kind,value:b.dataset.value}));
+   renderWriter();return;
+  }
   if(a==='air-recognize'){air.ink.lift(performance.now());await air.recognize();return;}
   if(a==='air-clear'){air.reset();updateAirDisplay();return;}
   if(a==='air-accept'){air.accept(b.dataset.letter);return;}
@@ -441,6 +497,7 @@ document.addEventListener('submit',async e=>{
 });
 document.addEventListener('change',async e=>{
  if(e.target.id==='environment-select'){selectEnvironment(e.target.value);return;}
+ if(e.target.id==='cirrin-gain'){saveEnvironmentSetting('cirrinGain',Number(e.target.value));cirrin.setGain(Number(e.target.value));live=false;renderWriter();return;}
  if(e.target.id==='finger-hold'||e.target.id==='finger-swap'){saveEnvironmentSetting(e.target.id==='finger-hold'?'gridHoldMs':'gridSwap',e.target.id==='finger-hold'?Number(e.target.value):e.target.checked);live=false;resetInput();fingerGate.holdMs=environmentSettings().gridHoldMs||850;renderWriter();return;}
  if(e.target.id==='trails-toggle'){
   trailsEnabled=e.target.checked;camera.setTrails?.(trailsEnabled);
@@ -453,14 +510,14 @@ document.addEventListener('change',async e=>{
  if(e.target.id==='import-file'){try{const file=e.target.files[0];if(!file)return;const p=importProfile(await file.text());profiles.push(p);persist();selectProfile(p.id);toast('Profile imported. Check recognition in your current camera setup.');}catch(err){toast('Import failed: '+err.message);}}
 });
 document.addEventListener('keydown',e=>{
- if(airWriting()||fingerWriting()||view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+ if(cirrinWriting()||airWriting()||fingerWriting()||view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
  if(e.key==='ArrowRight'){e.preventDefault();composer.next();renderWriter();}
  if(e.key==='Enter'&&e.target===document.body){e.preventDefault();handleEffect(composer.select());renderWriter();}
 });
 document.addEventListener('visibilitychange',()=>{resetInput();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
 window.addEventListener('beforeunload',()=>{camera.stop();air.model.close();});
 setInterval(()=>{
- if(!airWriting()&&!fingerWriting()&&live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
+ if(!cirrinWriting()&&!airWriting()&&!fingerWriting()&&live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
   const now=performance.now();if(now-lastTracking>700){lastScan=now;return;}
   // Stop the scanning highlight while a deliberate selection is in progress.
   if(gate.candidate||gate.progress>0||gate.motionActive){lastScan=now;return;}
@@ -471,7 +528,7 @@ render();
 
 
 function restoreDraft(){
- environment=environmentById(environmentSettings().environment).id;fingerPage='letters';fingerGate.holdMs=environmentSettings().gridHoldMs||850;resetInput();lastGestureMessage='';
+ cirrin.setGain(environmentSettings().cirrinGain||2.4);cirrin.centered=false;environment=environmentById(environmentSettings().environment).id;fingerPage='letters';fingerGate.holdMs=environmentSettings().gridHoldMs||850;resetInput();lastGestureMessage='';
  draftSavedText=null;draftNotice='';
  try{composer.text=readDraft(profile);draftSavedText=composer.text;if(composer.text)draftNotice='· Draft restored';}
  catch{draftNotice='· Draft recovery unavailable';}

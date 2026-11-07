@@ -3,6 +3,15 @@
 
 Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held poses and short movements, then turns recognized signals into controls for writing and speaking original text.
 
+## New in 1.5: Cirrin ring
+A fourth communication environment follows the word-level circular keyboard interaction introduced by Jennifer Mankoff and Gregory Abowd in 1998: https://sites.cc.gatech.edu/fce/pendragon/publications/cirrin98.pdf
+
+Relay uses an alphabetical A–Z ring, a webcam pinch as pen-down, visible word paths, and explicit review. Pinch in the center, visit each letter tile, travel through the center to skip unwanted letters, and release to review. Return inward before revisiting a letter to spell doubles. Hold thumbs-up to insert the exact spelling with a trailing space, or choose a displayed word button. One Undo removes the inserted word. Mouse/touch dragging and letter buttons also work.
+
+The HELLO guide labels a practice route. Movement range and Center on my finger adapt the dial to the drawing hand. Letter boundaries use a dead zone and fresh-frame stability; tracking loss interrupts a draft and never inserts text. Optional nearby-word suggestions use a small local vocabulary plus personal words. Literal spelling always remains available, including words absent from the vocabulary. Cirrin's decoder uses spatial letter visits, not the Air letters handwriting model. No new model download or API is required.
+
+Run node tests/cirrin-browser.mjs for controlled fingertip/pointer word input, doubled letters, confirmation, spacing, undo, speech, responsive camera docking, and persistence. Core tests are included in npm test. These checks do not measure real-user speed or accuracy.
+
 ## New in 1.4
 - **Air letters environment:** index-tip trajectories become multi-stroke ink. Pinch thumb/index to draw, release to reposition, pause for three handwriting-model suggestions, and hold thumbs-up for 850 ms to insert the first choice (or click any choice). Mouse/touch drawing and correction buttons are available. No letter is automatically inserted.
 - **Local neural inference:** an MIT-licensed EMNIST Balanced CNN runs in a dedicated ONNX Runtime Web worker. Upright, aspect-preserving, centered 28×28 rasters at three stroke widths are averaged. Lower/uppercase classes are combined; digit lookalikes remain visibly ambiguous. No API key, video upload, or training is needed for this environment.

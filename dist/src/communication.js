@@ -2,7 +2,7 @@ import {Composer} from './core.js';
 
 // A small, transparent local vocabulary. Personal words take priority; suggestions
 // are options, never automatic substitutions or inferred sentences.
-const COMMON = ('hello help thank thanks please yes no want need would could can cannot have has had '+
+export const COMMON = ('hello help thank thanks please yes no want need would could can cannot have has had '+
 'i you we they me my your our their this that these those am is are was were be been '+
 'to from with without for and or but because if when where what who why how '+
 'good morning afternoon evening night today tomorrow yesterday now later soon '+

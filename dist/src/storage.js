@@ -31,6 +31,7 @@ export function validateProfile(p){
  if(p.words!==undefined&&(!Array.isArray(p.words)||p.words.length>100||p.words.some(v=>typeof v!=='string'||v.length>50||!/^[\p{L}\p{M}'’-]+$/u.test(v))))throw new Error('Invalid personal words.');
  if(p.settings.environment!==undefined&&!ENVIRONMENTS.some(e=>e.id===p.settings.environment))throw new Error('Unsupported communication environment.');
  if(p.settings.gridHoldMs!==undefined&&![600,850,1200,1600].includes(p.settings.gridHoldMs))throw new Error('Invalid finger selection timing.');
+ if(p.settings.cirrinGain!==undefined&&![1.3,1.8,2.4].includes(p.settings.cirrinGain))throw new Error('Invalid circular keyboard movement range.');
  if(p.settings.gridSwap!==undefined&&typeof p.settings.gridSwap!=='boolean')throw new Error('Invalid finger hand roles.');
  if(p.settings.completions!==undefined&&typeof p.settings.completions!=='boolean')throw new Error('Invalid completion setting.');
  return p;
