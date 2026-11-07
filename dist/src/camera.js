@@ -1,7 +1,8 @@
+import {combineFeatures,smoothCombined} from './features.js';
 export class VisionCamera{
- constructor(video,canvas,onFrame,onState){Object.assign(this,{video,canvas,onFrame,onState});this.running=false;this.session=0;}
- async start(mode='face',deviceId=''){
-  this.stop();const session=++this.session;this.mode=mode;this.onState('loading','Loading local vision model…');
+ constructor(video,canvas,onFrame,onState){Object.assign(this,{video,canvas,onFrame,onState});this.running=false;this.session=0;this.models=[];}
+ async start(mode='combined',deviceId=''){
+  this.stop();const session=++this.session;this.mode=mode;this.onState('loading',mode==='combined'?'Loading face and both-hand tracking…':'Loading local vision model…');
   try{
    if(!navigator.mediaDevices?.getUserMedia)throw new Error('Camera access requires localhost or HTTPS. Open this app in Chrome or Edge.');
    const {FilesetResolver,FaceLandmarker,HandLandmarker}=await import('../vendor/vision_bundle.mjs');
@@ -10,42 +11,61 @@ export class VisionCamera{
    if(session!==this.session){stream.getTracks().forEach(t=>t.stop());return;}
    this.stream=stream;this.video.srcObject=stream;await this.video.play();
    const vision=await FilesetResolver.forVisionTasks(new URL('../vendor/wasm',import.meta.url).href);
-   const options={baseOptions:{modelAssetPath:new URL('../models/'+(mode==='face'?'face':'hand')+'_landmarker.task',import.meta.url).href,delegate:'GPU'},runningMode:'VIDEO'};
-   if(mode==='face')Object.assign(options,{numFaces:1,outputFaceBlendshapes:true,outputFacialTransformationMatrixes:true,minFaceDetectionConfidence:0.6,minFacePresenceConfidence:0.6,minTrackingConfidence:0.6});
-   else Object.assign(options,{numHands:1,minHandDetectionConfidence:0.6,minHandPresenceConfidence:0.6,minTrackingConfidence:0.6});
-   const Factory=mode==='face'?FaceLandmarker:HandLandmarker;
-   let model;
-   try{model=await Factory.createFromOptions(vision,options);}catch{options.baseOptions.delegate='CPU';model=await Factory.createFromOptions(vision,options);}
-   if(session!==this.session){model.close();return;}
-   this.model=model;this.running=true;this.lastVideo=-1;this.lastInfer=0;this.smooth=null;this.onState('ready','Camera ready');this.loop();
+   for(const type of (mode==='combined'?['face','hand']:[mode])){
+    if(session!==this.session)return;
+    const options={baseOptions:{modelAssetPath:new URL('../models/'+type+'_landmarker.task',import.meta.url).href,delegate:'GPU'},runningMode:'VIDEO'};
+    if(type==='face')Object.assign(options,{numFaces:1,outputFaceBlendshapes:true,minFaceDetectionConfidence:.6,minFacePresenceConfidence:.6,minTrackingConfidence:.6});
+    else Object.assign(options,{numHands:mode==='combined'?2:1,minHandDetectionConfidence:.6,minHandPresenceConfidence:.6,minTrackingConfidence:.6});
+    const Factory=type==='face'?FaceLandmarker:HandLandmarker;let model;
+    try{model=await Factory.createFromOptions(vision,options);}catch{options.baseOptions.delegate='CPU';model=await Factory.createFromOptions(vision,options);}
+    if(session!==this.session){model.close();return;}this.models.push({type,model});
+   }
+   this.running=true;this.lastVideo=-1;this.lastInfer=0;this.smooth=null;this.handMemory=[null,null];this.onState('ready',mode==='combined'?'Face + both hands · all signals available':'Camera ready');this.loop();
   }catch(e){if(session!==this.session)return;this.stop();this.onState('error',friendlyCameraError(e));}
  }
  loop(){
-  if(!this.running)return;
-  const now=performance.now();
+  if(!this.running)return;const now=performance.now();
   if(this.video.readyState>=2&&this.video.currentTime!==this.lastVideo&&now-this.lastInfer>55){
    this.lastVideo=this.video.currentTime;this.lastInfer=now;
    try{
-    const before=performance.now(),result=this.model.detectForVideo(this.video,now);
-    const points=this.mode==='face'?result.faceLandmarks?.[0]:result.landmarks?.[0];
-    const vector=points?(this.mode==='face'?faceFeatures(result):handFeatures(points)):null;
-    this.smooth=vector?(this.smooth?vector.map((v,i)=>0.5*v+0.5*this.smooth[i]):vector):null;
-    this.draw(points);this.onFrame({vector:this.smooth,points,now,latency:performance.now()-before});
-   }catch(e){this.onFrame({vector:null,now,latency:0});this.onState('error','Vision processing stopped: '+e.message);this.stop();return;}
+    const before=performance.now();let face=null,hand=null;
+    for(const {type,model} of this.models){const out=model.detectForVideo(this.video,now);if(type==='face')face=out;else hand=out;}
+    const facePoints=face?.faceLandmarks?.[0],handPoints=hand?.landmarks||[];let vector;
+    if(this.mode==='combined'){
+     const slots=stableHandSlots(handSlots(hand),this.handMemory);this.handMemory=slots;
+     vector=combineFeatures(facePoints?faceFeatures(face):null,slots.map(p=>p?extendedHandFeatures(p):null));
+     this.smooth=smoothCombined(vector,this.smooth);
+    }else{
+     vector=this.mode==='face'?(facePoints?faceFeatures(face):null):(handPoints[0]?handFeatures(handPoints[0]):null);
+     this.smooth=vector?(this.smooth?vector.map((v,i)=>.5*v+.5*this.smooth[i]):vector):null;
+    }
+    this.draw(facePoints,handPoints);this.onFrame({vector:this.smooth,points:facePoints||handPoints[0],now,latency:performance.now()-before,tracking:{face:!!facePoints,hands:handPoints.length}});
+   }catch(e){this.onFrame({vector:null,now,latency:0});this.stop();this.onState('error','Vision processing stopped: '+e.message);return;}
   }
   this.raf=requestAnimationFrame(()=>this.loop());
  }
- draw(points){
+ draw(face,hands=[]){
   const c=this.canvas,ctx=c.getContext('2d');c.width=this.video.videoWidth||640;c.height=this.video.videoHeight||480;ctx.clearRect(0,0,c.width,c.height);
-  if(!points)return;ctx.fillStyle='#dff7a4';ctx.strokeStyle='#dff7a4aa';ctx.lineWidth=2;
-  const indices=this.mode==='face'?[1,4,33,133,362,263,61,291,13,14,70,300,468,473]:points.map((_,i)=>i);
-  if(this.mode==='hand')for(const chain of [[0,1,2,3,4],[0,5,6,7,8],[0,9,10,11,12],[0,13,14,15,16],[0,17,18,19,20],[5,9,13,17]]){
-   ctx.beginPath();chain.forEach((i,n)=>ctx[n?'lineTo':'moveTo'](points[i].x*c.width,points[i].y*c.height));ctx.stroke();
-  }
-  for(const i of indices){const p=points[i];if(p){ctx.beginPath();ctx.arc(p.x*c.width,p.y*c.height,3,0,Math.PI*2);ctx.fill();}}
+  const dots=(points,indices,color)=>{ctx.fillStyle=color;for(const i of indices){const p=points[i];if(p){ctx.beginPath();ctx.arc(p.x*c.width,p.y*c.height,3,0,Math.PI*2);ctx.fill();}}};
+  if(face)dots(face,[1,4,33,133,362,263,61,291,13,14,70,300,468,473],'#dff7a4');
+  hands.forEach((points,n)=>{
+   const color=n?'#9ce3ff':'#ffd49c';ctx.strokeStyle=color;ctx.lineWidth=2;
+   for(const chain of [[0,1,2,3,4],[0,5,6,7,8],[0,9,10,11,12],[0,13,14,15,16],[0,17,18,19,20],[5,9,13,17]]){ctx.beginPath();chain.forEach((i,j)=>ctx[j?'lineTo':'moveTo'](points[i].x*c.width,points[i].y*c.height));ctx.stroke();}
+   dots(points,points.map((_,i)=>i),color);
+  });
  }
- stop(){this.session++;this.running=false;cancelAnimationFrame(this.raf);this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;this.model?.close();this.model=null;if(this.video)this.video.srcObject=null;}
+ stop(){this.session++;this.running=false;cancelAnimationFrame(this.raf);this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;for(const {model} of this.models||[])model.close();this.models=[];this.smooth=null;if(this.video)this.video.srcObject=null;}
 }
+export function handSlots(result){
+ const slots=[null,null],scores=[0,0];
+ (result?.landmarks||[]).forEach((points,i)=>{
+  const category=result.handedness?.[i]?.[0],label=category?.categoryName;
+  if(!['Left','Right'].includes(label)||category.score<.65)return;
+  const slot=label==='Left'?0:1;
+  if(category.score>scores[slot]){slots[slot]=points;scores[slot]=category.score;}
+ });return slots;
+}
+export function extendedHandFeatures(p){return [...handFeatures(p),p[0].x,p[0].y,p[0].z,p[8].x,p[8].y,p[8].z];}
 const clamp=(x,min=-3,max=3)=>Math.max(min,Math.min(max,x));
 export function faceFeatures(result){
  const p=result.faceLandmarks[0],cats=result.faceBlendshapes?.[0]?.categories;
@@ -71,4 +91,15 @@ function friendlyCameraError(e){
  if(e.name==='NotFoundError')return 'No camera found. Connect a webcam and try again.';
  if(e.name==='NotReadableError')return 'The camera is busy. Close other camera apps and try again.';
  return e.message||'Could not start the camera. Try Chrome or Edge on localhost.';
+}
+
+export function stableHandSlots(slots,previous){
+ if(!previous)return slots;
+ const d=(a,b)=>Math.hypot(a[0].x-b[0].x,a[0].y-b[0].y);
+ if(slots.every(Boolean)&&previous.every(Boolean)){
+  const own=d(slots[0],previous[0])+d(slots[1],previous[1]);
+  const swapped=d(slots[0],previous[1])+d(slots[1],previous[0]);
+  if(own>.2&&swapped+.12<own)return [null,null];
+ }
+ return slots;
 }

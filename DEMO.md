@@ -14,6 +14,13 @@ Avoid claiming universal access, clinical reliability, first-ever personalized g
 
 A fresh full rest + two-gesture calibration takes roughly 85 seconds plus setup. Rehearse against the actual pitch time; do not pretend a preloaded profile is freshly trained.
 
+## All-signals rehearsal (1.2)
+1. Keep the proven face profile as a backup. Create a new all-signals profile.
+2. Teach an open-mouth Select as a held pose, a one-finger swipe Next as a movement, and optionally a two-hand pose as a phrase shortcut.
+3. Keep the hand visible in its relaxed starting pose before every movement example. Make one swipe and pause at its endpoint; return only when prompted.
+4. Verify the learned parts in Signal studio, run fresh attempts and rest checks, then write and correct a short message.
+5. Treat motion/two-hand input as experimental until real-camera tests pass. Do not imply continuous swipe-to-word input or full sign-language interpretation.
+
 ## Your remaining real-camera rehearsal
 1. Open localhost:4173 in Chrome or Edge. Use a stable camera at face height, even lighting, and a plain background.
 2. Face/head is the first input to try. Choose two distinct movements that are comfortable and observable. A deliberate eyebrow raise and a brief open-mouth pose are example candidates, not required gestures. Avoid ordinary blinks as an initial command.

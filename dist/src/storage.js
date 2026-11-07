@@ -1,19 +1,25 @@
 import {STARTER_PHRASES} from './communication.js';
 import {FEATURE_VERSION,finiteVector} from './core.js';
 const KEY='relay.profiles.v1';
-const modalities=new Set(['face','hand']);
-export function createProfile(name,modality='face'){
- return {version:1,featureVersion:FEATURE_VERSION,id:crypto.randomUUID(),name:name.trim()||'My voice',modality,createdAt:new Date().toISOString(),rest:[],gestures:[],trials:[],phrases:[...STARTER_PHRASES],words:[],settings:{holdMs:450,restMs:350,scanMs:1400,mode:'step',audio:false}};
+const modalities=new Set(['face','hand','combined']);
+export function createProfile(name,modality='combined'){
+ return {version:1,featureVersion:modality==='combined'?2:FEATURE_VERSION,id:crypto.randomUUID(),name:name.trim()||'My voice',modality,createdAt:new Date().toISOString(),rest:[],gestures:[],trials:[],phrases:[...STARTER_PHRASES],words:[],settings:{holdMs:450,restMs:350,scanMs:1400,mode:'step',audio:false}};
 }
 export function validateProfile(p){
- if(!p||p.version!==1||p.featureVersion!==FEATURE_VERSION||!modalities.has(p.modality)||(typeof p.id!=='string'||!/^[-a-zA-Z0-9_]{1,80}$/.test(p.id))||typeof p.name!=='string'||p.name.length>80)throw new Error('This is not a compatible Relay profile.');
+ if(!p||p.version!==1||p.featureVersion!==(p.modality==='combined'?2:FEATURE_VERSION)||!modalities.has(p.modality)||(typeof p.id!=='string'||!/^[-a-zA-Z0-9_]{1,80}$/.test(p.id))||typeof p.name!=='string'||p.name.length>80)throw new Error('This is not a compatible Relay profile.');
  if(!Array.isArray(p.rest)||!Array.isArray(p.gestures)||p.gestures.length>80)throw new Error('Invalid gesture data.');
- const dim=p.modality==='face'?60:63;
+ const dim=p.modality==='combined'?201:p.modality==='face'?60:63;
  const sampleOK=s=>s&&finiteVector(s.vector)&&s.vector.length===dim&&s.vector.every(x=>Math.abs(x)<100)&&(!s.spread||(finiteVector(s.spread)&&s.spread.length===dim));
  if(p.rest.length>100||!p.rest.every(sampleOK))throw new Error('Invalid resting samples.');
  const ids=new Set();
  for(const g of p.gestures){
   if((typeof g.id!=='string'||!/^[-a-zA-Z0-9_]{1,80}$/.test(g.id))||g.id.startsWith('__')||ids.has(g.id)||typeof g.name!=='string'||g.name.length>80||!Array.isArray(g.samples)||g.samples.length>40||!g.samples.every(sampleOK))throw new Error('Invalid gesture examples.');
+  if(g.kind!==undefined&&!['pose','motion'].includes(g.kind))throw new Error('Invalid gesture kind.');
+  if(g.kind==='motion'&&p.modality!=='combined')throw new Error('Movement gestures need an all-signals profile.');
+  for(const s of g.samples){
+   if(s.neutral&&!sampleOK(s.neutral))throw new Error('Invalid gesture resting sample.');
+   if(g.kind==='motion'&&(!Array.isArray(s.sequence)||s.sequence.length<8||s.sequence.length>40||s.sequence.some(v=>!finiteVector(v)||v.length!==dim||v.some(x=>Math.abs(x)>=100))||!Number.isFinite(s.durationMs)||s.durationMs<200||s.durationMs>5000))throw new Error('Invalid movement recording.');
+  }
   ids.add(g.id);
   if(!['next','select','delete','undo','speak','pause','insert'].includes(g.action)||typeof g.value!=='string'||g.value.length>300)throw new Error('Invalid gesture mapping.');
  }

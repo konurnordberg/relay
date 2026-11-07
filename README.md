@@ -1,7 +1,16 @@
 # Relay
 **Your movement. Your words.**
 
-Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held movements, then turns recognized signals into controls for writing and speaking original text.
+Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held poses and short movements, then turns recognized signals into controls for writing and speaking original text.
+
+## New in 1.2
+- **All signals by default:** one profile tracks facial expressions, head poses, and both hands together. There is no face-versus-hand choice during setup.
+- **Held poses and movements:** teach a held pose or record a short finger swipe/movement. Five motion sequences retain order and direction; temporal matching tolerates modest speed differences. This is experimental gesture-command recognition, not continuous swipe-to-word typing.
+- **Learned contributing parts:** each gesture learns which channels matter from its own examples and relaxed lead-ins. Missing hands do not block face-only commands; two-hand classes require both tracked hands.
+- **Shared intent protection:** each gesture needs its own neutral preparation; a command locks until its contributing parts return to rest. Scanning freezes during a motion and return strokes do not repeat commands.
+- **Visible tracking:** face, left-hand and right-hand indicators, plus both hand skeletons.
+- **Compatibility:** existing face/hand profiles, vocabulary, drafts and backups remain supported. Create a new all-signals profile to add these new capabilities.
+- **Cleaner form:** the Insert text box appears only for that action.
 
 ## New in 1.1
 - **Signal studio:** live recognizer decisions, match distances, overlap diagnostics, and measured error breakdowns.
@@ -23,14 +32,14 @@ All computer-vision assets are bundled in `dist/` (about 34 MB). Once downloaded
 If models are absent, run `python3 scripts/download-assets.py`. Pinned download URLs and SHA-256 digests are in `dist/assets-manifest.json`.
 
 ## First successful session
-1. Create a profile. Choose **Face & head** or **One hand**.
+1. Create a profile. Face and both hands are available together automatically.
 2. Enable the camera and allow browser camera access.
-3. Record 12 seconds of natural rest. Keep the selected face/hand visible.
-4. Add a distinct, comfortable held gesture. Assign **Select**. Follow five guided recordings.
-5. Add a second gesture assigned **Next**. The profile switches to two-gesture navigation.
+3. Record 12 seconds of natural rest. Keep your face visible, plus any hands you plan to use.
+4. Add a distinct, comfortable gesture and assign **Select**. Choose **Hold a pose** or **Make a swipe or movement**. Follow five guided recordings, keeping the parts you use visible during each neutral lead-in.
+5. Add a second gesture assigned **Next**, using the same or different body parts. The profile switches to two-gesture navigation.
 6. In **Check accuracy**, record new attempts for each gesture and run a rest check.
 7. In **Write & speak**, choose **Use my gestures**, return to rest, then navigate.
-8. **Next** advances rows; **Select** enters a row. Next advances keys; Select inserts one. Return to rest between signals. The final key in a selected row returns to row selection.
+8. **Next** advances rows; **Select** enters a row. Next advances keys; Select inserts one. For movements, pause at the endpoint, then return to the learned starting pose. Return to rest between signals. The final key in a selected row returns to row selection.
 9. Speak opens a confirmation. Choose **Speak now** to speak; choose Cancel to return.
 10. Export your profile under **My profiles**.
 
@@ -38,7 +47,9 @@ One-gesture access uses automatic scanning. Change scan rate, gesture hold durat
 
 ## Implemented
 - Face/head feature extraction (52 blendshapes + 4 normalized pose features + 4 experimental relative iris features).
-- Single-hand extraction (63 wrist-centered, scale-normalized landmark coordinates).
+- Both-hand extraction (63 wrist-centered shape features plus wrist/index-tip image coordinates per hand); presence masks explicitly gate availability.
+- Combined 201-value schema, per-gesture channel inference, and order-preserving temporal template matching for motion gestures.
+- Legacy face (60) and hand (63) feature schemas retained.
 - Natural resting calibration; five independent recordings per gesture.
 - User-defined variable-size gesture vocabulary and editable action mappings.
 - Personal feature selection, normalized nearest-exemplar classification, distance and ambiguity rejection.
@@ -70,7 +81,7 @@ Training units are summaries of separate gesture bouts. Neutral samples cover co
 
 ## Test
 ```sh
-node --test tests/core.test.mjs tests/enhancements.test.mjs
+node --test tests/core.test.mjs tests/enhancements.test.mjs tests/combined.test.mjs
 node scripts/check.mjs
 ```
 Optional browser checks (Chrome must be installed):
@@ -80,6 +91,7 @@ python3 scripts/setup-browser-tests.py
 node tests/browser.mjs
 node tests/integration.mjs
 node tests/enhanced-browser.mjs
+node tests/combined-browser.mjs
 node tests/vision.mjs
 ```
 The first browser test uses a synthetic camera to check real MediaPipe initialization. The integration test substitutes synthetic feature vectors to exercise guided calibration, training, event gating, writing and profile restoration. These tests do **not** measure recognition accuracy on people. Do not present synthetic results as user performance.
@@ -90,7 +102,7 @@ No backend, analytics, video upload, or raw-video recording. Word completion use
 ## Scope and limitations
 This is a research prototype, not a validated medical device or a guarantee of communication access. We have not yet conducted user testing with people who use AAC. Calibration may be assisted. The communication phase can run with the learned signals.
 
-Supported movements are observable facial/head poses or one-hand poses held briefly; arbitrary motion sequences, body movements outside the selected model, and all disabilities are not supported. Iris features are coarse and experimental; this is not calibrated screen gaze tracking. A hand profile needs the hand to remain visible even at rest.
+New profiles support observable facial/head poses, one- or two-hand poses, and recorded short movements. Complex sign-language interpretation, continuous swipe typing, arbitrary whole-body gestures, and universal disability access are not supported. Iris features are coarse and experimental; this is not calibrated screen gaze tracking. Any hand used by a gesture needs to remain visible during its neutral lead-in and gesture. Crossed/occluded hands and changing camera position can interrupt recognition.
 
 Lighting, camera angle, glasses, fatigue, involuntary movements and camera changes can affect performance. Recheck after changing conditions. Unknown and lost tracking generate no selection. Repeatedly rejected movements may need retraining or replacement. Gesture count is limited by distinguishability, data size and user comfort; 26 gestures are not required.
 
@@ -105,4 +117,9 @@ The keyboard covers English letters and common digits/symbols; it is not a full 
 
 Original application source is in `dist/src/`; presentation in `dist/index.html` and `dist/styles.css`. No build is needed to inspect or modify it.
 
-Signal studio separation is a heuristic calculated from training samples and model radii. It is not held-out accuracy. Its four practice milestones are introductory checks, not clinical validation or the demo readiness targets. Evidence exports preserve this distinction.
+For held poses, Signal studio separation is a heuristic calculated from training samples and model radii. Movement cards report temporal matching instead of a pose-separation score. It is not held-out accuracy. Its four practice milestones are introductory checks, not clinical validation or the demo readiness targets. Evidence exports preserve this distinction.
+
+## Combined recognition details
+Presence flags are never classifier features. Each gesture automatically selects contributing channels from its five examples versus neutral recordings. Held poses use a per-gesture rest/pose exemplar model; conflicting simultaneous matches abstain. Motion samples retain 24 frames and use selected changing dimensions, time resampling and banded dynamic time warping. Candidate movement windows must preserve tracking, start near the taught neutral, have enough displacement, end briefly still, and be separated from competing motion templates. Runtime rearming and readiness are tracked per gesture. No training runs on a server.
+
+The new motion and two-hand paths have software and static-image checks, but have not yet been measured on the user's live webcam. Use Check accuracy and rest checks for each new gesture. The user's earlier successful face-only session is not evidence of accuracy for this upgrade.

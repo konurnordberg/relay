@@ -17,3 +17,7 @@ if not fixture.exists():
     fixture.write_bytes(urllib.request.urlopen("https://storage.googleapis.com/mediapipe-assets/portrait.jpg",timeout=40).read())
 print("Isolated Playwright dependency and public MediaPipe fixture installed.")
 
+
+hand_fixture=Path(__file__).resolve().parents[1]/".local"/"two-hands.jpg"
+if not hand_fixture.exists():
+    hand_fixture.write_bytes(urllib.request.urlopen("https://storage.googleapis.com/mediapipe-assets/right_hands.jpg",timeout=40).read())

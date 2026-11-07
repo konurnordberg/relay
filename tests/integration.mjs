@@ -10,8 +10,8 @@ const stub=`export class VisionCamera{
  if(title.startsWith('Now:'))last=title.includes('Select signal')?1:2;
  if(title.startsWith('Now:')||title==='Hold your movement')c=last;
  else if(title)c=0;
- const t=performance.now(),v=Array(60).fill(0.03).map((x,i)=>x+Math.sin(t/123+i)*.003);
- if(c===1)v[5]=.83;if(c===2)v[6]=.83;if(c===3)v.fill(2);
+ const t=performance.now(),v=Array(201).fill(0.03).map((x,i)=>x+Math.sin(t/123+i)*.003);
+ v[0]=1;v[1]=0;v[2]=0;if(c===1)v[5]=.83;if(c===2)v[6]=.83;if(c===3)v.fill(2);
  this.onFrame({vector:c===4?null:v,now:t,latency:1});},50);}
  stop(){clearInterval(this.timer);}
 }`;

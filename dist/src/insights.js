@@ -1,6 +1,8 @@
+import {combinedDiagnostics,combinedMatches} from './combined.js';
 import {distance,REST} from './core.js';
 export function signalDiagnostics(model){
  if(!model)return [];
+ if(model.combined)return combinedDiagnostics(model);
  return model.classes.filter(c=>c.id!==REST).map(c=>{
   const others=model.classes.filter(o=>o.id!==c.id).map(o=>{
    const gap=Math.min(...c.vectors.flatMap(a=>o.vectors.map(b=>distance(model,a,b))));
@@ -12,6 +14,7 @@ export function signalDiagnostics(model){
 }
 export function rankedMatches(model,vector){
  if(!model||!vector||vector.length!==model.dim||vector.some(x=>!Number.isFinite(x)))return [];
+ if(model.combined)return combinedMatches(model,vector);
  return model.classes.map(c=>({id:c.id,label:c.label,distance:Math.min(...c.vectors.map(v=>distance(model,v,vector))),limit:c.radius})).sort((a,b)=>a.distance-b.distance).slice(0,5);
 }
 export function confusionRows(profile){

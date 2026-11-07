@@ -42,7 +42,7 @@ try{
  assert.equal(await page.locator('body').evaluate(el=>el.classList.contains('focus-mode')),true);
  await page.screenshot({path:fileURLToPath(new URL('upgraded-focus.png',artifacts)),fullPage:true});
  await page.getByRole('button',{name:'Focus view',exact:true}).first().click();
- const p=createProfile('Synthetic signal-studio fixture');
+ const p=createProfile('Synthetic signal-studio fixture','face');
  const sample=(which,j)=>{const vector=Array(60).fill(.02);if(which)vector[which]=.8+j*.002;return {vector,spread:Array(60).fill(.005),frames:20};};
  p.rest=[0,1,2,3,4].map(j=>sample(0,j));p.settings.audio=true;
  p.gestures=[{id:'select',name:'Personal select',action:'select',value:'',samples:[0,1,2,3,4].map(j=>sample(5,j))},{id:'next',name:'Personal next',action:'next',value:'',samples:[0,1,2,3,4].map(j=>sample(6,j))}];
