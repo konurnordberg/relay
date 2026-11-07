@@ -1,11 +1,11 @@
 {
   "name": "relay-personal-voice",
-  "version": "1.2.1",
+  "version": "1.2.2",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "test": "node --test tests/core.test.mjs tests/enhancements.test.mjs tests/combined.test.mjs",
+    "test": "node --test tests/core.test.mjs tests/enhancements.test.mjs tests/combined.test.mjs tests/trails.test.mjs",
     "check": "node scripts/check.mjs"
   }
 }

@@ -10,7 +10,7 @@ export const FaceLandmarker={createFromOptions:async()=>({detectForVideo:()=>({f
 export const HandLandmarker={createFromOptions:async()=>({detectForVideo:()=>{
  const x=window.__finger||{x:.45,y:.45};
  const hand=Array.from({length:21},(_,i)=>({x:x.x+(i===8?0:(i%4-1)*.016),y:x.y+(i===8?0:.12+i*.002),z:0}));
- return {landmarks:window.__lost?[]:[hand],handedness:[[{categoryName:'Left',score:.99}]]};
+ return {landmarks:window.__lost?[]:[hand],handedness:[[{categoryName:window.__label||'Left',score:window.__confidence??.99}]]};
 },close(){}})};`}));
 try{
  await page.goto('http://localhost:4173/');
@@ -23,9 +23,15 @@ try{
  await page.getByRole('button',{name:'Start my setup'}).click();
  await page.getByRole('button',{name:'Enable camera'}).click();
  await page.waitForFunction(()=>document.querySelector('#camera-pill').textContent==='ON DEVICE');
- // Draw an S with real camera rendering and controlled fingertip detections.
+ // Count camera inference requests while testing the real renderer.
+ await page.evaluate(()=>{
+  const ctx=document.querySelector('#overlay').getContext('2d'),curve=ctx.bezierCurveTo.bind(ctx);
+  window.__curves=0;ctx.bezierCurveTo=(...args)=>{window.__curves++;return curve(...args);};
+ });
+ // Draw an S with brief missing detections and unstable handedness.
+
  for(let i=0;i<=18;i++){
-  await page.evaluate(i=>{window.__finger={x:.5+Math.sin(i/18*Math.PI*2)*.18,y:.2+i/18*.55};},i);
+  await page.evaluate(i=>{window.__finger={x:.5+Math.sin(i/18*Math.PI*2)*.18,y:.2+i/18*.55};window.__lost=i===7;window.__confidence=i>9&&i<14?.4:.99;window.__label=i>9&&i<14?'Right':'Left';},i);
   await page.waitForTimeout(65);
  }
  const trailPixels=()=>page.evaluate(()=>{
@@ -34,10 +40,12 @@ try{
   return count;
  });
  assert.ok(await trailPixels()>100,'expected a visible cyan trail');
+ assert.ok(await page.evaluate(()=>window.__curves>30),'expected curved strokes rather than polygonal line joins');
  await page.locator('.camera-card').screenshot({path:fileURLToPath(new URL('../artifacts/fingertip-trail.png',import.meta.url))});
  await toggle.uncheck();await page.waitForTimeout(120);
  assert.equal(await trailPixels(),0,'turning trails off must clear the path');
  await toggle.check();
+ await page.evaluate(()=>{window.__label='Left';window.__confidence=.99;});
  for(let i=0;i<9;i++){await page.evaluate(i=>window.__finger={x:.3+i*.035,y:.35},i);await page.waitForTimeout(70);}
  await page.evaluate(()=>window.__lost=true);await page.waitForTimeout(350);
  assert.ok(await trailPixels()>0,'old path should fade briefly after tracking loss');
@@ -49,5 +57,5 @@ try{
  await page.setViewportSize({width:390,height:844});
  assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
  assert.deepEqual(errors,[]);
- console.log('PASS: toggle default and persistence, real canvas fingertip trail, immediate disable, fade after tracking loss, camera-stop cleanup, mobile width');
+ console.log('PASS: curved trails through missing detections and unstable labels, toggle persistence, immediate disable, fade, camera-stop cleanup, mobile width');
 }finally{await browser.close();}

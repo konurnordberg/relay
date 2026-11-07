@@ -8,7 +8,7 @@ export class VisionCamera{
    if(!navigator.mediaDevices?.getUserMedia)throw new Error('Camera access requires localhost or HTTPS. Open this app in Chrome or Edge.');
    const {FilesetResolver,FaceLandmarker,HandLandmarker}=await import('../vendor/vision_bundle.mjs');
    if(session!==this.session)return;
-   const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},...(deviceId?{deviceId:{exact:deviceId}}:{facingMode:'user'})},audio:false});
+   const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},frameRate:{ideal:30,max:60},...(deviceId?{deviceId:{exact:deviceId}}:{facingMode:'user'})},audio:false});
    if(session!==this.session){stream.getTracks().forEach(t=>t.stop());return;}
    this.stream=stream;this.video.srcObject=stream;await this.video.play();
    const vision=await FilesetResolver.forVisionTasks(new URL('../vendor/wasm',import.meta.url).href);
@@ -26,7 +26,7 @@ export class VisionCamera{
  }
  loop(){
   if(!this.running)return;const now=performance.now();
-  if(this.video.readyState>=2&&this.video.currentTime!==this.lastVideo&&now-this.lastInfer>55){
+  if(this.video.readyState>=2&&this.video.currentTime!==this.lastVideo&&now-this.lastInfer>28){
    this.lastVideo=this.video.currentTime;this.lastInfer=now;
    try{
     const before=performance.now();let face=null,hand=null;
@@ -40,7 +40,7 @@ export class VisionCamera{
      vector=this.mode==='face'?(facePoints?faceFeatures(face):null):(handPoints[0]?handFeatures(handPoints[0]):null);
      this.smooth=vector?(this.smooth?vector.map((v,i)=>.5*v+.5*this.smooth[i]):vector):null;
     }
-    this.trails.update(slots,now);this.drawing={face:facePoints,hands:handPoints,at:now};this.onFrame({vector:this.smooth,points:facePoints||handPoints[0],now,latency:performance.now()-before,tracking:{face:!!facePoints,hands:handPoints.length}});
+    this.trails.update(handPoints,now,hand?.handedness);this.drawing={face:facePoints,hands:handPoints,at:now};this.onFrame({vector:this.smooth,points:facePoints||handPoints[0],now,latency:performance.now()-before,tracking:{face:!!facePoints,hands:handPoints.length}});
    }catch(e){this.onFrame({vector:null,now,latency:0});this.stop();this.onState('error','Vision processing stopped: '+e.message);return;}
   }
   const frame=this.drawing&&now-this.drawing.at<300?this.drawing:null;

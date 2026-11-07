@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.2 — November 7, 2026
+- Replaced straight trail segments with bounded cubic curves and speed-adaptive jitter filtering.
+- Added visual hand continuity across detector reordering and brief handedness-confidence changes.
+- Reconnect plausible tracking gaps up to 200 ms; reject isolated fingertip spikes and break strokes on long losses or remote reacquisition.
+- Increased camera sampling ceiling from the prior 55 ms interval to 28 ms, subject to available video frames and inference speed.
+- Kept visual smoothing separate from recognition and preserved the 1.4-second fade.
+- Added seven trail robustness regressions and browser coverage with dropped detections and unstable labels.
+
 ## 1.2.1 — November 7, 2026
 - Added an Enable trails camera toggle with cyan and pink index-fingertip paths, fading over 1.4 seconds.
 - Trails work without gesture calibration in combined and hand profiles, remember the local toggle preference, and break across tracking loss or implausible jumps.

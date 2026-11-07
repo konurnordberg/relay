@@ -87,7 +87,7 @@ function selectProfile(id){if(busy)return;const p=profiles.find(p=>p.id===id);if
 function updateCamera(){
  const trailsAllowed=profile?.modality!=='face';
  $('#trails-toggle').checked=trailsEnabled;$('#trails-toggle').disabled=!trailsAllowed;
- $('#trails-help').textContent=trailsAllowed?'Draw with your index fingers. Trails fade after about a second.':'Use an all-signals or hand profile for fingertip trails.';
+ $('#trails-help').textContent=trailsAllowed?'Smooth fingertip trails with brief tracking-gap recovery. Fade: 1.4 seconds.':'Use an all-signals or hand profile for fingertip trails.';
  camera.setTrails?.(trailsEnabled&&trailsAllowed);
 
  if(cameraState!=='ready'){if(view==='studio'&&$('#live-insights'))$('#live-insights').innerHTML='<div class="empty-state">Enable your camera to see the recognizer work.</div>';$('#signal-name').textContent='Waiting for you';$('#signal-detail').textContent='—';$('#signal-meter').style.width='0';}
