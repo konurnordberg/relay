@@ -5,6 +5,12 @@
 
 Avoid claiming universal access, clinical reliability, first-ever personalized gesture control, or thought-speed typing.
 
+## Current 1.7 rehearsal priority
+
+Use the proven personal face-gesture profile as the primary demo. Rehearse the new point/open-hand control in Air letters and Cirrin on the actual laptop before including either live. Pinch is now optional in Pen control.
+
+Flow traces ordinary words over QWERTY and has a local 20,000-word decoder. Show one fresh sentence and a correction if it works reliably in rehearsal. Its comparison records keyboard versus camera throughput on ordinary text. Do not substitute Chord phrase-expansion results, constructed-path test results, or automated browser timings for real-user speed. Flow currently writes inside Relay; Copy transfers text to another app.
+
 ## Three-minute live demonstration
 - 0:00–0:20: Explain the communication problem and the one/two-signal keyboard.
 - 0:20–1:15: Open a fresh profile. Show resting capture and one new personal signal. Explain that each gesture has five separate examples. Use a saved, genuinely calibrated profile for the remaining demo if time is short; clearly identify the switch.

@@ -11,7 +11,7 @@ export class AirInk{
   if(!down){this.lift(at);return;}
   if(this.points>=5000||this.strokes.length>=80){this.limited=true;this.lift(at);return;}
   let stroke=this.strokes.at(-1),previous=stroke?.at(-1);
-  if(gap>180||previous&&distance(point,previous)>.24)this.down=false;
+  if(gap>260||previous&&distance(point,previous)>.42)this.down=false;
   if(!this.down){stroke=[];this.strokes.push(stroke);this.down=true;previous=null;}
   if(previous&&distance(point,previous)<.0013)return;
   // Responsive smoothing; never extrapolate through a tracking dropout.
@@ -32,7 +32,7 @@ export function paintInk(ctx,strokes,width,height,{cursor=null,down=false,backgr
  ctx.clearRect(0,0,width,height);
  if(background){ctx.fillStyle='#102923';ctx.fillRect(0,0,width,height);ctx.strokeStyle='#d1ffde13';ctx.lineWidth=1;for(let x=width/8;x<width;x+=width/8){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,height);ctx.stroke();}for(let y=height/6;y<height;y+=height/6){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(width,y);ctx.stroke();}}
  ctx.lineCap=ctx.lineJoin='round';ctx.lineWidth=Math.max(2.5,width*.008);ctx.strokeStyle='#a3ffc1';ctx.shadowColor='#66ffb3';ctx.shadowBlur=5;
- for(const s of strokes){if(!s.length)continue;ctx.beginPath();ctx.moveTo(s[0].x*width,s[0].y*width);for(let i=1;i<s.length;i++)ctx.lineTo(s[i].x*width,s[i].y*width);ctx.stroke();}
+ for(const s of strokes){if(!s.length)continue;ctx.beginPath();ctx.moveTo(s[0].x*width,s[0].y*width);for(let i=1;i<s.length-1;i++)ctx.quadraticCurveTo(s[i].x*width,s[i].y*width,(s[i].x+s[i+1].x)*width/2,(s[i].y+s[i+1].y)*width/2);if(s.length>1)ctx.lineTo(s.at(-1).x*width,s.at(-1).y*width);ctx.stroke();}
  ctx.shadowBlur=0;
  if(cursor){ctx.beginPath();ctx.arc(cursor.x*width,cursor.y*width,down?6:9,0,Math.PI*2);ctx.strokeStyle=down?'#fff':'#ffc978';ctx.lineWidth=2;ctx.stroke();}
 }

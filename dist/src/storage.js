@@ -1,3 +1,4 @@
+import {PEN_MODES} from './vision-pen.js';
 import {validShortcuts} from './chord-core.js';
 import {ENVIRONMENTS} from './environments.js';
 import {STARTER_PHRASES} from './communication.js';
@@ -31,6 +32,9 @@ export function validateProfile(p){
  if(p.phrases!==undefined&&(!Array.isArray(p.phrases)||p.phrases.length>24||p.phrases.some(v=>typeof v!=='string'||!v.trim()||v.length>300)))throw new Error('Invalid personal phrases.');
  if(p.words!==undefined&&(!Array.isArray(p.words)||p.words.length>100||p.words.some(v=>typeof v!=='string'||v.length>50||!/^[\p{L}\p{M}'’-]+$/u.test(v))))throw new Error('Invalid personal words.');
  if(p.chordShortcuts!==undefined&&!validShortcuts(p.chordShortcuts))throw new Error('Invalid chord shortcuts.');
+ if(p.settings.penMode!==undefined&&!PEN_MODES.includes(p.settings.penMode))throw new Error('Invalid pen control.');
+ if(p.settings.flowGain!==undefined&&![1.3,1.8,2.4,3].includes(p.settings.flowGain))throw new Error('Invalid Flow movement range.');
+ if(p.settings.flowAuto!==undefined&&typeof p.settings.flowAuto!=='boolean')throw new Error('Invalid Flow insertion setting.');
  if(p.settings.chordHoldMs!==undefined&&![120,180,260].includes(p.settings.chordHoldMs))throw new Error('Invalid chord timing.');
  if(p.settings.environment!==undefined&&!ENVIRONMENTS.some(e=>e.id===p.settings.environment))throw new Error('Unsupported communication environment.');
  if(p.settings.gridHoldMs!==undefined&&![600,850,1200,1600].includes(p.settings.gridHoldMs))throw new Error('Invalid finger selection timing.');

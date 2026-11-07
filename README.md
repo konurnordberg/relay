@@ -3,6 +3,35 @@
 
 Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held poses and short movements, then turns recognized signals into controls for writing and speaking original text.
 
+## New in 1.7 — Flow and a shared vision pen
+
+**Flow** is continuous word entry on a QWERTY layout. Trace the letters of an arbitrary dictionary word in one movement; lift to decode and insert it. It uses 20,000 local word/frequency pairs, arc-length resampling, endpoint and path-distance scoring, and banded dynamic time warping in a dedicated worker. Personal vocabulary joins the candidate set. There is no sentence-shortcut lookup or LLM-generated message.
+
+### Try Flow
+1. Open Write & speak → **Flow · swipe words**. Start Flow input and allow the camera.
+2. Keep the palm visible. With an open hand, move the cursor to the first letter. Extend the index finger and curl the other fingers, then trace through the word's letters. Open the hand to finish. Double letters need no extra loop.
+3. Matched words insert on lift by default. Turn off **Insert matched words when I lift** for explicit review. Uncertain paths always wait for review; a thumbs-up or open-hand hover over a candidate chooses it.
+4. To correct the latest inserted word, hover with an open hand over an alternative above the keys, or click it. Hover over bottom controls for Space, Undo, Delete, punctuation, case, or a mode change. A held control fires once until the pointer leaves it.
+5. **Spell**, **Symbols**, and **More symbols** support unfamiliar names, all printable ASCII, newline and tab. Point at a key, then lift to insert one literal character. The clickable key fallback is also available.
+6. Under **Positioning & writing preferences**, choose a comfortable movement range. Hold the fingertip near the middle of your comfortable workspace and select **Center on my finger**.
+7. **Compare with your keyboard** times identical ordinary-text targets, includes corrections, and ends on an exact match. Camera trials disable pointer text entry; keyboard trials block paste/drop. Export results before closing the browser.
+
+This version composes text inside Relay. Copy moves it into another application; it does not install a system-wide keyboard driver. It is intended for stationary use, not texting while driving. Faster-than-keyboard performance is an evaluation goal, not an achieved claim.
+
+### More robust Air letters and Cirrin
+All three drawing environments now share **VisionPen**. The default is **point to draw / open hand to lift**, keeping the thumb away from the index tip. Optional thumb–middle pinch keeps the index extended; thumb–index pinch remains available for comparison. Pen settings persist in profiles and guest preferences.
+
+The controller buffers stroke starts, excludes opening-hand motion from the endpoint, preserves short gaps up to 240 ms without inventing samples, rejects stale frames, tracks the nearest previous hand when detection order changes, and requires a reset after longer loss. Peripheral cropping does not discard an otherwise visible pointer and palm. Air ink retains short-gap continuity and uses smooth display curves. Cirrin registers inward-to-outward sector crossings without a per-letter dwell, tolerates moderate radial overshoot, and retains explicit word confirmation. Air letters and Cirrin now use the same local CPU two-hand worker as Flow; personalized Classic processing is unchanged.
+
+### Evidence and limits
+The new default pen passed controlled-hand browser tests through actual neural H recognition and fast HELLO ring spelling, including multiple strokes, brief gaps, and pen-up repositioning. The bundled MediaPipe model recognizes point/open poses in public static-image fixtures. Legacy pinch still passes its letter/ring checks.
+
+A fixed 200-word sample from the vocabulary, rendered as constructed paths with sinusoidal noise, produced 194 first choices and 200 top-three matches in the development smoke test. At 12 observations per constructed word, the sparse-path decoder returned 191 first choices and 200 top-three matches on the same sample; at 18 observations it returned 192 and 200. This is not live-user accuracy, a speed benchmark, or independent validation. Rapid queued word requests, late-result cancellation, profile import checks, camera-only corrections and full character coverage have automated checks. Physical movement, blur, occlusion, hardware and vocabulary ambiguity still require live evaluation.
+
+Run node tests/flow.test.mjs, node tests/flow-decoder.mjs, node tests/flow-browser.mjs and node tests/point-writing-browser.mjs. Decoder tests do not supply their target sentence to the recognizer. Existing Air/Cirrin browser tests explicitly exercise legacy pinch; the new point-writing test covers the default.
+
+Vocabulary attribution and the CC BY-SA 4.0 license are in dist/data/FLOW_WORDS_NOTICE.md and dist/data/CC-BY-SA-4.0.txt. The adapted vocabulary is under that license. The gesture-decoding design draws on [SHARK², Kristensson and Zhai (2004)](https://www.pokristensson.com/pubs/KristenssonZhaiUIST2004.pdf); no code or measured performance is copied from that work.
+
 ## New in 1.6 — Chord speed writing
 
 Chord uses gesture shorthand to insert whole words or reusable text blocks. The speed hypothesis is **more text per deliberate action**, inspired by chorded input such as [Open Steno](https://www.openstenoproject.org/), not faster letter-by-letter finger tracing.

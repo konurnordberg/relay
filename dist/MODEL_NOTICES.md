@@ -27,3 +27,9 @@ https://github.com/microsoft/onnxruntime/tree/v1.23.2
 
 The SHA-256 hashes of bundled model/runtime binaries are recorded in assets-manifest.json and checked by scripts/check.mjs.
 Existing MediaPipe runtime license: vendor/LICENSE.txt. Existing MediaPipe model provenance remains in the repository documentation.
+
+## Flow word vocabulary and decoder
+The local word-frequency data in data/flow-words.json is adapted from Hermit Dave's FrequencyWords English 2018 list, based on OpenSubtitles 2018. It retains 20,000 lowercase English tokens with optional internal apostrophes.
+Source: https://github.com/hermitdave/FrequencyWords/blob/master/content/2018/en/en_50k.txt
+Content license: CC BY-SA 4.0; see data/FLOW_WORDS_NOTICE.md and data/CC-BY-SA-4.0.txt. The adapted vocabulary is distributed under that license.
+Relay's path decoder is original application code using resampling, endpoint scoring and dynamic time warping. It is not a pretrained language model. No word-gesture training recordings are included.

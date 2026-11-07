@@ -25,7 +25,7 @@ try{
  await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Explore the keyboard'}).click();
  await page.getByRole('button',{name:'z',exact:true}).click();
  await page.getByLabel('Communication environment').selectOption('air-letters');
- await page.getByRole('button',{name:'Start air writing',exact:true}).click();
+ await page.locator('#pen-mode').selectOption('pinch');await page.getByRole('button',{name:'Start air writing',exact:true}).click();
  await trace('H');
  assert.equal(await page.locator('.air-choice').first().getAttribute('data-letter'),'H');
  assert.equal(await page.locator('#message').innerText(),'z','recognition cannot insert without confirmation');

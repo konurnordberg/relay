@@ -4,9 +4,9 @@ export const RACE_SCENARIOS={
  words:{name:'Word-by-word writing',text:'we can meet tomorrow and talk about the project',mode:'words',note:'Compose from the word palette or spelling mode. The same target is used for both methods.'}
 };
 export class ChordRace{
- constructor(){this.scenario='reusable';this.results={};this.active=false;this.status='Practice first, then compare the same text.';this.composer=new RelayComposer();this.method=null;this.started=0;this.corrections=0;this.actions=0;this.previous='';}
- get target(){return RACE_SCENARIOS[this.scenario].text;}
- select(id){if(this.active||!RACE_SCENARIOS[id])return false;this.scenario=id;this.status='Practice first, then compare the same text.';this.composer=new RelayComposer();return true;}
+ constructor(scenarios=RACE_SCENARIOS){this.scenarios=scenarios;this.scenario=Object.keys(scenarios)[0];this.results={};this.active=false;this.status='Practice first, then compare the same text.';this.composer=new RelayComposer();this.method=null;this.started=0;this.corrections=0;this.actions=0;this.previous='';}
+ get target(){return this.scenarios[this.scenario].text;}
+ select(id){if(this.active||!this.scenarios[id])return false;this.scenario=id;this.status='Practice first, then compare the same text.';this.composer=new RelayComposer();return true;}
  start(method,now){
   if(!['keyboard','camera'].includes(method)||!Number.isFinite(now))return false;
   this.active=true;this.method=method;this.started=now;this.composer=new RelayComposer();this.corrections=0;this.actions=0;this.previous='';this.status='Timer running. Finish the target exactly; corrections count toward your time.';return true;

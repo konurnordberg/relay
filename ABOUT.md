@@ -29,15 +29,21 @@ The counter combines image-plane and 3D hand measurements with temporal stabilit
 
 ### Air letters: handwriting without a surface
 
-Users pinch their thumb and index finger together and move their fingertip to trace a letter. Releasing the pinch lifts the pen, allowing letters with multiple strokes.
+Users point with their index finger to draw and open their hand to lift the pen, allowing letters with multiple strokes. Optional thumb–middle and thumb–index pinch controls are available. A shared pen tracker tolerates short gaps and excludes opening-hand motion from strokes.
 
 A local neural handwriting model reads the drawing and presents three suggestions. Users confirm the first with a thumbs-up or choose another letter. Persistent neon ink makes the captured movement visible on both the drawing pad and camera preview.
 
 ### Cirrin ring: a continuous stroke for a word
 
-An alphabetical ring lets users spell words by visiting letter tiles in one continuous pinched-finger stroke. The open center provides room to move between letters. Users release to review the captured spelling and confirm with a thumbs-up or a word button. A practice route, adjustable movement range, and optional local vocabulary suggestions support learning and correction.
+An alphabetical ring lets users spell words by visiting letter tiles in one continuous pointing stroke. The open center provides room to move between letters. Users open their hand to review the captured spelling and confirm with a thumbs-up or a word button. A practice route, adjustable movement range, and optional local vocabulary suggestions support learning and correction.
 
 This environment adapts the [Cirrin interaction introduced by Jennifer Mankoff and Gregory Abowd in 1998](https://sites.cc.gatech.edu/fce/pendragon/publications/cirrin98.pdf) to Relay's webcam controls. It shares the same message, undo history, and speech output as the other environments.
+
+### Flow: whole words from continuous movement
+
+A familiar QWERTY layout turns a continuous finger path into a word. A local worker compares the stroke against 20,000 word templates using geometry, frequency and dynamic time warping. Users can correct the latest word with a camera-controlled alternative, spell unfamiliar text, and enter symbols. No predefined sentences are needed.
+
+A keyboard comparison uses ordinary-text targets and includes correction time. Flow is an implemented prototype for investigating keyboard replacement; live-user speed superiority and system-wide text injection are not established. It is for stationary use.
 
 ### Chord: gesture shorthand for everyday productivity
 

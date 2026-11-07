@@ -49,5 +49,17 @@
   "vendor/ort/ort-wasm-simd-threaded.wasm": {
     "bytes": 11905541,
     "sha256": "45eaee27761ad883742a8d4b8fce1538d60ce43b51adf1726fafccc59b8c1a15"
+  },
+  "data/FLOW_WORDS_NOTICE.md": {
+    "bytes": 801,
+    "sha256": "4ede07861583a6e4f43f28d81a21661c30ee553959b8ea0f1d9c0000fde10b65"
+  },
+  "data/flow-words.json": {
+    "bytes": 335294,
+    "sha256": "e3e78e6a53ecd047fe796866b0f6b2d81365dc1ba601f0c9d10a4e2811fc056e"
+  },
+  "data/CC-BY-SA-4.0.txt": {
+    "bytes": 18375,
+    "sha256": "cde7883b9050a1104f4ac19a1572aafd6e5d7323b68351aaf51fbf4beba54966"
   }
 }

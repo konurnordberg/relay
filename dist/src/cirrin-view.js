@@ -24,7 +24,7 @@ function paint(ctx,size,input,{mini=false,background=true}={}){
  if(!mini){
   ctx.fillStyle='#102923e8';ctx.beginPath();ctx.arc(.5,.5,.145,0,TAU);ctx.fill();
   ctx.fillStyle='#b4d2bf';write(t.phase==='tracing'?'TRACING':t.phase==='review'?'REVIEW WORD':'START HERE',.5,.46,.023,600);
-  ctx.fillStyle='#e5f7e9';write(t.word.length>13?'…'+t.word.slice(-12):t.word||'Pinch',.5,.515,t.word.length>9?.026:.045,600);
+  ctx.fillStyle='#e5f7e9';write(t.word.length>13?'…'+t.word.slice(-12):t.word||'Point',.5,.515,t.word.length>9?.026:.045,600);
   ctx.fillStyle='#b4d2bf';write(t.phase==='review'?'Thumbs-up to insert':t.phase==='tracing'?'Release to review':'then visit letters',.5,.56,.021);
  }
  if(t.cursor){

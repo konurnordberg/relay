@@ -10,17 +10,17 @@ export function ringHit(p){
 }
 export class RingTrace{
  constructor(){this.reset();}
- reset(){this.phase='idle';this.word='';this.hits=[];this.path=[];this.cursor=null;this.candidate=null;this.latched=null;this.releaseSince=null;this.lastAt=null;this.mustRelease=false;this.interrupted=false;this.hint='Start a pinch in the center.';}
+ reset(){this.phase='idle';this.word='';this.hits=[];this.path=[];this.cursor=null;this.candidate=null;this.latched=null;this.releaseSince=null;this.lastAt=null;this.mustRelease=false;this.interrupted=false;this.hint='Point in the center to begin.';}
  begin(){this.word='';this.hits=[];this.path=[];this.candidate=null;this.latched=null;this.releaseSince=null;this.interrupted=false;this.phase='tracing';this.hint='Visit letters; travel through the center.';}
  sample(p,down,at,{pointer=false}={}){
   const hit=ringHit(p);if(!hit||!Number.isFinite(at))return;
   if(this.lastAt!==null&&at<=this.lastAt)return;
-  if(this.lastAt!==null&&at-this.lastAt>220&&this.phase==='tracing')this.interrupt();
+  if(this.lastAt!==null&&at-this.lastAt>280&&this.phase==='tracing')this.interrupt();
   this.lastAt=at;this.cursor=p;
   if(this.mustRelease){if(!down)this.mustRelease=false;return;}
   if(this.phase!=='tracing'){
    if(!down)return;
-   if(hit.r>RING.start){this.hint='Move into the center while pinching to start a new word.';return;}
+   if(hit.r>RING.start){this.hint='Move into the center with the pen down to start a new word.';return;}
    this.begin();
   }
   if(!down){
@@ -33,11 +33,12 @@ export class RingTrace{
   const previous=this.path.at(-1);
   if(!previous||Math.hypot(previous.x-p.x,previous.y-p.y)>.002)this.path.push({...p,break:previous&&Math.hypot(previous.x-p.x,previous.y-p.y)>.4});
   if(hit.r<RING.reset){this.latched=null;this.candidate=null;return;}
-  if(!hit.inRing||Math.abs(hit.offset)>.4){this.candidate=null;return;}
+  if(hit.r<RING.inner||hit.r>.62||Math.abs(hit.offset)>.48){this.candidate=null;return;}
   if(hit.index===this.latched){this.candidate=null;return;}
   if(this.candidate?.index!==hit.index)this.candidate={index:hit.index,since:at,samples:0};
   this.candidate.samples++;
-  if(pointer||this.candidate.samples>=2&&at-this.candidate.since>=45){
+  const entry=previous&&ringHit(previous).r<RING.inner&&hit.r>=RING.inner;
+  if(pointer||entry||this.candidate.samples>=2&&at-this.candidate.since>=20){
    this.word+=hit.letter;this.hits.push({letter:hit.letter,index:hit.index,pathIndex:this.path.length-1});
    this.latched=hit.index;this.candidate=null;this.hint='Captured '+hit.letter.toUpperCase()+'. Release when the word is complete.';
   }

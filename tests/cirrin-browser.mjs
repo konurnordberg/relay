@@ -28,7 +28,7 @@ async function tracePointer(word){
 try{
  await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Explore the keyboard'}).click();
  await page.getByRole('button',{name:'z',exact:true}).click();
- await page.getByLabel('Communication environment').selectOption('cirrin');await page.getByRole('button',{name:'Start Cirrin input',exact:true}).click();
+ await page.getByLabel('Communication environment').selectOption('cirrin');await page.locator('#pen-mode').selectOption('pinch');await page.getByRole('button',{name:'Start Cirrin input',exact:true}).click();
  await traceCamera('hello');
  assert.equal(await page.locator('#message').innerText(),'z','word preview must not insert');
  assert.equal(await page.locator('#cirrin-word').innerText(),'hello');

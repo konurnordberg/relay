@@ -1,3 +1,7 @@
+import {FlowInput} from './flow-input.js';
+import {drawFlow,flowCharacter,flowKeyLabel} from './flow-view.js';
+import {FLOW_LAYOUT} from './flow-core.js';
+import {PEN_MODES} from './vision-pen.js';
 import {ChordBook,ChordGate,DEFAULT_SHORTCUTS,validShortcuts,chordCode} from './chord-core.js';
 import {ChordRace,RACE_SCENARIOS} from './chord-race.js';
 import {CirrinInput} from './cirrin-input.js';
@@ -26,8 +30,8 @@ let cameraState='off',cameraMessage='Your camera stays off until you start it.',
 let teachingPhase=null,lastGestureMessage='';
 let toastTimer,scanVoice='',speechStatus='',activeDialog=null;
 let draftSavedText=null,draftNotice='',speakingMessage=false;
-let guestEnvironment={environment:'classic',gridHoldMs:850,gridSwap:false,cirrinGain:2.4,chordHoldMs:180};
-try{const saved=JSON.parse(localStorage.getItem('relay.environment.v1')||'{}');if(ENVIRONMENTS.some(e=>e.id===saved.environment))guestEnvironment.environment=saved.environment;if([600,850,1200,1600].includes(saved.gridHoldMs))guestEnvironment.gridHoldMs=saved.gridHoldMs;if([1.3,1.8,2.4].includes(saved.cirrinGain))guestEnvironment.cirrinGain=saved.cirrinGain;if([120,180,260].includes(saved.chordHoldMs))guestEnvironment.chordHoldMs=saved.chordHoldMs;if(typeof saved.gridSwap==='boolean')guestEnvironment.gridSwap=saved.gridSwap;}catch{}
+let guestEnvironment={environment:'classic',gridHoldMs:850,gridSwap:false,cirrinGain:2.4,chordHoldMs:180,penMode:'point',flowGain:2.4,flowAuto:true};
+try{const saved=JSON.parse(localStorage.getItem('relay.environment.v1')||'{}');if(ENVIRONMENTS.some(e=>e.id===saved.environment))guestEnvironment.environment=saved.environment;if([600,850,1200,1600].includes(saved.gridHoldMs))guestEnvironment.gridHoldMs=saved.gridHoldMs;if([1.3,1.8,2.4].includes(saved.cirrinGain))guestEnvironment.cirrinGain=saved.cirrinGain;if([120,180,260].includes(saved.chordHoldMs))guestEnvironment.chordHoldMs=saved.chordHoldMs;if(PEN_MODES.includes(saved.penMode))guestEnvironment.penMode=saved.penMode;if([1.3,1.8,2.4,3].includes(saved.flowGain))guestEnvironment.flowGain=saved.flowGain;if(typeof saved.flowAuto==='boolean')guestEnvironment.flowAuto=saved.flowAuto;if(typeof saved.gridSwap==='boolean')guestEnvironment.gridSwap=saved.gridSwap;}catch{}
 const environmentSettings=()=>profile?.settings||guestEnvironment;
 let environment=environmentById(environmentSettings().environment).id,fingerPage='letters',fingerStatus=null;
 const fingerTracker=new FingerPairTracker();
@@ -39,6 +43,12 @@ const chordBook=new ChordBook(),chordGate=new ChordGate(environmentSettings().ch
 let chordStatus=null,chordBenchmarkOpen=false,chordBank=0;
 const shortcuts=()=>chordRace.active&&chordRace.scenario==='reusable'?DEFAULT_SHORTCUTS:(profile?(profile.chordShortcuts||DEFAULT_SHORTCUTS):guestShortcuts);
 const chordComposer=()=>chordRace.active?chordRace.composer:composer;
+const FLOW_TRIALS={everyday:{name:'Everyday writing',text:'we can meet tomorrow and talk about the project'},longer:{name:'Longer message',text:'please send me the details when you are ready and we can review the changes together tomorrow'}};
+const flowRace=new ChordRace(FLOW_TRIALS);
+let flowLastInsertion=null,flowBenchmarkOpen=false;
+const flow=new FlowInput(()=>{if(flowWriting())updateFlowDisplay();},flowCommit,kind=>flowCommand(kind,'camera'));
+const flowWriting=()=>view==='write'&&environment==='flow';
+const flowComposer=()=>flowRace.active?flowRace.composer:composer;
 const fingerGate=new FingerIndexGate(environmentSettings().gridHoldMs||850);
 const chordWriting=()=>view==='write'&&environment==='chord';
 const cirrinWriting=()=>view==='write'&&environment==='cirrin';
@@ -47,7 +57,7 @@ const fingerWriting=()=>view==='write'&&environment==='finger-grid';
 const cameraMode=()=>view==='write'&&environmentById(environment).cameraMode!=='profile'?environmentById(environment).cameraMode:profile?.modality||'combined';
 const handDelegate=()=>view==='write'?environmentById(environment).handDelegate:'GPU';
 const startCamera=()=>camera.start(cameraMode(),'',handDelegate());
-function resetInput(){gate.reset();fingerGate.reset();fingerTracker.reset();fingerStatus=null;air.reset();cirrin.reset();chordGate.reset();chordStatus=null;}
+function resetInput(){gate.reset();fingerGate.reset();fingerTracker.reset();fingerStatus=null;air.reset();cirrin.reset();chordGate.reset();chordStatus=null;flow.reset();flowLastInsertion=null;}
 function syncCameraForContext(){if(camera.running&&(camera.mode!==cameraMode()||(camera.handDelegate!==undefined&&camera.handDelegate!==handDelegate())))startCamera();}
 
 const actions={select:'Select',next:'Next',delete:'Delete',undo:'Undo',speak:'Speak',pause:'Pause',insert:'Insert text'};
@@ -60,10 +70,10 @@ rebuild();restoreDraft();
 $('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home"><img src="./favicon.svg" alt="">relay<span class="sr-only">home</span></a><div><div class="eyebrow nav-label">YOUR WORKSPACE</div><nav class="nav" aria-label="Main navigation">'+navigation.map(([id,label,icon])=>'<button data-action="nav-'+id+'" data-nav="'+id+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+label+'</span></button>').join('')+'</nav></div><div class="side-bottom"><div class="privacy-note"><strong>◌ &nbsp; Built around you.</strong>Your camera is processed on this device. Your gesture profile stays in this browser.</div><div class="side-foot">TRIANGLE AI HACKATHON · 2026</div></div></aside><div class="workspace"><header class="topbar"><div class="breadcrumb">Your movement <span>/</span> <b id="page-label">Overview</b></div><div class="profile-switch"><span class="avatar" aria-hidden="true">↗</span><label class="sr-only" for="profile-select">Active profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3 id="camera-heading">Your signal</h3><span class="pill" id="camera-pill">CAMERA OFF</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><canvas id="air-overlay" aria-hidden="true" hidden></canvas><div class="camera-placeholder" id="camera-placeholder"><div class="face-outline" aria-hidden="true"></div><p>A little movement goes a long way.</p></div><div class="air-camera-hud" id="air-camera-hud" hidden></div><div class="finger-camera-hud" id="finger-camera-hud" hidden><span id="camera-row-count">Row —</span><span id="camera-col-count">Column —</span></div><div class="camera-corners"></div><span class="camera-tag">LOCAL VISION · NO VIDEO UPLOAD</span></div><div class="camera-prompt" id="camera-prompt" hidden><div class="eyebrow">FOLLOW ALONG</div><h3 id="camera-prompt-title"></h3><p id="camera-prompt-detail"></p><progress id="camera-prompt-progress" max="1" value="0" aria-label="Current recording phase"></progress><button class="button small secondary" data-action="cancel-task" id="camera-prompt-cancel">Cancel recording</button></div><div class="camera-controls"><div class="finger-camera-message" id="finger-camera-message" hidden><span>YOUR MESSAGE</span><p id="finger-camera-text"></p></div><p class="camera-status" id="camera-status"></p><button class="button" id="camera-button" data-action="camera">Enable camera ↗</button></div><div class="trail-controls"><label class="trail-toggle"><input id="trails-toggle" type="checkbox" role="switch" aria-describedby="trails-help"><span class="trail-switch" aria-hidden="true"></span><span>Enable trails</span><span class="trail-spark" aria-hidden="true">✧</span></label><p id="trails-help">Draw with your index fingers. Neon trails fade in a moment.</p></div><p id="camera-performance" class="camera-performance" hidden></p><div id="tracking-parts" class="tracking-parts" aria-label="Visible body parts"></div><div class="recognition"><div class="eyebrow">LIVE RECOGNITION</div><div class="signal-name"><span id="signal-name">Waiting for you</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div></section><section class="card rail-quote"><div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><h3>Your words.<br>Your way.</h3><p>One reliable movement can open an entire alphabet. You decide what to say.</p></section><p class="rail-note">Teach a face, hand, two-hand, or movement signal. Keep the parts you use visible.</p></aside></div><footer class="footer"><span>DESIGNED FOR INDIVIDUAL EXPRESSION</span><span>Research prototype · Check recognition before use</span></footer></div></div>';
 const camera=new VisionCamera($('#video'),$('#overlay'),onFrame,onCameraState);
 function updateTeachingPreview(){
- const teaching=view==='teach'||busy;document.body.classList.toggle('air-writing',airWriting()||cirrinWriting());document.body.classList.toggle('cirrin-writing',cirrinWriting());document.body.classList.toggle('chord-writing',chordWriting());$('#air-overlay').hidden=!(airWriting()||cirrinWriting());$('#air-camera-hud').hidden=!(airWriting()||cirrinWriting());document.body.classList.toggle('finger-writing',fingerWriting()||airWriting()||cirrinWriting()||chordWriting());$('#finger-camera-hud').hidden=!(fingerWriting()||chordWriting());$('#finger-camera-message').hidden=!(fingerWriting()||airWriting()||cirrinWriting()||chordWriting());
+ const teaching=view==='teach'||busy;document.body.classList.toggle('air-writing',airWriting()||cirrinWriting()||flowWriting());document.body.classList.toggle('cirrin-writing',cirrinWriting());document.body.classList.toggle('chord-writing',chordWriting());$('#air-overlay').hidden=!(airWriting()||cirrinWriting()||flowWriting());$('#air-camera-hud').hidden=!(airWriting()||cirrinWriting()||flowWriting());document.body.classList.toggle('finger-writing',fingerWriting()||airWriting()||cirrinWriting()||flowWriting()||chordWriting());$('#finger-camera-hud').hidden=!(fingerWriting()||chordWriting());$('#finger-camera-message').hidden=!(fingerWriting()||airWriting()||cirrinWriting()||flowWriting()||chordWriting());
  document.body.classList.toggle('teaching-view',teaching);
  document.body.classList.toggle('teaching-active',busy);
- document.body.classList.toggle('camera-docked',(teaching||fingerWriting()||airWriting()||cirrinWriting()||chordWriting())&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
+ document.body.classList.toggle('camera-docked',(teaching||fingerWriting()||airWriting()||cirrinWriting()||flowWriting()||chordWriting())&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
  $('#camera-heading').textContent=teaching?'Your live camera':'Your signal';
  const prompt=$('#camera-prompt');prompt.hidden=!teaching;
  const phase=teachingPhase||{title:'See yourself as you learn',detail:'Keep the parts you use in view. Your recording instructions will appear here.',fraction:0};
@@ -77,7 +87,7 @@ new ResizeObserver(syncCameraDock).observe($('.camera-card'));
 window.addEventListener('resize',updateTeachingPreview);
 
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),6500);}
-function setView(next){if(chordRace.active){chordRace.cancel();live=false;}if(busy){toast('Finish or cancel the current recording first.');return;}view=next;live=false;resetInput();render();syncCameraForContext();$('#main').focus({preventScroll:true});}
+function setView(next){flowRace.cancel();if(chordRace.active){chordRace.cancel();live=false;}if(busy){toast('Finish or cancel the current recording first.');return;}view=next;live=false;resetInput();render();syncCameraForContext();$('#main').focus({preventScroll:true});}
 function render(){
  document.body.dataset.view=view;updateTeachingPreview();
  $('#profile-select').innerHTML=profiles.length?profiles.map(p=>'<option value="'+esc(p.id)+'" '+(p===profile?'selected':'')+'>'+esc(p.name)+'</option>').join(''):'<option>No profile yet</option>';
@@ -107,6 +117,7 @@ function writingGuide(capabilities){
 function renderWriter(){
  if(view!=='write')return;
  composer.configure(profile);saveDraft();renderEnvironmentPicker();
+ if(flowWriting()){renderFlowWriter();return;}
  if(chordWriting()){renderChordWriter();return;}
  if(cirrinWriting()){renderCirrinWriter();return;}
  if(airWriting()){renderAirWriter();return;}
@@ -181,7 +192,7 @@ function saveEnvironmentSetting(key,value){
  if(profile)persist();else try{localStorage.setItem('relay.environment.v1',JSON.stringify(guestEnvironment));}catch{toast('Environment is available for this session; browser settings could not be saved.');}
 }
 function selectEnvironment(id){
- chordRace.cancel();chordBook.reset();
+ flowRace.cancel();chordRace.cancel();chordBook.reset();
  environment=environmentById(id).id;saveEnvironmentSetting('environment',environment);live=false;resetInput();fingerPage='letters';composer.resetFocus();render();syncCameraForContext();
 }
 
@@ -190,6 +201,77 @@ function selectEnvironment(id){
 
 
 
+function penControlsHTML(){
+ const mode=environmentSettings().penMode||'point',instructions={point:'Extend your index finger and curl the other fingers to draw. Open your hand to lift. Keep the palm facing the camera.', 'middle-pinch':'Keep your index finger extended. Touch thumb to middle finger to draw; separate them to lift.',pinch:'Touch thumb to index finger to draw; separate them to lift. Point mode avoids covering the tracked fingertip.'};
+ return '<div class="pen-controls"><label>Pen control<select id="pen-mode">'+PEN_MODES.map(m=>'<option value="'+m+'" '+(mode===m?'selected':'')+'>'+({point:'Point → draw · open hand → lift','middle-pinch':'Thumb + middle pinch',pinch:'Thumb + index pinch (legacy)'})[m]+'</option>').join('')+'</select></label><p>'+instructions[mode]+'</p></div>';
+}
+function flowCommit(word,{replace=false,literal=false,mode='words'}={}){
+ if(!flowWriting())return;const c=flowComposer();if(c.confirm||c.paused)return;
+ const insertWord=before=>(before&&!/\s$/.test(before)?' ':'')+(c.caps?word.toUpperCase():/^i(?:$|')/.test(word)?'I'+word.slice(1):word)+' ';
+ if(literal){word=flowCharacter(word,mode,c.caps);if(!word)return;c.apply({type:'text',value:word});flowLastInsertion=null;}
+ else if(replace){
+  const last=flowLastInsertion;if(!last||last.target!==c||c.text!==last.after){flow.status='The message changed. Trace the word again to insert it.';return;}
+  c.change(last.before+insertWord(last.before));flowLastInsertion={before:last.before,after:c.text,target:c};
+ }else{const before=c.text;c.apply({type:'text',value:insertWord(before)});flowLastInsertion={before,after:c.text,target:c};}
+ if(flowRace.active&&flowRace.update(c.text,performance.now(),{action:true})){live=false;resetInput();renderWriter();toast('Flow trial complete.');return;}
+ if(!flowRace.active){saveDraft();renderMessage();}updateFlowDisplay();
+}
+function flowCommand(kind,source='pointer'){
+ if(flowRace.active&&source!=='camera')return;
+ if(kind==='mode'){flow.mode=({words:'spell',spell:'symbols',symbols:'symbols2',symbols2:'words'})[flow.mode];flow.reset();renderWriter();return;}
+ const c=flowComposer();if(c.confirm||c.paused)return;flow.reset();
+ if(kind==='space')c.apply({type:'text',value:' '});
+ else if(kind==='period')c.change(c.text.replace(/ +$/,'')+'. ');
+ else c.apply({type:kind});
+ flowLastInsertion=null;
+ if(flowRace.active&&flowRace.update(c.text,performance.now(),{action:true})){live=false;resetInput();renderWriter();return;}
+ if(!flowRace.active){saveDraft();renderMessage();}if(kind==='caps'){renderWriter();return;}updateFlowDisplay();
+}
+function renderFlowWriter(){
+ const c=flowComposer();c.configure(profile);flow.personal=c.personalWords;
+ $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot"></span>'+(flowRace.active?'Timed '+flowRace.method+' trial':live?'Flow · camera input active':'Flow · camera or pointer practice')+'</span>'+btn(live?'Stop Flow input':'Start Flow input',live?'stop-live':'start-live',live?'small secondary':'small',flowRace.active||cameraState==='loading'?'disabled':'')+'</div>';
+ renderMessage();$('#focus-label').textContent='Flow · swipe words';$('#draft-status').textContent=draftNotice;
+ $('#keyboard').classList.remove('finger-keyboard');$('#keyboard').setAttribute('aria-label','Flow word keyboard');
+ $('#keyboard').innerHTML='<section class="flow-workspace"><span class="badge">CONTINUOUS WORD INPUT</span><h3>A word in a movement.</h3><p class="flow-intro">Move to the first letter with an open hand. Point through the letters in one stroke, then open your hand to finish. Double letters need no extra loop. Keep moving word by word.</p>'+penControlsHTML()+'<div class="flow-modes">'+['words','spell','symbols','symbols2'].map(m=>btn(({words:'Words',spell:'Spell',symbols:'Symbols',symbols2:'More symbols'})[m],'flow-mode','small '+(flow.mode===m?'':'secondary'),'data-mode="'+m+'" '+(flowRace.active?'disabled':'')+' aria-pressed="'+(flow.mode===m)+'"')).join('')+'</div><canvas id="flow-canvas" width="720" height="400" aria-label="QWERTY swipe keyboard. Drag through a word, then release." tabindex="0"></canvas><div class="flow-feedback" role="status"><strong id="flow-status"></strong><span id="flow-detail"></span></div><div id="flow-choices" class="flow-choices"></div><div class="button-row">'+btn('Clear stroke','flow-clear','secondary small',flowRace.active?'disabled':'')+btn('Undo word','flow-command','secondary small','data-kind="undo" '+(flowRace.active?'disabled':''))+btn('Space','flow-command','secondary small','data-kind="space" '+(flowRace.active?'disabled':''))+btn('.','flow-command','secondary small','data-kind="period" '+(flowRace.active?'disabled':''))+btn('Delete','flow-command','secondary small','data-kind="delete" '+(flowRace.active?'disabled':''))+btn(c.caps?'Lowercase':'Uppercase','flow-command','secondary small','data-kind="caps" '+(flowRace.active?'disabled':''))+'</div><details class="flow-options"><summary>Positioning & writing preferences</summary><label>Movement range<select id="flow-gain" '+(flowRace.active?'disabled':'')+'>'+[[3,'Very small'],[2.4,'Small'],[1.8,'Medium'],[1.3,'Large']].map(([v,n])=>'<option value="'+v+'" '+(flow.gain===v?'selected':'')+'>'+n+'</option>').join('')+'</select></label>'+btn('Center on my finger','flow-center','secondary small',flowRace.active?'disabled':'')+'<label class="toggle"><input id="flow-auto" type="checkbox" '+(flow.auto?'checked':'')+' '+(flowRace.active?'disabled':'')+'> Insert matched words when I lift</label><p>With an open hand, hover over an alternative above the keys to correct the last word. Hover over the bottom controls for Space, Undo, punctuation or a mode change. Spell enters individual letters; symbol pages handle numbers and code punctuation.</p></details><details class="flow-manual"><summary>Click a key to spell</summary><div>'+Object.keys(FLOW_LAYOUT).map(k=>btn(esc(flowKeyLabel(flowCharacter(k,flow.mode==='words'?'spell':flow.mode,c.caps))),'flow-letter','secondary small','data-letter="'+k+'" '+(flowRace.active?'disabled':''))).join('')+'</div></details><p class="flow-note">Local path matching with 20,000 words. Names can be added in My vocabulary or spelled. This composes text inside Relay; Copy transfers it to another app. Use while stationary. <a href="./data/FLOW_WORDS_NOTICE.md" target="_blank" rel="noopener">Vocabulary attribution</a>.</p></section>';
+ $('#writer-help').innerHTML=flowBenchmarkHTML();$('#writer-actions').innerHTML=c.confirm?btn('Cancel','flow-confirm','secondary','data-kind="cancel"')+btn(c.confirm==='speak'?'Speak now':'Clear message','flow-confirm','','data-kind="confirm"'):c.paused?btn('Resume','flow-confirm','','data-kind="resume"'):btn('Focus view','focus','secondary');$('#speech-status').textContent=speechStatus;
+ $('#pen-mode').disabled=flowRace.active;$('#flow-benchmark').addEventListener('toggle',e=>flowBenchmarkOpen=e.target.open);
+ const canvas=$('#flow-canvas'),point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height};};
+ canvas.addEventListener('pointerdown',e=>{if(flowRace.active||composer.confirm||composer.paused)return;e.preventDefault();live=false;flow.pointerActive=true;canvas.setPointerCapture(e.pointerId);flow.sample(point(e),true,performance.now());updateFlowDisplay();$('#writer-status .status').textContent='Pointer practice · camera input paused';const b=$('#writer-status button');b.textContent='Start Flow input';b.dataset.action='start-live';});
+ canvas.addEventListener('pointermove',e=>{if(!flow.pointerActive)return;const samples=e.getCoalescedEvents?.()||[];for(const p of samples.length?samples:[e])flow.sample(point(p),true,p.timeStamp);updateFlowDisplay();});
+ const release=e=>{if(!flow.pointerActive)return;flow.pointerActive=false;if(e.type==='pointercancel')flow.cancelStroke();else flow.sample(point(e),false,performance.now());updateFlowDisplay();};
+ canvas.addEventListener('pointerup',release);canvas.addEventListener('pointercancel',release);
+ updateFlowDisplay();updateFlowBenchmark();updateTeachingPreview();
+}
+function updateFlowDisplay(){
+ if(!flowWriting()||!$('#flow-canvas'))return;const c=flowComposer();
+ drawFlow($('#flow-canvas'),flow,c.caps);drawFlow($('#air-overlay'),flow,c.caps,true);
+ $('#flow-status').textContent=c.confirm?'Confirm or cancel '+c.confirm+' below before writing.':c.paused?'Paused · choose Resume below.':flow.status;$('#flow-detail').textContent=flow.tracing?'Drawing · open your hand to finish':flow.pending?'Word decoding on this device':flow.mode==='words'?'Swipe words; open-hand hover selects alternatives and controls.':'Point at a key, then open your hand to insert one character.';
+ $('#air-camera-hud').textContent=flow.tracing?'● Word in progress':flow.review?'Review word':flow.pen.blocked?'Open hand to reset':'Point to write';
+ $('#finger-camera-text').textContent=c.text.slice(-90)||'Your text appears here';$('#signal-name').textContent=flow.tracing?'Tracing word':flow.status;$('#signal-detail').textContent=flow.pending?'Decoding':'Flow';
+ $('#signal-meter').style.width=(flow.hover?Math.min(100,(performance.now()-flow.hoverSince)/450*100):0)+'%';
+ const choices=$('#flow-choices'),stamp=JSON.stringify([flow.candidates,flow.review,flowRace.active]);
+ if(choices.dataset.stamp!==stamp){choices.dataset.stamp=stamp;choices.innerHTML=flow.candidates.map((v,i)=>btn(esc(v.word)+'<small>'+(flow.review?'Insert word':'Replace last word')+'</small>','flow-accept','flow-choice '+(i?'secondary':''),'data-index="'+i+'" '+(flowRace.active?'disabled':''))).join('');}
+ updateFlowBenchmark();
+}
+function flowBenchmarkHTML(){
+ return '<details id="flow-benchmark" class="chord-benchmark" '+(flowBenchmarkOpen?'open':'')+'><summary>Compare with your keyboard</summary><p>Compose the same new text by typing and swiping. No phrase shortcuts. Corrections count toward your time.</p><label>Target<select id="flow-scenario" '+(flowRace.active?'disabled':'')+'>'+Object.entries(FLOW_TRIALS).map(([id,v])=>'<option value="'+id+'" '+(id===flowRace.scenario?'selected':'')+'>'+v.name+'</option>').join('')+'</select></label><blockquote class="chord-target">'+esc(flowRace.target)+'</blockquote><div class="button-row">'+btn('Start keyboard trial','flow-race-start','small secondary','data-method="keyboard" '+(flowRace.active?'disabled':''))+btn('Start Flow trial','flow-race-start','small','data-method="camera" '+(flowRace.active?'disabled':''))+btn('Stop trial','flow-race-stop','small secondary',flowRace.active?'':'disabled')+'</div><div class="chord-race-clock"><b id="flow-elapsed">0.0 s</b><span id="flow-race-status"></span></div><label class="field" '+(flowRace.method==='keyboard'?'':'hidden')+'>Keyboard trial<textarea id="flow-keyboard-trial" rows="4" spellcheck="false" autocomplete="off" '+(flowRace.active&&flowRace.method==='keyboard'?'':'readonly')+'>'+esc(flowRace.method==='keyboard'?flowRace.composer.text:'')+'</textarea></label><pre id="flow-trial-output" '+(flowRace.method==='camera'?'':'hidden')+'></pre><div id="flow-race-results" class="chord-race-results"></div><p class="chord-trial-note">WPM = target characters ÷ 5 ÷ elapsed minutes. The timer starts at the button and stops on an exact match, allowing trailing whitespace. Pointer text entry is disabled in Flow trials; paste and drop are blocked in keyboard trials. Results are this session’s latest trials; export to keep them. No faster-than-keyboard result is assumed.</p>'+btn('Export comparison','flow-race-export','small secondary')+'</details>';
+}
+function updateFlowBenchmark(){
+ if(!flowWriting()||!$('#flow-race-status'))return;
+ $('#flow-race-status').textContent=flowRace.status;const result=flowRace.completed[flowRace.method];
+ $('#flow-elapsed').textContent=((flowRace.active?performance.now()-flowRace.started:result?.elapsedMs||0)/1000).toFixed(1)+' s';
+ $('#flow-trial-output').textContent=flowRace.composer.text||'Your trial text appears here.';
+ const results=flowRace.completed,stamp=JSON.stringify(results),el=$('#flow-race-results');
+ if(el.dataset.stamp!==stamp){el.dataset.stamp=stamp;el.innerHTML=['keyboard','camera'].map(m=>'<div><span>'+(m==='camera'?'FLOW':'KEYBOARD')+'</span><b>'+(results[m]?results[m].wpm.toFixed(1):'—')+'</b><small>corrected WPM</small></div>').join('')+(results.camera&&results.keyboard?'<p>Flow / keyboard: <b>'+(results.camera.wpm/results.keyboard.wpm).toFixed(2)+'×</b> on this text.</p>':'');}
+}
+async function startFlowRace(method){
+ if(!flowWriting())return;live=false;flowRace.cancel();resetInput();flowBenchmarkOpen=true;
+ if(method==='camera'){await flow.load();if(cameraState!=='ready')await startCamera();if(!flowWriting()||cameraState!=='ready')return;}
+ flow.mode='words';flowRace.start(method,performance.now());live=method==='camera';renderWriter();if(method==='keyboard')$('#flow-keyboard-trial').focus();
+}
+document.addEventListener('input',e=>{if(e.target.id==='flow-keyboard-trial'&&flowRace.active&&flowRace.method==='keyboard'){if(flowRace.update(e.target.value,performance.now(),{action:true}))renderWriter();else updateFlowBenchmark();}});
+for(const event of ['paste','drop','beforeinput'])document.addEventListener(event,e=>{if(e.target.id==='flow-keyboard-trial'&&flowRace.active&&(event!=='beforeinput'||/insertFromPaste|insertFromDrop/.test(e.inputType)))e.preventDefault();});
+setInterval(()=>{if(flowRace.active)updateFlowBenchmark();},100);
 function renderChordWriter(){
  const target=chordComposer();target.configure(profile);
  $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot" style="background:'+(live?'#5a8b38':'#aa9164')+'"></span>'+(chordRace.active?(chordRace.method==='camera'?'Timed camera trial':'Timed keyboard trial'):live?'Chord · camera input active':'Chord · preview your shorthand')+'</span>'+btn(live?'Stop Chord input':'Start Chord input',live?'stop-live':'start-live',live?'small secondary':'small',cameraState==='loading'||chordRace.active?'disabled':'')+'</div>';
@@ -283,7 +365,7 @@ function renderCirrinWriter(){
  const command=(label,type,value='')=>btn(label,'cirrin-command','secondary small','data-kind="'+type+'" data-value="'+esc(value)+'"');
  const controls=composer.confirm?command('Cancel','cancel')+command(composer.confirm==='speak'?'Speak now':'Clear message','confirm'):composer.paused?command('Resume','resume'):command('Space','text',' ')+command('.','punctuation','.')+command(',','punctuation',',')+command('?','punctuation','?')+command('Delete','delete')+command('Undo','undo')+command(composer.caps?'abc':'ABC','caps')+command('Clear message','clear');
  const keyboard=$('#keyboard');keyboard.classList.remove('finger-keyboard');keyboard.setAttribute('aria-label','Cirrin circular keyboard');
- keyboard.innerHTML='<section class="cirrin-workspace"><div class="cirrin-heading"><div><span class="badge">CIRCULAR WORD INPUT</span><h3>A word in one stroke.</h3></div><button class="button small secondary" data-action="cirrin-guide" id="cirrin-guide-button" aria-pressed="'+cirrin.guide+'">Show HELLO route</button></div><p class="cirrin-instructions" id="cirrin-instructions"><b>Pinch in the center</b> to start. Keep pinching as you visit each letter tile. Travel through the open center to skip other letters. <b>Release to review</b>, then hold a thumbs-up to insert your word and a space.</p><div class="cirrin-board"><canvas id="cirrin-canvas" width="640" height="640" aria-label="Circular alphabet keyboard" aria-describedby="cirrin-instructions" tabindex="0"></canvas></div><div class="cirrin-feedback" aria-live="polite"><span class="eyebrow">CAPTURED WORD</span><strong id="cirrin-word">Your word will appear here</strong><p id="cirrin-status"></p></div><div class="cirrin-choices" id="cirrin-choices" aria-label="Word insertion choices"></div><div class="button-row cirrin-tools">'+btn('Review trace','cirrin-review','secondary small')+btn('Remove last letter','cirrin-back','secondary small')+btn('Clear trace','cirrin-clear','secondary small')+'</div><p class="cirrin-repeat">Double letter? Move inward, then back to the same tile. For <b>hello</b>: H → E → L → inward → L → O.</p><details class="cirrin-options"><summary>Movement range & positioning</summary><label>Movement needed<select id="cirrin-gain" aria-label="Cirrin movement range">'+[[2.4,'Small movements'],[1.8,'Medium movements'],[1.3,'Large movements']].map(([v,label])=>'<option value="'+v+'" '+(cirrin.gain===v?'selected':'')+'>'+label+'</option>').join('')+'</select></label><p>To reposition the dial, hold your drawing fingertip comfortably in view and use your other hand to press this button.</p>'+btn('Center on my finger','cirrin-center','small secondary')+'</details><details class="cirrin-manual"><summary>Click letters to spell or correct</summary><div>'+Array.from('abcdefghijklmnopqrstuvwxyz',c=>btn(c.toUpperCase(),'cirrin-letter','secondary small','data-letter="'+c+'" aria-label="Add '+c.toUpperCase()+' to word"')).join('')+'</div></details><p class="cirrin-credit">Inspired by <a href="https://sites.cc.gatech.edu/fce/pendragon/publications/cirrin98.pdf" target="_blank" rel="noopener noreferrer">Cirrin, Mankoff & Abowd (1998)</a>. Relay uses an alphabetical layout, webcam input, and explicit word review. Nearby words are optional local vocabulary suggestions.</p></section><div class="button-row cirrin-message-tools">'+controls+'</div>';
+ keyboard.innerHTML='<section class="cirrin-workspace">'+penControlsHTML()+'<div class="cirrin-heading"><div><span class="badge">CIRCULAR WORD INPUT</span><h3>A word in one stroke.</h3></div><button class="button small secondary" data-action="cirrin-guide" id="cirrin-guide-button" aria-pressed="'+cirrin.guide+'">Show HELLO route</button></div><p class="cirrin-instructions" id="cirrin-instructions"><b>Start in the center with your pen down.</b> Visit a letter, then return inward before the next one. <b>Lift your pen to review</b>, then hold a thumbs-up to insert your word and a space.</p><div class="cirrin-board"><canvas id="cirrin-canvas" width="640" height="640" aria-label="Circular alphabet keyboard" aria-describedby="cirrin-instructions" tabindex="0"></canvas></div><div class="cirrin-feedback" aria-live="polite"><span class="eyebrow">CAPTURED WORD</span><strong id="cirrin-word">Your word will appear here</strong><p id="cirrin-status"></p></div><div class="cirrin-choices" id="cirrin-choices" aria-label="Word insertion choices"></div><div class="button-row cirrin-tools">'+btn('Review trace','cirrin-review','secondary small')+btn('Remove last letter','cirrin-back','secondary small')+btn('Clear trace','cirrin-clear','secondary small')+'</div><p class="cirrin-repeat">Double letter? Move inward, then back to the same tile. For <b>hello</b>: H → E → L → inward → L → O.</p><details class="cirrin-options"><summary>Movement range & positioning</summary><label>Movement needed<select id="cirrin-gain" aria-label="Cirrin movement range">'+[[2.4,'Small movements'],[1.8,'Medium movements'],[1.3,'Large movements']].map(([v,label])=>'<option value="'+v+'" '+(cirrin.gain===v?'selected':'')+'>'+label+'</option>').join('')+'</select></label><p>To reposition the dial, hold your drawing fingertip comfortably in view and use your other hand to press this button.</p>'+btn('Center on my finger','cirrin-center','small secondary')+'</details><details class="cirrin-manual"><summary>Click letters to spell or correct</summary><div>'+Array.from('abcdefghijklmnopqrstuvwxyz',c=>btn(c.toUpperCase(),'cirrin-letter','secondary small','data-letter="'+c+'" aria-label="Add '+c.toUpperCase()+' to word"')).join('')+'</div></details><p class="cirrin-credit">Inspired by <a href="https://sites.cc.gatech.edu/fce/pendragon/publications/cirrin98.pdf" target="_blank" rel="noopener noreferrer">Cirrin, Mankoff & Abowd (1998)</a>. Relay uses an alphabetical layout, webcam input, and explicit word review. Nearby words are optional local vocabulary suggestions.</p></section><div class="button-row cirrin-message-tools">'+controls+'</div>';
  $('#writer-help').innerHTML='<div class="keyboard-help"><span>Thumbs-up inserts your exact captured spelling.</span><span>Each inserted word can be undone in one step.</span></div>';
  $('#writer-actions').innerHTML=btn('Focus view','focus','secondary');$('#speech-status').textContent=speechStatus;
  const canvas=$('#cirrin-canvas'),point=e=>{const r=canvas.getBoundingClientRect();return {x:(e.clientX-r.left)/r.width,y:(e.clientY-r.top)/r.height};};
@@ -298,7 +380,7 @@ function updateCirrinDisplay(){
  const trace=cirrin.trace,choices=cirrin.choices([...composer.personalWords,...COMMON]),blocked=!!composer.confirm||composer.paused;
  drawCirrin($('#cirrin-canvas'),cirrin);drawCirrin($('#air-overlay'),cirrin,{camera:true});
  $('#finger-camera-text').textContent=composer.text.slice(-60)||'Your next thought…';
- $('#air-camera-hud').textContent=trace.word?trace.word.toUpperCase()+(trace.phase==='review'?' · review':''):'Pinch in center';
+ $('#air-camera-hud').textContent=trace.word?trace.word.toUpperCase()+(trace.phase==='review'?' · review':''):'Point in center';
  $('#cirrin-word').textContent=trace.word?(composer.caps?trace.word.toUpperCase():trace.word):'Your word will appear here';
  $('#cirrin-status').textContent=blocked?'Finish the message confirmation before tracing.':trace.interrupted?'Tracking interrupted. Check the captured spelling before inserting.':trace.hint;
  const el=$('#cirrin-choices'),stamp=JSON.stringify([choices,composer.caps,blocked]);
@@ -316,7 +398,7 @@ function renderAirWriter(){
  const keyboard=$('#keyboard');keyboard.classList.remove('finger-keyboard');keyboard.setAttribute('aria-label','Air letter writing');
  const command=(label,type,value='')=>btn(label,'air-command','secondary small','data-kind="'+type+'" data-value="'+esc(value)+'"');
  const commands=composer.confirm?command('Cancel','cancel')+command(composer.confirm==='speak'?'Speak now':'Clear message','confirm'):composer.paused?command('Resume','resume'):command('Space','text',' ')+command('.','text','.')+command(',','text',',')+command('?','text','?')+command('Delete','delete')+command('Undo','undo')+command(composer.caps?'abc':'ABC','caps')+command('Clear message','clear');
- keyboard.innerHTML='<section class="air-workspace"><div class="air-guide"><span class="badge">A–Z · ON-DEVICE AI</span><h3>Write in the air.</h3><ol><li><strong>Pinch to ink.</strong> Touch thumb and index fingertips; move your index fingertip to draw a big letter.</li><li><strong>Release to lift.</strong> Reposition, then pinch again for another stroke. Pause with the pen lifted for AI suggestions.</li><li><strong>Review, then insert.</strong> Hold a thumbs-up to use the first suggestion, or click any letter choice.</li></ol></div><div class="air-pad"><canvas id="air-canvas" width="640" height="480" aria-label="Letter drawing pad. Drag to draw; use Recognize letter when finished." tabindex="0"></canvas><span class="air-pad-label">YOUR LETTER</span><span class="air-ink-badge" id="air-ink-badge">PEN LIFTED</span></div><div class="air-feedback" role="status"><strong id="air-status"></strong><span id="air-detail"></span></div><div class="air-candidates" id="air-candidates" aria-label="AI letter suggestions"></div><div class="button-row air-tools">'+btn('Recognize letter','air-recognize','secondary small')+btn('Clear drawing','air-clear','secondary small')+'</div><details class="air-correction" id="air-correction" hidden><summary>Choose a different letter</summary><div>'+Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ',c=>btn(c,'air-accept','small secondary','data-letter="'+c+'" aria-label="Insert '+c+'"')).join('')+'</div></details><p class="small-text muted air-note">One letter at a time. Draw printed letters as they appear on screen. Suggestions are estimates; no letter is inserted until you confirm. You can also draw on the pad with a mouse or touch.</p></section><div class="button-row air-message-tools">'+commands+'</div>';
+ keyboard.innerHTML='<section class="air-workspace">'+penControlsHTML()+'<div class="air-guide"><span class="badge">A–Z · ON-DEVICE AI</span><h3>Write in the air.</h3><ol><li><strong>Draw with your selected pen control.</strong> Move your index fingertip to form a printed letter.</li><li><strong>Lift to reposition.</strong> Use the lift action shown above, then start the next stroke. Pause with the pen lifted for AI suggestions.</li><li><strong>Review, then insert.</strong> Hold a thumbs-up to use the first suggestion, or click any letter choice.</li></ol></div><div class="air-pad"><canvas id="air-canvas" width="640" height="480" aria-label="Letter drawing pad. Drag to draw; use Recognize letter when finished." tabindex="0"></canvas><span class="air-pad-label">YOUR LETTER</span><span class="air-ink-badge" id="air-ink-badge">PEN LIFTED</span></div><div class="air-feedback" role="status"><strong id="air-status"></strong><span id="air-detail"></span></div><div class="air-candidates" id="air-candidates" aria-label="AI letter suggestions"></div><div class="button-row air-tools">'+btn('Recognize letter','air-recognize','secondary small')+btn('Clear drawing','air-clear','secondary small')+'</div><details class="air-correction" id="air-correction" hidden><summary>Choose a different letter</summary><div>'+Array.from('ABCDEFGHIJKLMNOPQRSTUVWXYZ',c=>btn(c,'air-accept','small secondary','data-letter="'+c+'" aria-label="Insert '+c+'"')).join('')+'</div></details><p class="small-text muted air-note">One letter at a time. Draw printed letters as they appear on screen. Suggestions are estimates; no letter is inserted until you confirm. You can also draw on the pad with a mouse or touch.</p></section><div class="button-row air-message-tools">'+commands+'</div>';
  $('#writer-help').innerHTML='<div class="keyboard-help"><span>Your drawing stays on this device.</span><span>Switch environments to use the full punctuation and phrase keyboard.</span></div>';
  $('#writer-actions').innerHTML=btn('Focus view','focus','secondary');$('#speech-status').textContent=speechStatus;
  const canvas=$('#air-canvas');let drawing=false;
@@ -331,11 +413,11 @@ function updateAirDisplay(){
  if(!airWriting()||!$('#air-status'))return;
  air.draw($('#air-canvas'),true);air.draw($('#air-overlay'));
  $('#finger-camera-text').textContent=composer.text.slice(-60)||'Your next thought…';
- const status=air.state==='loading'?'Loading handwriting AI…':air.state==='recognizing'?'Reading your letter…':air.state==='error'?'Recognition needs attention':air.candidates.length?(air.ambiguous?'A few possible readings':'Choose your letter'):air.ink.down?'Drawing your letter':air.ink.usable?'Lifted · add another stroke or recognize':'Pinch to begin a letter';
+ const status=air.state==='loading'?'Loading handwriting AI…':air.state==='recognizing'?'Reading your letter…':air.state==='error'?'Recognition needs attention':air.candidates.length?(air.ambiguous?'A few possible readings':'Choose your letter'):air.ink.down?'Drawing your letter':air.ink.usable?'Lifted · add another stroke or recognize':'Point to begin a letter';
  $('#air-status').textContent=status;
- $('#air-camera-hud').textContent=air.candidates.length?'Choose: '+air.candidates.map(c=>c.letter).join(' · '):air.ink.down?'● Ink on':air.state==='recognizing'?'Reading…':'Pinch to draw';
+ $('#air-camera-hud').textContent=air.candidates.length?'Choose: '+air.candidates.map(c=>c.letter).join(' · '):air.ink.down?'● Ink on':air.state==='recognizing'?'Reading…':'Point to draw';
  const start=$('#writer-status [data-action="start-live"]');if(start)start.disabled=air.state==='loading'||cameraState==='loading';
- $('#air-detail').textContent=air.state==='error'?air.error:air.candidates.length?'Thumbs-up for '+air.candidates[0].letter+', or choose below. Pinch again to add another stroke.':live?(air.hint||'Keep one hand in view.'):'Drag on the pad, or start air writing to use your camera.';
+ $('#air-detail').textContent=air.state==='error'?air.error:air.candidates.length?'Thumbs-up for '+air.candidates[0].letter+', or choose below. Start drawing again to add another stroke.':live?(air.hint||'Keep one hand in view.'):'Drag on the pad, or start air writing to use your camera.';
  $('#air-ink-badge').textContent=air.ink.down?'● INK ON':'○ PEN LIFTED';
  $('#air-ink-badge').classList.toggle('inking',air.ink.down);
  const el=$('#air-candidates'),stamp=air.candidates.map(c=>c.letter).join('');
@@ -364,7 +446,7 @@ function gestureDialog(id,writing=false){
 function selectProfile(id){lastGestureMessage='';if(busy)return;const p=profiles.find(p=>p.id===id);if(!p)return;camera.stop();cameraState='off';cameraMessage='Profile changed. Enable the camera when you’re ready.';profile=p;composer=new RelayComposer(profile);restoreDraft();live=false;latest=null;rebuild();render();}
 function updateCamera(){
  updateTeachingPreview();
- const trailsAllowed=chordWriting()||cirrinWriting()||airWriting()||fingerWriting()||profile?.modality!=='face';
+ const trailsAllowed=flowWriting()||chordWriting()||cirrinWriting()||airWriting()||fingerWriting()||profile?.modality!=='face';
  $('#trails-toggle').checked=trailsEnabled;$('#trails-toggle').disabled=!trailsAllowed;
  $('#trails-help').textContent=cirrinWriting()?'Your word path stays visible until you insert or clear it.':airWriting()?'Fading trails are optional. Letter ink stays until you insert or clear it.':trailsAllowed?'Trace with your index fingers. Brief tracking gaps reconnect; trails fade in 1.4 seconds.':'Use an all-signals or hand profile for fingertip trails.';
  camera.setTrails?.(trailsEnabled&&trailsAllowed);
@@ -378,9 +460,9 @@ function updateCamera(){
  $('#camera-button').textContent=cameraState==='loading'?'Loading vision…':cameraState==='ready'?'Turn camera off':'Enable camera ↗';
  $('#camera-button').disabled=cameraState==='loading'||busy;
 }
-function onCameraState(state,message){if(state==='ready')queueMicrotask(syncCameraForContext);cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){live=false;resetInput();}updateCamera();if(view==='write')renderWriter();}
+function onCameraState(state,message){if(state==='ready')queueMicrotask(syncCameraForContext);cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){flowRace.cancel('Trial cancelled because camera tracking stopped.');chordRace.cancel('Trial cancelled because camera tracking stopped.');live=false;resetInput();}updateCamera();if(view==='write')renderWriter();}
 function onFrame(frame){
- latest=frame;if(chordWriting()){onChordFrame(frame);return;}if(cirrinWriting()){if(!cirrin.pointerActive)cirrin.update(frame,live&&!activeDialog&&!composer.confirm&&!composer.paused);return;}if(airWriting()){if(live)air.update(frame,!activeDialog&&!composer.confirm&&!composer.paused);return;}if(fingerWriting()){onFingerFrame(frame);return;}if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
+ latest=frame;if(flowWriting()){if(!flow.pointerActive)flow.update(frame,live&&!activeDialog&&!flowComposer().confirm&&!flowComposer().paused);return;}if(chordWriting()){onChordFrame(frame);return;}if(cirrinWriting()){if(!cirrin.pointerActive)cirrin.update(frame,live&&!activeDialog&&!composer.confirm&&!composer.paused);return;}if(airWriting()){if(live)air.update(frame,!activeDialog&&!composer.confirm&&!composer.paused);return;}if(fingerWriting()){onFingerFrame(frame);return;}if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
  if(recording){recording.total++;if(frame.vector){recording.frames.push(frame.vector);recording.tracked++;}}
  let result=frame.vector?(model?.combined?predictCombined(model,frame.vector):predict(model,frame.vector)):{id:UNKNOWN,reason:'No tracking',score:0};
  let event=null;
@@ -426,7 +508,7 @@ function say(text,cue=false){
  if(!cue)speakingMessage=true;
  speechSynthesis.speak(u);
 }
-async function enableCamera(){if(!profile&&!fingerWriting()&&!airWriting()&&!cirrinWriting()&&!chordWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;resetInput();updateCamera();renderWriter();return;}await startCamera();}
+async function enableCamera(){if(!profile&&!fingerWriting()&&!airWriting()&&!cirrinWriting()&&!chordWriting()&&!flowWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;resetInput();updateCamera();renderWriter();return;}await startCamera();}
 function requireCamera(){if(cameraState!=='ready'){toast('Enable the camera before recording.');return false;}if(!latest?.vector||performance.now()-latest.now>700){toast('Move into view so the camera can track you.');return false;}return true;}
 function progress(title,detail,fraction=0){teachingPhase={title,detail,fraction};updateTeachingPreview();const area=$('#record-area');if(!area)return;area.innerHTML='<div class="record-panel" role="status"><div class="eyebrow">GUIDED PRACTICE</div><h3 style="margin-top:12px">'+esc(title)+'</h3><p>'+esc(detail)+'</p><progress max="1" value="'+fraction+'"></progress><div style="margin-top:16px">'+btn('Cancel','cancel-task','small secondary')+'</div></div>';}
 async function waitPhase(ms,title,detail,token){const start=performance.now();while(performance.now()-start<ms){if(token!==task)throw new Error('Cancelled');progress(title,detail,Math.min(1,(performance.now()-start)/ms));await sleep(100);}}
@@ -489,6 +571,12 @@ function download(name,data){const url=URL.createObjectURL(new Blob([data],{type
 function exportOne(id){const p=profiles.find(p=>p.id===id);if(p)download('relay-'+p.name.replace(/[^a-z0-9]/gi,'-')+'.json',exportProfile(p));}
 function deleteProfile(id){const p=profiles.find(p=>p.id===id);if(!p)return;openDialog(dialogHeader('Delete this profile?')+'<p>'+esc(p.name)+' and its recordings will be removed from this browser. Export a backup first if you want to keep it.</p><div class="button-row">'+btn('Export backup','export-profile','secondary','data-id="'+p.id+'"')+btn('Delete profile','confirm-delete-profile','danger','data-id="'+p.id+'"')+'</div>');}
 async function startLive(){
+ if(flowWriting()){
+  flowRace.cancel();resetInput();await flow.load();if(!flowWriting())return;
+  if(cameraState!=='ready'){await startCamera();if(!flowWriting()||cameraState!=='ready')return;}
+  live=true;renderWriter();toast('Move to the first letter with an open hand. Point through the word, then open to finish.');return;
+ }
+
  if(chordWriting()){
   chordRace.cancel();resetInput();chordGate.holdMs=environmentSettings().chordHoldMs||180;
   if(cameraState!=='ready'){await startCamera();if(!chordWriting()||cameraState!=='ready')return;}
@@ -496,12 +584,12 @@ async function startLive(){
  }
  if(cirrinWriting()){
   resetInput();if(cameraState!=='ready'){await startCamera();if(!cirrinWriting()||cameraState!=='ready')return;}
-  live=true;renderWriter();toast('Pinch in the center, visit letters, then release to review your word.');return;
+  live=true;renderWriter();toast('Point in the center, visit letters, then open your hand to review.');return;
  }
  if(airWriting()){
   resetInput();await air.load();if(!airWriting())return;
   if(cameraState!=='ready'){await startCamera();if(!airWriting()||cameraState!=='ready')return;}
-  live=true;renderWriter();toast('Pinch thumb and index to draw. Release to lift the pen.');return;
+  live=true;renderWriter();toast('Use the pen control above the pad. Point draws; an open hand lifts by default.');return;
  }
  if(fingerWriting()){
   if(cameraState!=='ready'){await startCamera();if(!fingerWriting()||cameraState!=='ready')return;}
@@ -516,6 +604,7 @@ async function startLive(){
 document.addEventListener('click',async e=>{
  const b=e.target.closest('[data-action]');if(!b)return;e.preventDefault();const a=b.dataset.action,id=b.dataset.id;
  try{
+  if(flowRace.active&&!a.startsWith('flow-')){flowRace.cancel('Trial cancelled when leaving the test controls.');live=false;resetInput();renderWriter();}
   if(chordRace.active&&!a.startsWith('chord-')){chordRace.cancel('Trial cancelled when leaving the test controls.');live=false;resetInput();renderWriter();}
   if(a.startsWith('nav-'))return setView(a.slice(4));
   if(a==='close-dialog'){activeDialog?.close();return;}
@@ -544,6 +633,17 @@ document.addEventListener('click',async e=>{
   if(a==='import')return $('#import-file').click();
   if(a==='export-report'){download('relay-validation.json',JSON.stringify({app:'Relay',profile:profile.name,modality:profile.modality,revision:profile.revision||0,settings:profile.settings,summary:trialSummary(currentTrials()),breakdown:confusionRows(profile),trainingDiagnostics:signalDiagnostics(model),practiceMilestones:readiness(profile,model),trials:profile.trials,limitations:'User-recorded practice results, not clinical validation. Separate attempts; no frame-level train/test split.'},null,2));return;}
   if(a==='start-live')return await startLive();
+  if(a==='flow-race-start'){await startFlowRace(b.dataset.method);return;}
+  if(a==='flow-race-stop'){flowRace.cancel();live=false;resetInput();renderWriter();return;}
+  if(a==='flow-race-export'){download('relay-flow-comparison.json',JSON.stringify({app:'Relay',environment:'Flow',protocol:'Novel text; exact completion; no phrase shortcuts. WPM = target characters / 5 / elapsed minutes. Includes correction time.',results:flowRace.results},null,2));return;}
+  if(a.startsWith('flow-')&&flowRace.active)return;
+  if(a==='flow-confirm'){resetInput();handleEffect(composer.apply({type:b.dataset.kind}));renderWriter();return;}
+  if(a==='flow-mode'){live=false;flow.reset();flow.mode=b.dataset.mode;renderWriter();return;}
+  if(a==='flow-clear'){flow.reset();flowLastInsertion=null;updateFlowDisplay();return;}
+  if(a==='flow-center'){if(!flow.centerOnHand(performance.now()))toast('Enable camera and hold your fingertip in view first.');updateFlowDisplay();return;}
+  if(a==='flow-accept'){flow.accept(Number(b.dataset.index));return;}
+  if(a==='flow-command'){flowCommand(b.dataset.kind);return;}
+  if(a==='flow-letter'){live=false;flowCommit(b.dataset.letter,{literal:true,mode:flow.mode==='words'?'spell':flow.mode});renderWriter();return;}
   if(a==='chord-bank'){if(chordRace.active)return;live=false;resetInput();chordBank=Number(b.dataset.bank);renderWriter();return;}
   if(a==='chord-key'){if(chordRace.active){toast('Use the selected input method during the timed trial.');return;}live=false;resetInput();useChordKey(Number(b.dataset.index),'pointer');return;}
   if(a==='chord-mode'){if(chordRace.active)return;chordBank=0;chordBook.mode=b.dataset.mode;chordBook.filters=[];resetInput();renderWriter();return;}
@@ -615,6 +715,10 @@ document.addEventListener('submit',async e=>{
  }catch(err){toast(err.message);}
 });
 document.addEventListener('change',async e=>{
+ if(e.target.id==='pen-mode'){if(flowRace.active)return;saveEnvironmentSetting('penMode',e.target.value);live=false;resetInput();for(const pen of [air.pen,cirrin.pen,flow.pen])pen.setMode(e.target.value);renderWriter();return;}
+ if(e.target.id==='flow-gain'){if(flowRace.active)return;saveEnvironmentSetting('flowGain',Number(e.target.value));live=false;flow.setGain(Number(e.target.value));renderWriter();return;}
+ if(e.target.id==='flow-auto'){if(flowRace.active)return;saveEnvironmentSetting('flowAuto',e.target.checked);flow.auto=e.target.checked;return;}
+ if(e.target.id==='flow-scenario'){if(flowRace.select(e.target.value)){live=false;resetInput();renderWriter();}return;}
  if(e.target.id==='chord-swap'){if(chordRace.active)return;saveEnvironmentSetting('gridSwap',e.target.checked);live=false;resetInput();renderWriter();return;}
  if(e.target.id==='chord-hold'){if(chordRace.active)return;saveEnvironmentSetting('chordHoldMs',Number(e.target.value));chordGate.holdMs=Number(e.target.value);live=false;resetInput();renderWriter();return;}
  if(e.target.id==='chord-scenario'){if(chordRace.select(e.target.value)){live=false;resetInput();renderWriter();}return;}
@@ -632,14 +736,14 @@ document.addEventListener('change',async e=>{
  if(e.target.id==='import-file'){try{const file=e.target.files[0];if(!file)return;const p=importProfile(await file.text());profiles.push(p);persist();selectProfile(p.id);toast('Profile imported. Check recognition in your current camera setup.');}catch(err){toast('Import failed: '+err.message);}}
 });
 document.addEventListener('keydown',e=>{
- if(chordWriting()||cirrinWriting()||airWriting()||fingerWriting()||view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+ if(flowWriting()||chordWriting()||cirrinWriting()||airWriting()||fingerWriting()||view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
  if(e.key==='ArrowRight'){e.preventDefault();composer.next();renderWriter();}
  if(e.key==='Enter'&&e.target===document.body){e.preventDefault();handleEffect(composer.select());renderWriter();}
 });
-document.addEventListener('visibilitychange',()=>{const wasTrial=chordRace.active;if(document.hidden)chordRace.cancel('Trial cancelled while the app was hidden.');resetInput();if(document.hidden&&wasTrial&&chordWriting())renderWriter();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
-window.addEventListener('beforeunload',()=>{camera.stop();air.model.close();});
+document.addEventListener('visibilitychange',()=>{const wasFlow=flowRace.active;if(document.hidden&&wasFlow){flowRace.cancel('Trial cancelled while the app was hidden.');live=false;if(flowWriting())renderWriter();}const wasTrial=chordRace.active;if(document.hidden)chordRace.cancel('Trial cancelled while the app was hidden.');resetInput();if(document.hidden&&wasTrial&&chordWriting())renderWriter();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
+window.addEventListener('beforeunload',()=>{camera.stop();flow.close();air.model.close();});
 setInterval(()=>{
- if(!chordWriting()&&!cirrinWriting()&&!airWriting()&&!fingerWriting()&&live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
+ if(!flowWriting()&&!chordWriting()&&!cirrinWriting()&&!airWriting()&&!fingerWriting()&&live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
   const now=performance.now();if(now-lastTracking>700){lastScan=now;return;}
   // Stop the scanning highlight while a deliberate selection is in progress.
   if(gate.candidate||gate.progress>0||gate.motionActive){lastScan=now;return;}
@@ -650,6 +754,8 @@ render();
 
 
 function restoreDraft(){
+ flowRace.cancel();flowRace.results={};flow.setGain(environmentSettings().flowGain||2.4);flow.auto=environmentSettings().flowAuto!==false;
+ for(const pen of [air.pen,cirrin.pen,flow.pen])pen.setMode(environmentSettings().penMode||'point');
  chordRace.cancel();chordRace.results={};chordBook.reset();chordGate.holdMs=environmentSettings().chordHoldMs||180;
  cirrin.setGain(environmentSettings().cirrinGain||2.4);cirrin.centered=false;environment=environmentById(environmentSettings().environment).id;fingerPage='letters';fingerGate.holdMs=environmentSettings().gridHoldMs||850;resetInput();lastGestureMessage='';
  draftSavedText=null;draftNotice='';
