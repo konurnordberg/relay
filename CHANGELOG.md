@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1 — November 7, 2026
+- Added an Enable trails camera toggle with cyan and pink index-fingertip paths, fading over 1.4 seconds.
+- Trails work without gesture calibration in combined and hand profiles, remember the local toggle preference, and break across tracking loss or implausible jumps.
+- Trails clear when disabled or the camera stops; rendering is separate from recognition.
+
 ## 1.2.0 — November 7, 2026
 - Made combined face and both-hand tracking the default for new profiles.
 - Added learned held-pose and short-motion gestures in the same vocabulary.

@@ -27,3 +27,18 @@
 .input-capabilities span{background:var(--soft);color:var(--green);padding:8px 12px;border-radius:20px;font-size:12px}
 
 .signal-card.motion .separation-track{display:none}
+
+.trail-controls{margin:0 18px 14px;padding:13px 12px 10px;border:1px solid var(--line);border-radius:13px;background:#f7f9f3}
+.trail-toggle{display:flex;align-items:center;gap:9px;position:relative;font-size:12px;font-weight:650;cursor:pointer;min-height:24px}
+.trail-toggle input{position:absolute;opacity:0;width:36px;height:22px;margin:0}
+.trail-switch{width:34px;height:20px;flex:none;border-radius:20px;background:#c4cdc2;position:relative;transition:background .15s}
+.trail-switch:after{content:'';position:absolute;width:14px;height:14px;top:3px;left:3px;background:#fff;border-radius:50%;box-shadow:0 1px 3px #163e3033;transition:transform .15s}
+.trail-toggle input:checked+.trail-switch{background:var(--green)}
+.trail-toggle input:checked+.trail-switch:after{transform:translateX(14px);background:#b7ffef}
+.trail-toggle input:focus-visible+.trail-switch{outline:3px solid #967321;outline-offset:4px}
+.trail-toggle:has(input:disabled){opacity:.5;cursor:default}
+.trail-spark{margin-left:auto;font-size:21px;color:var(--green)}
+.trail-controls p{font-size:10px;line-height:1.5;color:var(--muted);margin:7px 0 0}
+@media(prefers-reduced-motion:reduce){.trail-switch,.trail-switch:after{transition:none}}
+
+.trail-switch{pointer-events:none}

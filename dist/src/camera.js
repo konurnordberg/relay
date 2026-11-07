@@ -1,6 +1,7 @@
+import {FingerTrails} from './trails.js';
 import {combineFeatures,smoothCombined} from './features.js';
 export class VisionCamera{
- constructor(video,canvas,onFrame,onState){Object.assign(this,{video,canvas,onFrame,onState});this.running=false;this.session=0;this.models=[];}
+ constructor(video,canvas,onFrame,onState){Object.assign(this,{video,canvas,onFrame,onState});this.running=false;this.session=0;this.models=[];this.trails=new FingerTrails();this.drawing=null;}
  async start(mode='combined',deviceId=''){
   this.stop();const session=++this.session;this.mode=mode;this.onState('loading',mode==='combined'?'Loading face and both-hand tracking…':'Loading local vision model…');
   try{
@@ -30,22 +31,25 @@ export class VisionCamera{
    try{
     const before=performance.now();let face=null,hand=null;
     for(const {type,model} of this.models){const out=model.detectForVideo(this.video,now);if(type==='face')face=out;else hand=out;}
-    const facePoints=face?.faceLandmarks?.[0],handPoints=hand?.landmarks||[];let vector;
+    const facePoints=face?.faceLandmarks?.[0],handPoints=hand?.landmarks||[];let vector,slots=handSlots(hand);
     if(this.mode==='combined'){
-     const slots=stableHandSlots(handSlots(hand),this.handMemory);this.handMemory=slots;
+     slots=stableHandSlots(slots,this.handMemory);this.handMemory=slots;
      vector=combineFeatures(facePoints?faceFeatures(face):null,slots.map(p=>p?extendedHandFeatures(p):null));
      this.smooth=smoothCombined(vector,this.smooth);
     }else{
      vector=this.mode==='face'?(facePoints?faceFeatures(face):null):(handPoints[0]?handFeatures(handPoints[0]):null);
      this.smooth=vector?(this.smooth?vector.map((v,i)=>.5*v+.5*this.smooth[i]):vector):null;
     }
-    this.draw(facePoints,handPoints);this.onFrame({vector:this.smooth,points:facePoints||handPoints[0],now,latency:performance.now()-before,tracking:{face:!!facePoints,hands:handPoints.length}});
+    this.trails.update(slots,now);this.drawing={face:facePoints,hands:handPoints,at:now};this.onFrame({vector:this.smooth,points:facePoints||handPoints[0],now,latency:performance.now()-before,tracking:{face:!!facePoints,hands:handPoints.length}});
    }catch(e){this.onFrame({vector:null,now,latency:0});this.stop();this.onState('error','Vision processing stopped: '+e.message);return;}
   }
+  const frame=this.drawing&&now-this.drawing.at<300?this.drawing:null;
+  this.draw(frame?.face,frame?.hands||[],now);
   this.raf=requestAnimationFrame(()=>this.loop());
  }
- draw(face,hands=[]){
-  const c=this.canvas,ctx=c.getContext('2d');c.width=this.video.videoWidth||640;c.height=this.video.videoHeight||480;ctx.clearRect(0,0,c.width,c.height);
+ setTrails(enabled){this.trails.setEnabled(enabled);if(!this.running)this.draw(null,[]);}
+ draw(face,hands=[],now=performance.now()){
+  const c=this.canvas,ctx=c.getContext('2d');const width=this.video.videoWidth||640,height=this.video.videoHeight||480;if(c.width!==width)c.width=width;if(c.height!==height)c.height=height;ctx.clearRect(0,0,c.width,c.height);
   const dots=(points,indices,color)=>{ctx.fillStyle=color;for(const i of indices){const p=points[i];if(p){ctx.beginPath();ctx.arc(p.x*c.width,p.y*c.height,3,0,Math.PI*2);ctx.fill();}}};
   if(face)dots(face,[1,4,33,133,362,263,61,291,13,14,70,300,468,473],'#dff7a4');
   hands.forEach((points,n)=>{
@@ -53,8 +57,9 @@ export class VisionCamera{
    for(const chain of [[0,1,2,3,4],[0,5,6,7,8],[0,9,10,11,12],[0,13,14,15,16],[0,17,18,19,20],[5,9,13,17]]){ctx.beginPath();chain.forEach((i,j)=>ctx[j?'lineTo':'moveTo'](points[i].x*c.width,points[i].y*c.height));ctx.stroke();}
    dots(points,points.map((_,i)=>i),color);
   });
+  this.trails.draw(ctx,c.width,c.height,now);
  }
- stop(){this.session++;this.running=false;cancelAnimationFrame(this.raf);this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;for(const {model} of this.models||[])model.close();this.models=[];this.smooth=null;if(this.video)this.video.srcObject=null;}
+ stop(){this.session++;this.running=false;cancelAnimationFrame(this.raf);this.stream?.getTracks().forEach(t=>t.stop());this.stream=null;for(const {model} of this.models||[])model.close();this.models=[];this.smooth=null;this.drawing=null;this.trails.clear();this.canvas.getContext('2d').clearRect(0,0,this.canvas.width,this.canvas.height);if(this.video)this.video.srcObject=null;}
 }
 export function handSlots(result){
  const slots=[null,null],scores=[0,0];

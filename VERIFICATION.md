@@ -28,3 +28,6 @@ Enhancement coverage: explicit word completion and undo, stale-suggestion reject
 - Existing browser integration still composes “ab” from two learned signals, exports and reloads; vocabulary/draft/speech regression checks and camera-failure checks passed.
 - Final UI checks cover motion diagnostics, conditional Insert text, the no-mode-choice profile dialog, desktop and 390px layouts.
 - These checks do not establish real-camera swipe/two-hand accuracy. New inputs still require user calibration and fresh-attempt/rest-check results. Classic profile performance does not transfer to the new schema automatically.
+
+## Version 1.2.1 — fingertip trails
+Browser checks passed for the toggle's default and saved preference, actual canvas rendering with controlled fingertip detections, immediate clearing when disabled, full fade after tracking loss, clearing on camera stop, and mobile overflow. The real local vision-model startup and existing writing/control browser regression also passed. The neon trail screenshot was visually reviewed. These are presentation checks, not recognition-accuracy claims.
