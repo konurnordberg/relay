@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.2.3 — November 7, 2026
+- Separated face and hand inference into local workers; newest-frame scheduling avoids a processing backlog and leaves canvas rendering independent.
+- Request up to 60 fps, prioritize hand cadence, tolerate fast tracking-box movement, and fall back when workers are unavailable or fail.
+- Keep coherent fast palm/fingertip motion and sharp reversals connected; bridge plausible visual gaps up to 320 ms while retaining spike/remote-jump rejection.
+- Batch glow rendering and display measured camera and hand/face FPS.
+- Preserve profile schema, local-only processing, stale-frame expiry and recognition isolation from repaired trails.
+- Add fast-motion, scheduling, stale-session, stop/restart and fallback regressions.
+
 ## 1.2.2 — November 7, 2026
 - Replaced straight trail segments with bounded cubic curves and speed-adaptive jitter filtering.
 - Added visual hand continuity across detector reordering and brief handedness-confidence changes.

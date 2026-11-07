@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
 const browser=await chromium.launch({channel:'chrome',headless:true,args:['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream']});
 const context=await browser.newContext({permissions:['camera'],viewport:{width:1440,height:1050}}),page=await context.newPage(),errors=[];
+// Controlled landmark fixture exercises the compatibility renderer. Workers have separate real-runtime tests.
+await context.addInitScript(()=>{window.Worker=undefined;});
 page.on('pageerror',e=>errors.push(e.message));
 await context.route('**/vendor/vision_bundle.mjs',r=>r.fulfill({contentType:'text/javascript',body:
 `export const FilesetResolver={forVisionTasks:async()=>({})};

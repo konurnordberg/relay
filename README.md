@@ -81,7 +81,7 @@ Training units are summaries of separate gesture bouts. Neutral samples cover co
 
 ## Test
 ```sh
-node --test tests/core.test.mjs tests/enhancements.test.mjs tests/combined.test.mjs
+npm test
 node scripts/check.mjs
 ```
 Optional browser checks (Chrome must be installed):
@@ -124,5 +124,8 @@ Presence flags are never classifier features. Each gesture automatically selects
 
 The new motion and two-hand paths have software and static-image checks, but have not yet been measured on the user's live webcam. Use Check accuracy and rest checks for each new gesture. The user's earlier successful face-only session is not evidence of accuracy for this upgrade.
 
-## Fingertip trails (1.2.1)
-Turn on **Enable trails** below the camera to draw neon paths with your index fingers. Left and right hand tracks use cyan and pink, and each path fades over 1.4 seconds. It works before gesture calibration in combined and hand profiles. Trails are only a visual aid; they do not change recognition or interpret drawn letters. The browser remembers the toggle, but paths are not saved. Brief, plausible tracking gaps up to 200 ms reconnect; longer losses or large jumps start a separate stroke. Speed-adaptive filtering and bounded cubic curves reduce jitter and rigid corners. Turning trails off or stopping the camera clears it.
+## Fingertip trails (1.2.3)
+Turn on **Enable trails** below the camera to draw neon paths with your index fingers. Left and right hand tracks use cyan and pink, and each path fades over 1.4 seconds. It works before gesture calibration in combined and hand profiles. Trails are only a visual aid; they do not change recognition or interpret drawn letters. The browser remembers the toggle, but paths are not saved. Brief, plausible tracking gaps up to 320 ms reconnect; longer losses or large jumps start a separate stroke. Speed-adaptive filtering and bounded cubic curves reduce jitter and rigid corners. Turning trails off or stopping the camera clears it.
+Fast-motion tracking requests up to 60 camera frames per second where the webcam supports it. Separate local workers process hands and face, with one in-flight image per model and no frame backlog. Face processing is capped during combined tracking to leave capacity for hands; unsupported or failed workers fall back automatically. Hand tracking tolerates more inter-frame box motion while preserving detection/presence thresholds. The camera card reports measured camera and hand/face processing rates; these are not recognition-accuracy scores. Blur, occlusion, lighting and hardware still limit real performance. No reconstructed trail point feeds the recognizer.
+
+Additional camera checks: `node tests/trails-browser.mjs`, `node tests/camera-pipeline.mjs`, `node tests/worker-probe.mjs`, and `node tests/camera-failure.mjs`. Worker-probe uses the public fixtures prepared for `tests/vision.mjs`. `node tests/performance.mjs after` records a local synthetic-camera measurement; it is not a live user benchmark.

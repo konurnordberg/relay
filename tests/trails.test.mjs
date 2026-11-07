@@ -63,3 +63,25 @@ test('paths expire, memory remains bounded, disabling clears all history',()=>{
  t.setEnabled(false);assert.equal(t.tracks[0].last,null);
  t.update([hand(.7)],7100);assert.deepEqual(t.paths,[[],[]]);
 });
+
+test('very fast coherent sweeps and immediate reversals stay on one continuous trail',()=>{
+ for(const interval of [16.7,33,50]){
+  const t=setup(),xs=[.12,.34,.58,.81,.55,.30,.12,.36];
+  xs.forEach((x,i)=>t.update([hand(x)],i*interval,labels('Left')));
+  assert.equal(t.paths[0].length,xs.length,'must not discard a valid fast hand observation');
+  assert.equal(t.paths[1].length,0,'speed alone must not switch visual identity');
+  assert.ok(t.paths[0].slice(1).every(p=>p.join),'fast reversals must remain connected');
+ }
+});
+test('a brief fast-motion detection loss reconnects without inventing points while missing',()=>{
+ const t=setup();t.update([hand(.15)],0,labels('Left'));t.update([hand(.30)],33,labels('Left'));
+ for(const time of [66,100,150,200])t.update([],time);
+ assert.equal(t.paths[0].length,2);
+ t.update([hand(.72)],280,labels('Left'));
+ assert.equal(t.paths[0].length,3);assert.ok(t.paths[0].at(-1).join);
+});
+test('rendering cost uses bounded glow batches at high sample rates',()=>{
+ const t=setup();for(let i=0;i<85;i++)t.update([hand(.5+Math.sin(i*.1)*.2,.5+Math.cos(i*.1)*.2)],i*16.7);
+ let strokes=0,curves=0;const ctx={save(){},restore(){},beginPath(){},moveTo(){},bezierCurveTo(){curves++;},stroke(){strokes++;},arc(){},fill(){}};
+ t.draw(ctx,640,480,1403);assert.ok(curves>=80);assert.ok(strokes<=20,'glow work should not grow with every sampled segment');
+});

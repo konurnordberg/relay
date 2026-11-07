@@ -5,7 +5,7 @@ const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,x));
 const alpha=(dt,hz)=>1-Math.exp(-2*Math.PI*hz*dt);
 const valid=p=>p&&Number.isFinite(p.x)&&Number.isFinite(p.y)&&p.x>=-.25&&p.x<=1.25&&p.y>=-.25&&p.y<=1.25;
 const track=()=>({path:[],last:null,speed:0,velocity:{x:0,y:0},pending:null});
-export const TRAIL_GAP_MS=200;
+export const TRAIL_GAP_MS=320;
 export class FingerTrails{
  constructor(lifetimeMs=1400){this.lifetimeMs=lifetimeMs;this.enabled=false;this.clear();}
  clear(){this.tracks=[track(),track()];this.previousTime=null;}
@@ -28,10 +28,12 @@ export class FingerTrails{
   }).slice(0,2);
   if(!observations.length)return;
   const cost=(o,t,index)=>{
-   if(!t.last||now-t.last.at>TRAIL_GAP_MS)return o.label?(o.label===(index?'Right':'Left')?.30:.34):.32;
+   if(!t.last||now-t.last.at>TRAIL_GAP_MS)return o.label?(o.label===(index?'Right':'Left')?.56:.60):.58;
    const dt=(now-t.last.at)/1000;
    const predicted={x:t.last.anchor.x+clamp(t.velocity.x*dt,-.12,.12),y:t.last.anchor.y+clamp(t.velocity.y*dt,-.12,.12)};
-   return distance(o.anchor,predicted)*.8+distance(o.tip,t.last.raw)*.2;
+   // Keep a fast reversal on the same visual track: prediction alone would
+   // prefer an unused track when the hand abruptly changes direction.
+   return Math.min(distance(o.anchor,predicted),distance(o.anchor,t.last.anchor))*.8+distance(o.tip,t.last.raw)*.2;
   };
   let assignments;
   if(observations.length===2){
@@ -46,10 +48,17 @@ export class FingerTrails{
   const fresh=!last||now-last.at>TRAIL_GAP_MS;
   // A spatially remote reacquisition begins a separate stroke. A lone implausible
   // fingertip spike is withheld; a consistent new location is allowed as a new stroke.
-  let join=!fresh&&distance(o.anchor,last.anchor)<Math.min(.38,.10+dt*2.4);
+  const palmTravel=last?distance(o.anchor,last.anchor):0;
+  let join=!fresh&&palmTravel<Math.min(.62,.08+dt*14);
   if(join){
    const jump=distance(o.tip,last.raw),limit=Math.min(.50,.035+dt*Math.max(3.6,t.speed*2.2));
-   if(jump>limit){
+   const relativeChange=distance(
+    {x:o.tip.x-o.anchor.x,y:o.tip.y-o.anchor.y},
+    {x:last.raw.x-last.anchor.x,y:last.raw.y-last.anchor.y});
+   // Whole-hand translation is evidence of a real swipe, even at high speed.
+   // An isolated fingertip teleport still goes through spike rejection.
+   const coherent=palmTravel>.025&&relativeChange<.09+palmTravel*.45;
+   if(jump>limit&&!coherent){
     if(t.pending&&now-t.pending.at<160&&distance(o.tip,t.pending.tip)<.065){join=false;}
     else{t.pending={tip:o.tip,at:now};return;}
    }
@@ -74,13 +83,23 @@ export class FingerTrails{
   this.tracks.forEach((t,hand)=>{
    const color=hand?'#ff55ec':'#32f5ff',segments=curveSegments(t.path);
    ctx.shadowColor=color;
-   for(const {a,b,c1,c2} of segments){
-    const opacity=Math.pow(clamp(1-(now-(a.at+b.at)/2)/this.lifetimeMs,0,1),1.2);
-    ctx.beginPath();ctx.moveTo(a.x*width,a.y*height);
-    ctx.bezierCurveTo(c1.x*width,c1.y*height,c2.x*width,c2.y*height,b.x*width,b.y*height);
+   // Batch similar-age segments so glow needs at most 20 strokes per hand,
+   // rather than a separate blurred stroke for every sampled point.
+   const buckets=Array.from({length:10},()=>[]);
+   for(const segment of segments){
+    const opacity=Math.pow(clamp(1-(now-(segment.a.at+segment.b.at)/2)/this.lifetimeMs,0,1),1.2);
+    if(opacity>0)buckets[Math.min(9,Math.floor(opacity*10))].push(segment);
+   }
+   buckets.forEach((bucket,index)=>{
+    if(!bucket.length)return;ctx.beginPath();
+    for(const {a,b,c1,c2} of bucket){
+     ctx.moveTo(a.x*width,a.y*height);
+     ctx.bezierCurveTo(c1.x*width,c1.y*height,c2.x*width,c2.y*height,b.x*width,b.y*height);
+    }
+    const opacity=(index+.5)/10;
     ctx.globalAlpha=opacity*.55;ctx.strokeStyle=color;ctx.lineWidth=8;ctx.shadowBlur=15;ctx.stroke();
     ctx.globalAlpha=opacity;ctx.strokeStyle='#eaffff';ctx.lineWidth=2.2;ctx.shadowBlur=3;ctx.stroke();
-   }
+   });
    const tip=t.path.at(-1);
    if(tip){
     ctx.globalAlpha=clamp(1-(now-tip.at)/this.lifetimeMs,0,1);ctx.fillStyle=color;ctx.shadowBlur=14;
