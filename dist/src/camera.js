@@ -8,8 +8,8 @@ export class VisionCamera{
   Object.assign(this,{video,canvas,onFrame,onState});this.running=false;this.session=0;this.models=[];this.lanes=[];this.trails=new FingerTrails();this.resetFrames();
  }
  resetFrames(){this.face=null;this.hand=null;this.handMemory=[null,null];this.frameId=0;this.mediaTime=-1;this.lastEmit=0;this.events={face:[],hand:[],video:[]};this.backend='';this.warmed=false;}
- async start(mode='combined',deviceId=''){
-  this.stop();const session=++this.session;this.mode=mode;this.onState('loading','Starting fast camera tracking…');
+ async start(mode='combined',deviceId='',handDelegate='GPU'){
+  this.stop();const session=++this.session;this.mode=mode;this.handDelegate=handDelegate==='CPU'?'CPU':'GPU';this.onState('loading','Starting fast camera tracking…');
   try{
    if(!navigator.mediaDevices?.getUserMedia)throw new Error('Camera access requires localhost or HTTPS. Open this app in Chrome or Edge.');
    // Verify bundled runtime before asking for camera access.
@@ -21,7 +21,7 @@ export class VisionCamera{
    if(typeof Worker!=='undefined'&&typeof OffscreenCanvas!=='undefined'&&typeof createImageBitmap==='function'){
     try{
      this.lanes=kinds.map(kind=>new VisionLane(kind,data=>this.receive(data,session),error=>this.recover(error,session)));
-     await Promise.all(this.lanes.map(l=>l.start(mode==='combined'?2:1)));
+     await Promise.all(this.lanes.map(l=>l.start(mode==='combined'?2:1,l.kind==='hand'?this.handDelegate:'GPU')));
      this.backend='workers';
     }catch(error){
      if(session!==this.session)return;this.lanes.forEach(l=>l.close());this.lanes=[];
@@ -37,7 +37,7 @@ export class VisionCamera{
   const files=await FilesetResolver.forVisionTasks(new URL('../vendor/wasm',import.meta.url).href);
   if(session!==this.session)return;
   for(const kind of kinds){
-   const options={baseOptions:{modelAssetPath:new URL('../models/'+kind+'_landmarker.task',import.meta.url).href,delegate:'GPU'},runningMode:'VIDEO'};
+   const options={baseOptions:{modelAssetPath:new URL('../models/'+kind+'_landmarker.task',import.meta.url).href,delegate:kind==='hand'?this.handDelegate:'GPU'},runningMode:'VIDEO'};
    if(kind==='face')Object.assign(options,{numFaces:1,outputFaceBlendshapes:true,minFaceDetectionConfidence:.6,minFacePresenceConfidence:.6,minTrackingConfidence:.6});
    else Object.assign(options,{numHands:this.mode==='combined'?2:1,minHandDetectionConfidence:.6,minHandPresenceConfidence:.6,minTrackingConfidence:.35});
    const Factory=kind==='face'?FaceLandmarker:HandLandmarker;let model;
@@ -107,7 +107,7 @@ export class VisionCamera{
   const hand=this.hand&&now-this.hand.capturedAt<=FRESH_MS?this.hand:null;
   const vector=this.mode==='combined'?combineFeatures(face?.vector||null,hand?.vectors||[null,null]):this.mode==='face'?face?.vector||null:hand?.vector||null;
   this.lastEmit=now;
-  this.onFrame({vector,points:face?.result.faceLandmarks?.[0]||hand?.result.landmarks?.[0],now,
+  this.onFrame({vector,hands:hand?.result.landmarks||[],handWorld:hand?.result.worldLandmarks||[],handFrameAt:hand?.capturedAt??null,handAspect:(this.video.videoWidth||640)/(this.video.videoHeight||480),points:face?.result.faceLandmarks?.[0]||hand?.result.landmarks?.[0],now,
    latency:Math.max(face?.computeMs||0,hand?.computeMs||0),tracking:{face:!!face?.vector,hands:hand?.result.landmarks?.length||0},metrics:this.getMetrics(now)});
  }
  getMetrics(now=performance.now()){

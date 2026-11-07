@@ -1,3 +1,5 @@
+import {ENVIRONMENTS,environmentById,GRID_PAGES,PAGE_NAMES,gridKeys,applyGridKey} from './environments.js';
+import {fingerPair,FingerIndexGate} from './finger-index.js';
 import {trainCombined,predictCombined,CombinedGate,resample,requiredTracking} from './combined.js';
 import {CHANNELS,channelIndices} from './features.js';
 import {REST,UNKNOWN,train,predict,summarize,EventGate,Composer,trialSummary} from './core.js';
@@ -18,6 +20,18 @@ let cameraState='off',cameraMessage='Your camera stays off until you start it.',
 let teachingPhase=null,lastGestureMessage='';
 let toastTimer,scanVoice='',speechStatus='',activeDialog=null;
 let draftSavedText=null,draftNotice='',speakingMessage=false;
+let guestEnvironment={environment:'classic',gridHoldMs:850,gridSwap:false};
+try{const saved=JSON.parse(localStorage.getItem('relay.environment.v1')||'{}');if(ENVIRONMENTS.some(e=>e.id===saved.environment))guestEnvironment.environment=saved.environment;if([600,850,1200,1600].includes(saved.gridHoldMs))guestEnvironment.gridHoldMs=saved.gridHoldMs;if(typeof saved.gridSwap==='boolean')guestEnvironment.gridSwap=saved.gridSwap;}catch{}
+const environmentSettings=()=>profile?.settings||guestEnvironment;
+let environment=environmentById(environmentSettings().environment).id,fingerPage='letters',fingerStatus=null;
+const fingerGate=new FingerIndexGate(environmentSettings().gridHoldMs||850);
+const fingerWriting=()=>view==='write'&&environment==='finger-grid';
+const cameraMode=()=>view==='write'&&environmentById(environment).cameraMode!=='profile'?environmentById(environment).cameraMode:profile?.modality||'combined';
+const handDelegate=()=>view==='write'?environmentById(environment).handDelegate:'GPU';
+const startCamera=()=>camera.start(cameraMode(),'',handDelegate());
+function resetInput(){gate.reset();fingerGate.reset();fingerStatus=null;}
+function syncCameraForContext(){if(camera.running&&(camera.mode!==cameraMode()||(camera.handDelegate!==undefined&&camera.handDelegate!==handDelegate())))startCamera();}
+
 const actions={select:'Select',next:'Next',delete:'Delete',undo:'Undo',speak:'Speak',pause:'Pause',insert:'Insert text'};
 const navigation=[['home','Overview','◈'],['teach','Teach gestures','⌁'],['write','Write & speak','▤'],['check','Check accuracy','◎'],['studio','Signal studio','⌘'],['profiles','My profiles','◉']];
 const currentTrials=()=>profile?.trials.filter(t=>(t.revision||0)===(profile.revision||0))||[];
@@ -25,13 +39,13 @@ function persist(){try{saveProfiles(profiles);storageError='';return true;}catch
 function changed(){profile.revision=(profile.revision||0)+1;persist();rebuild();}
 function rebuild(){model=null;modelError='';gate=new EventGate(profile?.settings.holdMs,profile?.settings.restMs);if(profile){try{model=profile.modality==='combined'?trainCombined(profile):train(profile);if(model.combined)gate=new CombinedGate(model,profile.settings.holdMs,profile.settings.restMs);}catch(e){modelError=e.message;}}}
 rebuild();restoreDraft();
-$('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home"><img src="./favicon.svg" alt="">relay<span class="sr-only">home</span></a><div><div class="eyebrow nav-label">YOUR WORKSPACE</div><nav class="nav" aria-label="Main navigation">'+navigation.map(([id,label,icon])=>'<button data-action="nav-'+id+'" data-nav="'+id+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+label+'</span></button>').join('')+'</nav></div><div class="side-bottom"><div class="privacy-note"><strong>◌ &nbsp; Built around you.</strong>Your camera is processed on this device. Your gesture profile stays in this browser.</div><div class="side-foot">TRIANGLE AI HACKATHON · 2026</div></div></aside><div class="workspace"><header class="topbar"><div class="breadcrumb">Your movement <span>/</span> <b id="page-label">Overview</b></div><div class="profile-switch"><span class="avatar" aria-hidden="true">↗</span><label class="sr-only" for="profile-select">Active profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3 id="camera-heading">Your signal</h3><span class="pill" id="camera-pill">CAMERA OFF</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><div class="camera-placeholder" id="camera-placeholder"><div class="face-outline" aria-hidden="true"></div><p>A little movement goes a long way.</p></div><div class="camera-corners"></div><span class="camera-tag">LOCAL VISION · NO VIDEO UPLOAD</span></div><div class="camera-prompt" id="camera-prompt" hidden><div class="eyebrow">FOLLOW ALONG</div><h3 id="camera-prompt-title"></h3><p id="camera-prompt-detail"></p><progress id="camera-prompt-progress" max="1" value="0" aria-label="Current recording phase"></progress><button class="button small secondary" data-action="cancel-task" id="camera-prompt-cancel">Cancel recording</button></div><div class="camera-controls"><p class="camera-status" id="camera-status"></p><button class="button" id="camera-button" data-action="camera">Enable camera ↗</button></div><div class="trail-controls"><label class="trail-toggle"><input id="trails-toggle" type="checkbox" role="switch" aria-describedby="trails-help"><span class="trail-switch" aria-hidden="true"></span><span>Enable trails</span><span class="trail-spark" aria-hidden="true">✧</span></label><p id="trails-help">Draw with your index fingers. Neon trails fade in a moment.</p></div><p id="camera-performance" class="camera-performance" hidden></p><div id="tracking-parts" class="tracking-parts" aria-label="Visible body parts"></div><div class="recognition"><div class="eyebrow">LIVE RECOGNITION</div><div class="signal-name"><span id="signal-name">Waiting for you</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div></section><section class="card rail-quote"><div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><h3>Your words.<br>Your way.</h3><p>One reliable movement can open an entire alphabet. You decide what to say.</p></section><p class="rail-note">Teach a face, hand, two-hand, or movement signal. Keep the parts you use visible.</p></aside></div><footer class="footer"><span>DESIGNED FOR INDIVIDUAL EXPRESSION</span><span>Research prototype · Personal calibration required</span></footer></div></div>';
+$('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home"><img src="./favicon.svg" alt="">relay<span class="sr-only">home</span></a><div><div class="eyebrow nav-label">YOUR WORKSPACE</div><nav class="nav" aria-label="Main navigation">'+navigation.map(([id,label,icon])=>'<button data-action="nav-'+id+'" data-nav="'+id+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+label+'</span></button>').join('')+'</nav></div><div class="side-bottom"><div class="privacy-note"><strong>◌ &nbsp; Built around you.</strong>Your camera is processed on this device. Your gesture profile stays in this browser.</div><div class="side-foot">TRIANGLE AI HACKATHON · 2026</div></div></aside><div class="workspace"><header class="topbar"><div class="breadcrumb">Your movement <span>/</span> <b id="page-label">Overview</b></div><div class="profile-switch"><span class="avatar" aria-hidden="true">↗</span><label class="sr-only" for="profile-select">Active profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3 id="camera-heading">Your signal</h3><span class="pill" id="camera-pill">CAMERA OFF</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><div class="camera-placeholder" id="camera-placeholder"><div class="face-outline" aria-hidden="true"></div><p>A little movement goes a long way.</p></div><div class="finger-camera-hud" id="finger-camera-hud" hidden><span id="camera-row-count">Row —</span><span id="camera-col-count">Column —</span></div><div class="camera-corners"></div><span class="camera-tag">LOCAL VISION · NO VIDEO UPLOAD</span></div><div class="camera-prompt" id="camera-prompt" hidden><div class="eyebrow">FOLLOW ALONG</div><h3 id="camera-prompt-title"></h3><p id="camera-prompt-detail"></p><progress id="camera-prompt-progress" max="1" value="0" aria-label="Current recording phase"></progress><button class="button small secondary" data-action="cancel-task" id="camera-prompt-cancel">Cancel recording</button></div><div class="camera-controls"><div class="finger-camera-message" id="finger-camera-message" hidden><span>YOUR MESSAGE</span><p id="finger-camera-text"></p></div><p class="camera-status" id="camera-status"></p><button class="button" id="camera-button" data-action="camera">Enable camera ↗</button></div><div class="trail-controls"><label class="trail-toggle"><input id="trails-toggle" type="checkbox" role="switch" aria-describedby="trails-help"><span class="trail-switch" aria-hidden="true"></span><span>Enable trails</span><span class="trail-spark" aria-hidden="true">✧</span></label><p id="trails-help">Draw with your index fingers. Neon trails fade in a moment.</p></div><p id="camera-performance" class="camera-performance" hidden></p><div id="tracking-parts" class="tracking-parts" aria-label="Visible body parts"></div><div class="recognition"><div class="eyebrow">LIVE RECOGNITION</div><div class="signal-name"><span id="signal-name">Waiting for you</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div></section><section class="card rail-quote"><div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><h3>Your words.<br>Your way.</h3><p>One reliable movement can open an entire alphabet. You decide what to say.</p></section><p class="rail-note">Teach a face, hand, two-hand, or movement signal. Keep the parts you use visible.</p></aside></div><footer class="footer"><span>DESIGNED FOR INDIVIDUAL EXPRESSION</span><span>Research prototype · Personal calibration required</span></footer></div></div>';
 const camera=new VisionCamera($('#video'),$('#overlay'),onFrame,onCameraState);
 function updateTeachingPreview(){
- const teaching=view==='teach'||busy;
+ const teaching=view==='teach'||busy;document.body.classList.toggle('finger-writing',fingerWriting());$('#finger-camera-hud').hidden=!fingerWriting();$('#finger-camera-message').hidden=!fingerWriting();
  document.body.classList.toggle('teaching-view',teaching);
  document.body.classList.toggle('teaching-active',busy);
- document.body.classList.toggle('camera-docked',teaching&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
+ document.body.classList.toggle('camera-docked',(teaching||fingerWriting())&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
  $('#camera-heading').textContent=teaching?'Your live camera':'Your signal';
  const prompt=$('#camera-prompt');prompt.hidden=!teaching;
  const phase=teachingPhase||{title:'See yourself as you learn',detail:'Keep the parts you use in view. Your recording instructions will appear here.',fraction:0};
@@ -45,7 +59,7 @@ new ResizeObserver(syncCameraDock).observe($('.camera-card'));
 window.addEventListener('resize',updateTeachingPreview);
 
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),6500);}
-function setView(next){if(busy){toast('Finish or cancel the current recording first.');return;}view=next;live=false;gate.reset();render();$('#main').focus({preventScroll:true});}
+function setView(next){if(busy){toast('Finish or cancel the current recording first.');return;}view=next;live=false;resetInput();render();syncCameraForContext();$('#main').focus({preventScroll:true});}
 function render(){
  document.body.dataset.view=view;updateTeachingPreview();
  $('#profile-select').innerHTML=profiles.length?profiles.map(p=>'<option value="'+esc(p.id)+'" '+(p===profile?'selected':'')+'>'+esc(p.name)+'</option>').join(''):'<option>No profile yet</option>';
@@ -66,7 +80,7 @@ function teachView(){
  return heading('Teach us your language.','A few movements. A few examples. A vocabulary that belongs to you.')+(profile.modality!=='combined'?'<div class="callout"><p><strong>Your classic profile is preserved.</strong>Create an all-signals profile to mix face, hand, and movement signals.</p>'+btn('New all-signals profile','new-profile','small secondary')+'</div>':'')+'<div class="progress-steps"><span class="'+(done?'done':'')+'">01 &nbsp; Rest</span><span class="'+(model?'done':'')+'">02 &nbsp; Your gestures</span><span class="'+(currentTrials().length?'done':'')+'">03 &nbsp; Check & communicate</span></div><div class="card"><div class="section-label" style="margin-top:0"><h3>01 &nbsp; Your resting state</h3><span class="badge">'+(done?'Recorded':'Start here')+'</span></div><p class="small-text muted">Relax naturally for 12 seconds. Blink and look around as you normally would. '+(profile.modality==='hand'?'Keep your resting hand visible.':'Keep your face visible. If you plan to use your hands, keep them comfortably in view too.')+' This teaches Relay what should <strong>not</strong> select a key.</p>'+btn(done?'Record rest again':'Learn my resting state','record-rest','secondary',busy?'disabled':'')+'</div><div class="card"><div class="section-label" style="margin-top:0"><h3>02 &nbsp; Your gestures</h3><span>'+profile.gestures.length+' personal signals</span></div><p class="small-text muted">'+(profile.modality==='combined'?'Choose a held pose or a short movement. Face and both hands can contribute together.':'Choose a comfortable held pose. Your saved input mode remains unchanged.')+' We’ll record five examples and a relaxed starting pose before each.</p><div class="gesture-list">'+profile.gestures.map((g,i)=>'<div class="gesture-item"><span class="gesture-icon">'+String(i+1).padStart(2,'0')+'</span><div class="gesture-detail"><strong>'+esc(g.name)+'</strong><small>'+esc(actions[g.action])+(g.action==='insert'?' · '+esc(g.value):'')+' · '+(g.kind==='motion'?'Movement':'Held pose')+' · '+g.samples.length+' examples'+(g.enabled===false?' · Disabled':'')+'</small></div><div class="gesture-actions">'+btn(g.samples.length?'Retrain':'Record','record-gesture','small secondary','data-id="'+g.id+'" '+(busy?'disabled':''))+'<button class="icon-button" data-action="edit-gesture" data-id="'+g.id+'" aria-label="Edit '+esc(g.name)+'">⋯</button></div></div>').join('')+'</div>'+(profile.gestures.length?'':'<div class="empty-state">Choose a movement that feels comfortable to you.</div>')+'<div style="margin-top:16px">'+btn('＋ Add a gesture','add-gesture','secondary',!done||busy?'disabled':'')+(profile.modality==='combined'?' '+btn('Teach a writing movement','add-writing-movement','secondary',!done||busy?'disabled':''):'')+'</div></div><div id="record-area"></div>'+(model?'<div class="callout"><span class="circle-icon">✓</span><p><strong>Your recognizer is trained.</strong>Test it with new attempts before using it to write.</p></div>'+model.warnings.map(w=>'<div class="notice warn">'+esc(w)+'</div>').join('')+'<div class="button-row">'+btn('Check my gestures →','nav-check')+btn('Open keyboard','nav-write','secondary')+'</div>':'')+(profile.gestures.some(g=>g.samples.length>=3)&&modelError?'<div class="notice warn">'+esc(modelError)+'</div>':'')+'<p class="small-text muted">Input: '+(profile.modality==='combined'?'face + both hands together; held poses and recorded movements':profile.modality==='face'?'saved face & head profile':'saved one-hand profile')+'. Setup may be assisted. Recognition learns your examples; it does not recognize every possible movement.</p>';
 }
 function writeView(){
- return heading('Make yourself heard.','Choose letters, make corrections, and speak when you’re ready.')+'<div id="writer-status"></div><div class="card composer-card"><div class="composer-head"><span>YOUR MESSAGE <small id="draft-status"></small></span><span id="word-count">0 words</span></div><div id="message" class="message" role="log" aria-label="Composed message" aria-live="polite"></div><div class="composer-bottom"><span id="focus-label"></span><div class="button-row">'+btn('Copy','copy','small secondary')+btn('Speak ↗','speak','small')+'</div></div></div><div id="keyboard" class="keyboard" aria-label="Accessible keyboard"></div><div id="writer-help"></div><div class="button-row" style="margin-top:15px">'+btn('Next →','manual-next','secondary')+btn('Select ↵','manual-select','secondary')+btn('Keyboard settings','writer-settings','secondary')+btn('Focus view','focus','secondary')+'</div><p class="small-text muted" style="margin-top:14px">Pointer buttons are available for setup and preview. Camera input is labeled separately. Speech uses a local browser voice when one is available.</p><div class="speech-state" id="speech-status" role="status"></div>';
+ return heading('Make yourself heard.','Choose letters, make corrections, and speak when you’re ready.')+'<div id="environment-picker"></div><div id="writer-status"></div><div class="card composer-card"><div class="composer-head"><span>YOUR MESSAGE <small id="draft-status"></small></span><span id="word-count">0 words</span></div><div id="message" class="message" role="log" aria-label="Composed message" aria-live="polite"></div><div class="composer-bottom"><span id="focus-label"></span><div class="button-row">'+btn('Copy','copy','small secondary')+btn('Speak ↗','speak','small')+'</div></div></div><div id="keyboard" class="keyboard" aria-label="Accessible keyboard"></div><div id="writer-help"></div><div class="button-row" id="writer-actions" style="margin-top:15px">'+btn('Next →','manual-next','secondary')+btn('Select ↵','manual-select','secondary')+btn('Keyboard settings','writer-settings','secondary')+btn('Focus view','focus','secondary')+'</div><p class="small-text muted" style="margin-top:14px">Pointer buttons are available for setup and preview. Camera input is labeled separately. Speech uses a local browser voice when one is available.</p><div class="speech-state" id="speech-status" role="status"></div>';
 }
 function writingGuide(capabilities){
  const direct=capabilities.direct;
@@ -74,10 +88,12 @@ function writingGuide(capabilities){
 }
 function renderWriter(){
  if(view!=='write')return;
- composer.configure(profile);saveDraft();const capabilities=writingCapabilities(profile);
+ composer.configure(profile);saveDraft();renderEnvironmentPicker();
+ if(fingerWriting()){renderFingerWriter();return;}
+ $('#keyboard').classList.remove('finger-keyboard');$('#keyboard').setAttribute('aria-label','Accessible keyboard');
+ const capabilities=writingCapabilities(profile);
  $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot" style="background:'+(live?'#5a8b38':'#aa9164')+'"></span>'+(live?(composer.paused?'Paused · select Resume to continue':'Camera input · '+(capabilities.direct.length?(capabilities.scanning?'text + keyboard gestures':'direct text gestures'):(profile.settings.mode==='auto'?'automatic scanning':'next / select'))):'Pointer preview · no camera selections')+'</span>'+btn(live?'Stop camera input':'Use my gestures',live?'stop-live':'start-live',live?'small secondary':'small',!model?'disabled':'')+'</div>'+(!model?'<div class="demo-banner">Explore the keyboard now. Train a profile to write with your movements.</div>':'')+writingGuide(capabilities);
- const m=$('#message');m.textContent=composer.text||'Your next thought starts here…';m.classList.toggle('empty',!composer.text);if(composer.text){const c=document.createElement('span');c.className='cursor';c.setAttribute('aria-hidden','true');m.append(c);}m.scrollTop=m.scrollHeight;
- $('#word-count').textContent=(composer.text.trim()?composer.text.trim().split(/\s+/).length:0)+' words · '+Array.from(composer.text).length+' characters';
+ renderMessage();
  const rows=composer.rows;
  $('#keyboard').innerHTML=rows.map((row,i)=>'<div class="key-row '+(i===composer.row?'focus-row':'')+'">'+row.map((k,j)=>'<button class="key '+(k.type!=='text'||k.value.length!==1||/\s/.test(k.value)?'control':'')+' '+(i===composer.row&&j===composer.col&&composer.level==='key'?'focus-key':'')+'" data-action="key" data-kind="'+k.type+'" data-row="'+i+'" data-col="'+j+'" aria-label="'+esc(k.label)+'">'+esc(k.label)+'</button>').join('')+(i===composer.row&&composer.level==='key'?'<button class="key control '+(composer.col===row.length?'focus-key':'')+'" data-action="back-rows">↩ Rows</button>':'')+'</div>').join('');
  const focus=composer.level==='row'?'Row '+(composer.row+1)+' of '+rows.length:(rows[composer.row]?.[composer.col]?.label||'Back to rows');
@@ -88,6 +104,65 @@ function renderWriter(){
  if(document.body.classList.contains('focus-mode'))requestAnimationFrame(()=>document.querySelector('.focus-row')?.scrollIntoView({block:'nearest'}));
  if(live&&profile.settings.audio&&focus!==scanVoice){scanVoice=focus;say(focus,true);}
 }
+function renderMessage(){
+ const m=$('#message');m.textContent=composer.text||'Your next thought starts here…';m.classList.toggle('empty',!composer.text);if(composer.text){const c=document.createElement('span');c.className='cursor';c.setAttribute('aria-hidden','true');m.append(c);}m.scrollTop=m.scrollHeight;
+ $('#word-count').textContent=(composer.text.trim()?composer.text.trim().split(/\s+/).length:0)+' words · '+Array.from(composer.text).length+' characters';
+}
+function renderEnvironmentPicker(){
+ if(document.activeElement?.id==='environment-select')return;
+ $('#environment-picker').innerHTML='<label class="environment-choice"><span>COMMUNICATION ENVIRONMENT</span><select id="environment-select" aria-label="Communication environment">'+ENVIRONMENTS.map(e=>'<option value="'+e.id+'" '+(environment===e.id?'selected':'')+'>'+e.name+(e.id==='classic'?' · default':'')+'</option>').join('')+'</select></label><p>'+esc(environmentById(environment).description)+'</p>';
+}
+function renderFingerWriter(){
+ const settings=environmentSettings(),keys=gridKeys(composer,fingerPage);
+ $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot" style="background:'+(live?'#5a8b38':'#aa9164')+'"></span>'+(live?'Camera input · finger coordinates':'Finger preview · no camera selections')+'</span>'+btn(live?'Stop finger input':'Start finger input',live?'stop-live':'start-live',live?'small secondary':'small',cameraState==='loading'?'disabled':'')+'</div><section class="finger-guide"><div class="finger-guide-top"><strong>Two hands. One coordinate.</strong><span class="badge">0 = fist · 5 = open palm</span></div><p>'+(settings.gridSwap?'Right':'Left')+' side of your mirrored preview chooses the <b>row</b>; '+(settings.gridSwap?'left':'right')+' chooses the <b>column</b>. Hold the pair to select. Change counts for the next cell; briefly lower a hand to repeat the same cell.</p><div class="finger-readouts"><span>ROW <b id="finger-row">—</b></span><span>COLUMN <b id="finger-col">—</b></span><div><strong id="finger-target">Show both hands</strong><div class="meter"><div id="finger-meter" style="width:0"></div></div></div></div><p id="finger-status">Face your palms toward the camera. Raised fingers straight, others tucked.</p><details><summary>Timing & hand roles</summary><div class="finger-options"><label>Hold to select<select id="finger-hold" aria-label="Finger selection hold">'+[600,850,1200,1600].map(n=>'<option value="'+n+'" '+((settings.gridHoldMs||850)===n?'selected':'')+'>'+n/1000+' seconds</option>').join('')+'</select></label><label class="toggle"><input type="checkbox" id="finger-swap" '+(settings.gridSwap?'checked':'')+'> Swap row and column hands</label></div></details></section>';
+ renderMessage();
+ $('#focus-label').textContent=composer.confirm?'Confirm '+composer.confirm:composer.paused?'Paused':PAGE_NAMES[fingerPage]+' · 6 × 6';
+ const keyboard=$('#keyboard');keyboard.classList.add('finger-keyboard');keyboard.setAttribute('aria-label','Finger keyboard');
+ keyboard.innerHTML='<div class="finger-page-heading"><strong>'+esc(composer.paused?'Paused':composer.confirm?'Confirm your choice':PAGE_NAMES[fingerPage])+'</strong><span>Row 5, column 5 → next page</span></div><table class="finger-table" aria-label="6 by 6 finger coordinates"><thead><tr><th scope="col"><span class="sr-only">Row / Column</span>↘</th>'+Array.from({length:6},(_,c)=>'<th scope="col">'+c+'</th>').join('')+'</tr></thead><tbody>'+Array.from({length:6},(_,row)=>'<tr><th scope="row">'+row+'</th>'+keys.slice(row*6,row*6+6).map((key,col)=>'<td><button class="finger-key '+(key.type==='text'&&key.value.length===1&&!/\s/.test(key.value)?'letter':'control')+'" data-action="finger-key" data-index="'+(row*6+col)+'" aria-label="Row '+row+', column '+col+': '+esc(key.label)+'" '+(key.type==='noop'?'disabled':'')+'>'+esc(key.label)+'</button></td>').join('')+'</tr>').join('')+'</tbody></table>';
+ $('#writer-help').innerHTML='<div class="keyboard-help"><span>Bottom row: Delete · Undo · Case · Speak · Tools · Page</span><span>Pages: Letters → Numbers → Symbols → My phrases</span></div>';
+ $('#writer-actions').innerHTML=btn('Focus view','focus','secondary');
+ $('#speech-status').textContent=speechStatus;
+ updateFingerDisplay();updateTeachingPreview();
+}
+function useFingerKey(index){
+ const key=gridKeys(composer,fingerPage)[index];if(!key||key.type==='noop')return;
+ const out=applyGridKey(composer,key,fingerPage);fingerPage=out.page;handleEffect(out.effect);renderWriter();
+}
+function updateFingerDisplay(){
+ if(!fingerWriting()||!$('#finger-row'))return;
+ const pair=fingerStatus?.pair||{row:null,col:null},out=fingerStatus?.out;
+ $('#finger-camera-text').textContent=composer.text.slice(-60)||'Your next thought…';
+ $('#finger-row').textContent=pair.row??'—';$('#finger-col').textContent=pair.col??'—';
+ const index=pair.row!==null&&pair.col!==null?pair.row*6+pair.col:null,key=index===null?null:gridKeys(composer,fingerPage)[index];
+ $('#finger-target').textContent=key&&key.type!=='noop'?key.label:'Show a clear pair';
+ $('#finger-meter').style.width=(live?(out?.progress||0)*100:0)+'%';
+ $('#finger-status').textContent=pair.reason||(live?(out?.locked?'Selected once. Change the pair, or lower a hand briefly to repeat.':key?.type==='noop'?'This cell is empty. Choose another pair.':'Hold this pair steady to select.'):'Preview only. Start finger input when your counts look right.');
+ document.querySelectorAll('.finger-key').forEach(b=>{const n=Number(b.dataset.index);b.classList.toggle('finger-row-match',pair.row!==null&&Math.floor(n/6)===pair.row);b.classList.toggle('finger-col-match',pair.col!==null&&n%6===pair.col);b.classList.toggle('finger-target',n===index);});
+ const swap=environmentSettings().gridSwap;
+ $('#camera-row-count').textContent=(swap?'Column ':'Row ')+(swap?pair.col??'—':pair.row??'—');
+ $('#camera-col-count').textContent=(swap?'Row ':'Column ')+(swap?pair.row??'—':pair.col??'—');
+ $('#signal-name').textContent='Row '+(pair.row??'—')+' · Column '+(pair.col??'—');
+ $('#signal-detail').textContent=live?(out?.locked?'Release to repeat':'Hold to select'):'Preview';$('#signal-meter').style.width=(live?(out?.progress||0)*100:0)+'%';
+}
+function onFingerFrame(frame){
+ const pair=fingerPair(frame,environmentSettings().gridSwap);
+ const out=live&&!activeDialog?fingerGate.update(pair,frame.handFrameAt,frame.now):null;
+ fingerStatus={pair,out};
+ if(out?.index!==null&&out?.index!==undefined)useFingerKey(out.index);
+ if(frame.now-lastUI>80){lastUI=frame.now;updateFingerDisplay();
+  $('#tracking-parts').textContent=frame.hands?.length===2?'Both hands visible':'Show both hands';
+  const metrics=frame.metrics;$('#camera-performance').hidden=!metrics;
+  if(metrics)$('#camera-performance').textContent='Camera '+metrics.cameraFps+' fps · Hands '+metrics.handFps+' fps';
+ }
+}
+function saveEnvironmentSetting(key,value){
+ environmentSettings()[key]=value;
+ if(profile)persist();else try{localStorage.setItem('relay.environment.v1',JSON.stringify(guestEnvironment));}catch{toast('Environment is available for this session; browser settings could not be saved.');}
+}
+function selectEnvironment(id){
+ environment=environmentById(id).id;saveEnvironmentSetting('environment',environment);live=false;resetInput();fingerPage='letters';composer.resetFocus();render();syncCameraForContext();
+}
+
 
 
 function checkView(){
@@ -108,7 +183,7 @@ function gestureDialog(id,writing=false){
 function selectProfile(id){lastGestureMessage='';if(busy)return;const p=profiles.find(p=>p.id===id);if(!p)return;camera.stop();cameraState='off';cameraMessage='Profile changed. Enable the camera when you’re ready.';profile=p;composer=new RelayComposer(profile);restoreDraft();live=false;latest=null;rebuild();render();}
 function updateCamera(){
  updateTeachingPreview();
- const trailsAllowed=profile?.modality!=='face';
+ const trailsAllowed=fingerWriting()||profile?.modality!=='face';
  $('#trails-toggle').checked=trailsEnabled;$('#trails-toggle').disabled=!trailsAllowed;
  $('#trails-help').textContent=trailsAllowed?'Trace with your index fingers. Brief tracking gaps reconnect; trails fade in 1.4 seconds.':'Use an all-signals or hand profile for fingertip trails.';
  camera.setTrails?.(trailsEnabled&&trailsAllowed);
@@ -122,9 +197,9 @@ function updateCamera(){
  $('#camera-button').textContent=cameraState==='loading'?'Loading vision…':cameraState==='ready'?'Turn camera off':'Enable camera ↗';
  $('#camera-button').disabled=cameraState==='loading'||busy;
 }
-function onCameraState(state,message){cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){live=false;gate.reset();}updateCamera();if(view==='write')renderWriter();}
+function onCameraState(state,message){if(state==='ready')queueMicrotask(syncCameraForContext);cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){live=false;resetInput();}updateCamera();if(view==='write')renderWriter();}
 function onFrame(frame){
- latest=frame;if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
+ latest=frame;if(fingerWriting()){onFingerFrame(frame);return;}if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
  if(recording){recording.total++;if(frame.vector){recording.frames.push(frame.vector);recording.tracked++;}}
  let result=frame.vector?(model?.combined?predictCombined(model,frame.vector):predict(model,frame.vector)):{id:UNKNOWN,reason:'No tracking',score:0};
  let event=null;
@@ -170,13 +245,13 @@ function say(text,cue=false){
  if(!cue)speakingMessage=true;
  speechSynthesis.speak(u);
 }
-async function enableCamera(){if(!profile){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;gate.reset();updateCamera();renderWriter();return;}await camera.start(profile.modality);}
+async function enableCamera(){if(!profile&&!fingerWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;resetInput();updateCamera();renderWriter();return;}await startCamera();}
 function requireCamera(){if(cameraState!=='ready'){toast('Enable the camera before recording.');return false;}if(!latest?.vector||performance.now()-latest.now>700){toast('Move into view so the camera can track you.');return false;}return true;}
 function progress(title,detail,fraction=0){teachingPhase={title,detail,fraction};updateTeachingPreview();const area=$('#record-area');if(!area)return;area.innerHTML='<div class="record-panel" role="status"><div class="eyebrow">GUIDED PRACTICE</div><h3 style="margin-top:12px">'+esc(title)+'</h3><p>'+esc(detail)+'</p><progress max="1" value="'+fraction+'"></progress><div style="margin-top:16px">'+btn('Cancel','cancel-task','small secondary')+'</div></div>';}
 async function waitPhase(ms,title,detail,token){const start=performance.now();while(performance.now()-start<ms){if(token!==task)throw new Error('Cancelled');progress(title,detail,Math.min(1,(performance.now()-start)/ms));await sleep(100);}}
 async function capture(ms,token){recording={frames:[],total:0,tracked:0};try{await waitPhase(ms,'Hold your movement','Keep it comfortable and steady.',token);const r=recording;if(r.frames.length<6||r.tracked/Math.max(1,r.total)<0.8)throw new Error('Too little tracking. Adjust the camera and try this recording again.');return summarizeCapture(r.frames);}finally{recording=null;}}
-function beginTask(){busy=true;live=false;teachingPhase=null;const token=++task;render();gate.reset();setTimeout(()=>$('#record-area')?.scrollIntoView({block:'start',behavior:'smooth'}),50);return token;}
-function endTask(token){if(token!==task)return;busy=false;teachingPhase=null;recording=null;attempt=null;restCheck=null;gate.reset();render();}
+function beginTask(){busy=true;live=false;teachingPhase=null;const token=++task;render();resetInput();setTimeout(()=>$('#record-area')?.scrollIntoView({block:'start',behavior:'smooth'}),50);return token;}
+function endTask(token){if(token!==task)return;busy=false;teachingPhase=null;recording=null;attempt=null;restCheck=null;resetInput();render();}
 async function recordRest(){
  if(!requireCamera())return;const token=beginTask(),samples=[];
  try{
@@ -222,20 +297,24 @@ async function recordGesture(id){
 }
 async function validateGesture(){
  if(!requireCamera()||!model)return;const id=$('#test-gesture').value,g=profile.gestures.find(g=>g.id===id);if(!g)return;const token=beginTask();
- try{for(let i=0;i<5;i++){gate.reset();await waitPhase(3000,'Rest before attempt '+(i+1),'Let the recognizer settle into your resting state.',token);attempt={events:[]};await waitPhase(Math.max(4500,profile.settings.holdMs+2200),'Now: '+g.name,(g.kind==='motion'?'Make one movement, pause briefly at its endpoint, then return to your starting pose.':'Perform once, then return to rest.')+' Attempt '+(i+1)+' of 5.',token);const events=attempt.events;attempt=null;const passed=events.length===1&&events[0]===id;profile.trials.push({kind:'attempt',at:new Date().toISOString(),revision:profile.revision||0,label:g.name,expected:id,events,passed,detail:!events.length?'No selection':events.length>1?events.length+' selections':events[0]===id?'One correct selection':'Selected '+(profile.gestures.find(x=>x.id===events[0])?.name||'another gesture')});persist();}toast('Five independent attempts recorded. Review your results below.');}catch(e){if(token===task)toast(e.message);}finally{endTask(token);}
+ try{for(let i=0;i<5;i++){resetInput();await waitPhase(3000,'Rest before attempt '+(i+1),'Let the recognizer settle into your resting state.',token);attempt={events:[]};await waitPhase(Math.max(4500,profile.settings.holdMs+2200),'Now: '+g.name,(g.kind==='motion'?'Make one movement, pause briefly at its endpoint, then return to your starting pose.':'Perform once, then return to rest.')+' Attempt '+(i+1)+' of 5.',token);const events=attempt.events;attempt=null;const passed=events.length===1&&events[0]===id;profile.trials.push({kind:'attempt',at:new Date().toISOString(),revision:profile.revision||0,label:g.name,expected:id,events,passed,detail:!events.length?'No selection':events.length>1?events.length+' selections':events[0]===id?'One correct selection':'Selected '+(profile.gestures.find(x=>x.id===events[0])?.name||'another gesture')});persist();}toast('Five independent attempts recorded. Review your results below.');}catch(e){if(token===task)toast(e.message);}finally{endTask(token);}
 }
 async function validateRest(duration){
  if(!requireCamera()||!model)return;const token=beginTask();
- try{await waitPhase(2500,'Get comfortable','Read, blink, and rest as you normally would.',token);restCheck={events:[],total:0,tracked:0};gate.reset();await waitPhase(duration,'Rest check in progress','Relax naturally. Any accidental selections will be counted.',token);const r=restCheck,tracking=r.tracked/Math.max(1,r.total),passed=!r.events.length&&tracking>=0.85;restCheck=null;profile.trials.push({kind:'rest',at:new Date().toISOString(),revision:profile.revision||0,label:'Rest · '+duration/1000+' sec',passed,durationMs:duration,tracking,events:r.events,detail:r.events.length+' selections · '+Math.round(tracking*100)+'% tracking'});persist();toast('Rest check recorded.');}catch(e){if(token===task)toast(e.message);}finally{endTask(token);}
+ try{await waitPhase(2500,'Get comfortable','Read, blink, and rest as you normally would.',token);restCheck={events:[],total:0,tracked:0};resetInput();await waitPhase(duration,'Rest check in progress','Relax naturally. Any accidental selections will be counted.',token);const r=restCheck,tracking=r.tracked/Math.max(1,r.total),passed=!r.events.length&&tracking>=0.85;restCheck=null;profile.trials.push({kind:'rest',at:new Date().toISOString(),revision:profile.revision||0,label:'Rest · '+duration/1000+' sec',passed,durationMs:duration,tracking,events:r.events,detail:r.events.length+' selections · '+Math.round(tracking*100)+'% tracking'});persist();toast('Rest check recorded.');}catch(e){if(token===task)toast(e.message);}finally{endTask(token);}
 }
-function cancelTask(){task++;busy=false;teachingPhase=null;recording=null;attempt=null;restCheck=null;gate.reset();render();toast('Cancelled. Incomplete recordings were not saved.');}
+function cancelTask(){task++;busy=false;teachingPhase=null;recording=null;attempt=null;restCheck=null;resetInput();render();toast('Cancelled. Incomplete recordings were not saved.');}
 function download(name,data){const url=URL.createObjectURL(new Blob([data],{type:'application/json'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
 function exportOne(id){const p=profiles.find(p=>p.id===id);if(p)download('relay-'+p.name.replace(/[^a-z0-9]/gi,'-')+'.json',exportProfile(p));}
 function deleteProfile(id){const p=profiles.find(p=>p.id===id);if(!p)return;openDialog(dialogHeader('Delete this profile?')+'<p>'+esc(p.name)+' and its recordings will be removed from this browser. Export a backup first if you want to keep it.</p><div class="button-row">'+btn('Export backup','export-profile','secondary','data-id="'+p.id+'"')+btn('Delete profile','confirm-delete-profile','danger','data-id="'+p.id+'"')+'</div>');}
-function startLive(){
+async function startLive(){
+ if(fingerWriting()){
+  if(cameraState!=='ready'){await startCamera();if(!fingerWriting()||cameraState!=='ready')return;}
+  live=true;resetInput();fingerGate.holdMs=environmentSettings().gridHoldMs||850;renderWriter();toast('Finger input active. Hold a row and column pair to select.');return;
+ }
  if(!model||!requireCamera())return;
  if(!writingCapabilities(profile).canWrite){toast('Assign a gesture to Insert text, or set up Select with Next / automatic scanning.');return;}
- live=true;gate.reset();lastScan=performance.now();composer.resetFocus();renderWriter();toast('Camera input active. Return to rest, then make your gesture.');
+ live=true;resetInput();lastScan=performance.now();composer.resetFocus();renderWriter();toast('Camera input active. Return to rest, then make your gesture.');
 }
 
 
@@ -268,15 +347,16 @@ document.addEventListener('click',async e=>{
   if(a==='confirm-delete-profile'){const deleted=profiles.find(p=>p.id===id);if(deleted)removeDraft(deleted);profiles=profiles.filter(p=>p.id!==id);if(profile?.id===id){camera.stop();cameraState='off';cameraMessage='Camera off.';profile=profiles[0]||null;live=false;composer=new RelayComposer(profile);restoreDraft();rebuild();}persist();activeDialog?.close();render();return;}
   if(a==='import')return $('#import-file').click();
   if(a==='export-report'){download('relay-validation.json',JSON.stringify({app:'Relay',profile:profile.name,modality:profile.modality,revision:profile.revision||0,settings:profile.settings,summary:trialSummary(currentTrials()),breakdown:confusionRows(profile),trainingDiagnostics:signalDiagnostics(model),practiceMilestones:readiness(profile,model),trials:profile.trials,limitations:'User-recorded practice results, not clinical validation. Separate attempts; no frame-level train/test split.'},null,2));return;}
-  if(a==='start-live')return startLive();
-  if(a==='stop-live'){live=false;gate.reset();renderWriter();return;}
+  if(a==='start-live')return await startLive();
+  if(a==='finger-key'){if(live){live=false;resetInput();toast('Switched to finger preview. Start finger input to resume.');}useFingerKey(Number(b.dataset.index));return;}
+  if(a==='stop-live'){live=false;resetInput();renderWriter();return;}
   if(a==='focus'){toggleFocus();return;}
   if(a==='inspect-gesture'){setView('teach');gestureDialog(id);return;}
   if(a==='writer-settings')return setView('profiles');
   if(a==='copy'){try{await navigator.clipboard.writeText(composer.text);toast('Message copied.');}catch{toast('Clipboard is unavailable in this browser.');}return;}
   if(a==='speak'){handleEffect(composer.apply({type:'speak'}));renderWriter();return;}
   if(['manual-next','manual-select','key','back-rows'].includes(a)){
-   if(live){live=false;gate.reset();toast('Switched to pointer preview. Use my gestures to resume camera input.');}
+   if(live){live=false;resetInput();toast('Switched to pointer preview. Use my gestures to resume camera input.');}
    let effect;if(a==='manual-next')composer.next();if(a==='manual-select')effect=composer.select();if(a==='back-rows')composer.resetFocus();
    if(a==='key')effect=composer.apply(composer.rows[Number(b.dataset.row)][Number(b.dataset.col)]);
    handleEffect(effect);renderWriter();return;
@@ -308,6 +388,8 @@ document.addEventListener('submit',async e=>{
  }catch(err){toast(err.message);}
 });
 document.addEventListener('change',async e=>{
+ if(e.target.id==='environment-select'){selectEnvironment(e.target.value);return;}
+ if(e.target.id==='finger-hold'||e.target.id==='finger-swap'){saveEnvironmentSetting(e.target.id==='finger-hold'?'gridHoldMs':'gridSwap',e.target.id==='finger-hold'?Number(e.target.value):e.target.checked);live=false;resetInput();fingerGate.holdMs=environmentSettings().gridHoldMs||850;renderWriter();return;}
  if(e.target.id==='trails-toggle'){
   trailsEnabled=e.target.checked;camera.setTrails?.(trailsEnabled);
   try{localStorage.setItem('relay.trails.v1',String(trailsEnabled));}catch{}
@@ -319,14 +401,14 @@ document.addEventListener('change',async e=>{
  if(e.target.id==='import-file'){try{const file=e.target.files[0];if(!file)return;const p=importProfile(await file.text());profiles.push(p);persist();selectProfile(p.id);toast('Profile imported. Check recognition in your current camera setup.');}catch(err){toast('Import failed: '+err.message);}}
 });
 document.addEventListener('keydown',e=>{
- if(view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
+ if(fingerWriting()||view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
  if(e.key==='ArrowRight'){e.preventDefault();composer.next();renderWriter();}
  if(e.key==='Enter'&&e.target===document.body){e.preventDefault();handleEffect(composer.select());renderWriter();}
 });
-document.addEventListener('visibilitychange',()=>{gate.reset();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
+document.addEventListener('visibilitychange',()=>{resetInput();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
 window.addEventListener('beforeunload',()=>camera.stop());
 setInterval(()=>{
- if(live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
+ if(!fingerWriting()&&live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
   const now=performance.now();if(now-lastTracking>700){lastScan=now;return;}
   // Stop the scanning highlight while a deliberate selection is in progress.
   if(gate.candidate||gate.progress>0||gate.motionActive){lastScan=now;return;}
@@ -337,6 +419,7 @@ render();
 
 
 function restoreDraft(){
+ environment=environmentById(environmentSettings().environment).id;fingerPage='letters';fingerGate.holdMs=environmentSettings().gridHoldMs||850;resetInput();lastGestureMessage='';
  draftSavedText=null;draftNotice='';
  try{composer.text=readDraft(profile);draftSavedText=composer.text;if(composer.text)draftNotice='· Draft restored';}
  catch{draftNotice='· Draft recovery unavailable';}

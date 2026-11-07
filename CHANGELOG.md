@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0 — November 7, 2026
+- Added saved communication environments: Classic keyboard (default) and Finger grid, sharing composition, undo, phrases and speech.
+- Added 0–5 finger counts for row/column selection on a labeled 6×6 keyboard, live preview, adjustable holds and hand-role swapping.
+- Added stable bottom-row editing/page controls and separate letters, numbers, symbols, phrases and tools pages, with explicit speak/clear confirmation.
+- Added repeat suppression, uncertainty/loss rejection, raw-frame freshness checks, and isolation from learned Classic gestures.
+- Kept camera and recent message visible in the narrow-screen finger workspace without covering grid cells.
+- Preserved profile calibration and restored its camera mode when leaving the finger environment; selected a CPU hand worker for verified two-hand fixture detection.
+- Added geometry, all-coordinate, character-reachability, browser and real-model fixture coverage.
+
 ## 1.2.4 — November 7, 2026
 - Let learned text movements and poses write without Select or Next; direct-only profiles no longer run an idle keyboard scan.
 - Add a Teach a writing movement shortcut with Movement and Insert text preselected, visible text mappings and last-written feedback.

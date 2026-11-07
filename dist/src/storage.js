@@ -1,3 +1,4 @@
+import {ENVIRONMENTS} from './environments.js';
 import {STARTER_PHRASES} from './communication.js';
 import {FEATURE_VERSION,finiteVector} from './core.js';
 const KEY='relay.profiles.v1';
@@ -28,6 +29,9 @@ export function validateProfile(p){
  if(!Array.isArray(p.trials)||p.trials.length>2000||p.trials.some(t=>!t||typeof t.kind!=='string'||typeof t.at!=='string'||typeof t.passed!=='boolean'))throw new Error('Invalid validation records.');
  if(p.phrases!==undefined&&(!Array.isArray(p.phrases)||p.phrases.length>24||p.phrases.some(v=>typeof v!=='string'||!v.trim()||v.length>300)))throw new Error('Invalid personal phrases.');
  if(p.words!==undefined&&(!Array.isArray(p.words)||p.words.length>100||p.words.some(v=>typeof v!=='string'||v.length>50||!/^[\p{L}\p{M}'’-]+$/u.test(v))))throw new Error('Invalid personal words.');
+ if(p.settings.environment!==undefined&&!ENVIRONMENTS.some(e=>e.id===p.settings.environment))throw new Error('Unsupported communication environment.');
+ if(p.settings.gridHoldMs!==undefined&&![600,850,1200,1600].includes(p.settings.gridHoldMs))throw new Error('Invalid finger selection timing.');
+ if(p.settings.gridSwap!==undefined&&typeof p.settings.gridSwap!=='boolean')throw new Error('Invalid finger hand roles.');
  if(p.settings.completions!==undefined&&typeof p.settings.completions!=='boolean')throw new Error('Invalid completion setting.');
  return p;
 }

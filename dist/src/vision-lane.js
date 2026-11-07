@@ -1,6 +1,6 @@
 export class VisionLane{
  constructor(kind,onResult,onError){Object.assign(this,{kind,onResult,onError});this.closed=false;this.busy=false;this.ready=false;this.id=0;this.lastFrame=-1;this.lastSent=-Infinity;}
- start(numHands=2){
+ start(numHands=2,delegate='GPU'){
   return new Promise((resolve,reject)=>{
    this.reject=reject;this.worker=new Worker(new URL('./vision-worker.js',import.meta.url));
    this.timer=setTimeout(()=>this.fail(new Error('Vision worker startup timed out.')),45000);
@@ -11,7 +11,7 @@ export class VisionLane{
     else if(data.type==='result'){this.busy=false;clearTimeout(this.frameTimer);this.onResult(data);}
     else if(data.type==='error')this.fail(new Error(data.message));
    };
-   this.worker.postMessage({type:'init',kind:this.kind,numHands});
+   this.worker.postMessage({type:'init',kind:this.kind,numHands,delegate});
   });
  }
  offer(video,frameId,capturedAt,minInterval=0){

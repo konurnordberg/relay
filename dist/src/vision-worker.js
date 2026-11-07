@@ -3,7 +3,7 @@ let model=null,kind='',delegate='GPU';
 self.onmessage=async({data})=>{
  if(data.type==='init'){
   try{
-   kind=data.kind;
+   kind=data.kind;delegate=data.delegate==='CPU'?'CPU':'GPU';
    const vision=await import(new URL('../vendor/vision_bundle.mjs',self.location.href).href);
    const files=await vision.FilesetResolver.forVisionTasks(new URL('../vendor/wasm',self.location.href).href);
    const options={baseOptions:{modelAssetPath:new URL('../models/'+kind+'_landmarker.task',self.location.href).href,delegate},runningMode:'VIDEO',canvas:new OffscreenCanvas(1,1)};
