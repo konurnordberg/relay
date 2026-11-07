@@ -87,3 +87,12 @@ export class RelayComposer extends Composer{
   return super.apply(key);
  }
 }
+
+// Direct text gestures do not require keyboard navigation gestures.
+export function writingCapabilities(profile){
+ const enabled=(profile?.gestures||[]).filter(g=>g.enabled!==false);
+ const direct=enabled.filter(g=>g.action==='insert'&&g.value?.length);
+ const select=enabled.some(g=>g.action==='select'),next=enabled.some(g=>g.action==='next');
+ const scanning=select&&(profile?.settings.mode==='auto'||next);
+ return {direct,select,next,scanning,canWrite:scanning||direct.length>0};
+}

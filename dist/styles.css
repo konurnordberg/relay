@@ -44,3 +44,28 @@
 .trail-switch{pointer-events:none}
 
 .camera-performance{font-size:11px;line-height:1.5;color:var(--muted);margin:0 20px 12px;font-variant-numeric:tabular-nums;}
+
+/* Movement writing and a persistent teaching preview. */
+.writing-guide{border:1px solid #cddfc9;background:#f0f7eb;border-radius:14px;padding:14px 16px;margin:12px 0 16px}
+.writing-guide-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.writing-guide strong{font-size:14px}.writing-guide p{font-size:12px;line-height:1.5;margin:6px 0;color:var(--muted)}.writing-guide-head .button{flex:none;white-space:normal}
+.writing-mappings{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}.writing-mappings>span{background:white;border:1px solid #d5e4d1;border-radius:9px;padding:7px 10px;font-size:12px;overflow-wrap:anywhere;max-width:100%}.writing-mappings small{display:block;font-size:10px;color:var(--muted);margin-top:3px}.writing-guide .last-written{color:var(--green);font-weight:650}.writing-mappings q{white-space:pre-wrap}
+.camera-prompt{padding:16px 18px;background:#edf6e5;border-block:1px solid #d3e5c6;margin-top:12px}.camera-prompt h3{font-size:20px;line-height:1.2;margin:7px 0}.camera-prompt p{font-size:12px;line-height:1.5;margin:8px 0}.camera-prompt progress{width:100%;height:7px;accent-color:var(--green);display:block;margin:12px 0}.camera-prompt [hidden]{display:none}
+.teaching-view .camera-card{border:2px solid #679b79;box-shadow:0 8px 35px #204e3917}.teaching-view .card-header h3{font-size:18px}.teaching-view .rail-quote,.teaching-view .rail-note{display:none}.teaching-view .rail{position:sticky;top:12px;max-height:calc(100dvh - 24px);overflow-y:auto;scrollbar-width:thin;overscroll-behavior:contain}.teaching-view .camera-card{margin-bottom:0}.teaching-view .camera-view{max-height:min(36dvh,310px)}
+.teaching-active .camera-controls,.teaching-active .trail-controls,.teaching-active .recognition,.teaching-active .tracking-parts,.teaching-active .camera-performance{display:none}.teaching-active .camera-prompt{margin-bottom:0}.teaching-active .card-header{padding:13px 16px}.teaching-active .camera-card{box-shadow:0 0 0 4px #b9dcaa66,0 12px 40px #204e3922}
+#record-area{scroll-margin-top:24px}.camera-prompt[hidden]{display:none}
+@media(min-width:1181px){.teaching-view .main-grid{grid-template-columns:minmax(0,1fr) minmax(350px,38%);gap:30px}}
+@media(max-width:760px){
+ .writing-guide-head{align-items:flex-start;flex-direction:column}.writing-guide-head .button{width:100%}
+ .camera-docked .app-shell{padding-top:var(--camera-dock-height,260px)}
+ .camera-docked .rail{position:static;max-height:none;overflow:visible}
+ .camera-docked .camera-card{position:fixed;top:8px;left:12px;right:12px;width:auto;max-width:none;max-height:48dvh;overflow-y:auto;z-index:50;display:grid;grid-template-columns:44% minmax(0,1fr);gap:0;border-radius:16px;background:var(--paper)}
+ .camera-docked .card-header{grid-column:1/-1;padding:9px 12px}.camera-docked .card-header h3{font-size:15px}.camera-docked .pill{font-size:9px}
+ .camera-docked .camera-view{margin:0 0 10px 10px;max-height:26dvh;align-self:start}.camera-docked .camera-tag{font-size:6px;left:4px;bottom:4px;padding:3px;letter-spacing:0}.camera-docked .camera-corners{inset:7px}
+ .camera-docked .camera-prompt{grid-column:2;grid-row:2;padding:0 10px 10px;margin:0;border:0;background:transparent}.camera-docked .camera-prompt h3{font-size:16px;margin:4px 0}.camera-docked .camera-prompt p{font-size:11px;margin:5px 0}.camera-docked .camera-prompt .eyebrow{font-size:8px}.camera-docked .camera-prompt progress{margin:8px 0}.camera-docked .camera-prompt .button{min-height:30px;padding:6px 10px;font-size:11px}
+ .camera-docked .camera-controls{grid-column:1/-1;padding:0 10px 10px}.camera-docked .camera-controls .camera-status{display:none}.camera-docked .camera-controls .button{min-height:32px;padding:7px;font-size:12px}
+ .camera-docked .trail-controls,.camera-docked .tracking-parts,.camera-docked .recognition,.camera-docked .camera-performance{display:none}
+ .camera-docked #record-area,.camera-docked .gesture-item{scroll-margin-top:calc(var(--camera-dock-height) + 16px)}
+ .camera-docked dialog{margin-top:calc(min(48dvh,var(--camera-dock-height)) + 12px);max-height:calc(100dvh - min(48dvh,var(--camera-dock-height)) - 30px);overflow:auto}
+}
+
+.camera-prompt h3,.camera-prompt p,.writing-guide p{overflow-wrap:anywhere}

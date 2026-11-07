@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.4 — November 7, 2026
+- Let learned text movements and poses write without Select or Next; direct-only profiles no longer run an idle keyboard scan.
+- Add a Teach a writing movement shortcut with Movement and Insert text preselected, visible text mappings and last-written feedback.
+- Keep a larger teaching camera and the current instructions together while scrolling; add a compact fixed camera/instruction dock on narrow screens.
+- Mirror phase progress and cancellation beside the camera, preserving saved profiles, motion recognition and existing keyboard controls.
+
 ## 1.2.3 — November 7, 2026
 - Separated face and hand inference into local workers; newest-frame scheduling avoids a processing backlog and leaves canvas rendering independent.
 - Request up to 60 fps, prioritize hand cadence, tolerate fast tracking-box movement, and fall back when workers are unavailable or fail.

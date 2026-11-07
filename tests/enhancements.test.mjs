@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {RelayComposer,wordCandidates,STARTER_PHRASES} from '../dist/src/communication.js';
+import {RelayComposer,wordCandidates,STARTER_PHRASES,writingCapabilities} from '../dist/src/communication.js';
 import {train,REST} from '../dist/src/core.js';
 import {signalDiagnostics,rankedMatches,confusionRows,readiness} from '../dist/src/insights.js';
 import {createProfile,validateProfile,importProfile,exportProfile} from '../dist/src/storage.js';
@@ -21,3 +21,16 @@ test('live match ranking includes neutral and rejects unusable feature vectors',
 test('measured evidence separates misses, wrong signals, duplicates, and revisions',()=>{const p=fixture();p.revision=2;p.trials=[{kind:'attempt',revision:2,expected:'select',events:[],passed:false},{kind:'attempt',revision:2,expected:'select',events:['next'],passed:false},{kind:'attempt',revision:2,expected:'select',events:['select','select'],passed:false},{kind:'attempt',revision:2,expected:'select',events:['select'],passed:true},{kind:'attempt',revision:1,expected:'select',events:['select'],passed:true}];assert.deepEqual(confusionRows(p)[0],{id:'select',name:'Select',total:4,correct:1,missed:1,wrong:1,extra:1});assert.equal(readiness(p,train(p))[2].done,false);});
 test('drafts stay separate across profiles and deletion removes only the requested draft',()=>{const data=new Map();globalThis.localStorage={getItem:k=>data.get(k)||null,setItem:(k,v)=>data.set(k,v)};const a={id:'a'},b={id:'b'};writeDraft(a,'hello');writeDraft(b,'other');assert.equal(readDraft(a),'hello');removeDraft(a);assert.equal(readDraft(a),'');assert.equal(readDraft(b),'other');assert.throws(()=>writeDraft(a,'x'.repeat(20001)));});
 
+
+test('direct text gestures enable writing independently of Select or Next',()=>{
+ const p=createProfile('Air writing');p.gestures=[{action:'insert',value:'A',kind:'motion'}];
+ assert.equal(writingCapabilities(p).canWrite,true);assert.equal(writingCapabilities(p).scanning,false);
+ p.gestures[0].enabled=false;assert.equal(writingCapabilities(p).canWrite,false);
+ p.gestures=[{action:'insert',value:''}];assert.equal(writingCapabilities(p).canWrite,false);
+ p.gestures=[{action:'select',kind:'motion'}];assert.equal(writingCapabilities(p).canWrite,false);
+ p.settings.mode='auto';assert.equal(writingCapabilities(p).scanning,true);
+ p.settings.mode='step';p.gestures.push({action:'next',kind:'motion'});assert.equal(writingCapabilities(p).scanning,true);
+ const composer=new RelayComposer(p);composer.direct('insert','A');composer.direct('insert',' ');composer.direct('insert','hello');
+ assert.equal(composer.text,'A hello');composer.direct('undo');assert.equal(composer.text,'A ');
+ composer.apply({type:'pause'});composer.direct('insert','B');assert.equal(composer.text,'A ');
+});

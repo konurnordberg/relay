@@ -41,3 +41,11 @@ All 43 logic tests passed, including seven trail regressions for reduced station
 - Browser trail checks, real model startup, existing writing/editing controls, persistence, no-camera-on-runtime-failure and 390px overflow checks passed. The updated trail preview and FPS readout were visually reviewed.
 - A warmed real-runtime synthetic-camera run measured 20 camera fps, 20 hand fps, 14 face fps and 14 ms p95 UI frame interval on this PC. Aggregate callbacks now include two independent channels and must not be compared as a speedup against the old combined callback rate. This does not measure fast-moving human hands or the user's laptop.
 - Visual gap repair remains presentation-only; stale recognition channels expire after 200 ms. Profiles retain their schema. Actual laptop fast-swipe performance remains a user test.- Full synthetic-feature guided calibration-to-writing regression also passed: two trained gestures compose “ab”, held/unknown/lost-tracking inputs do not repeat or type, and exported profiles rebuild after reload.
+
+
+## Version 1.2.4 — movement writing and persistent teaching camera
+- Direct-text capability checks passed for movement/pose gestures without Select or Next, disabled/empty mappings, keyboard scanning requirements and undo/pause behavior.
+- The new browser regression used the real combined recognizer with controlled motion features to write “hi” from two trained movements without navigation gestures. Holding an endpoint did not repeat text; direct-only writing did not advance the keyboard scan. Shortcut defaults, text mapping display and draft reload passed.
+- During recording, camera, mirrored instruction and Cancel recording remained in the viewport after scrolling at 1366×768, 1024×600, 390×844 and 390×640. No horizontal overflow occurred. Cancellation and turning off the camera removed the active/docked states appropriately. Desktop/mobile screenshots were visually reviewed.
+- Existing writing/editing UI, real vision-model startup, trail rendering/toggle/fade and responsive browser checks passed. Synthetic movement tests do not establish human handwriting or recognition accuracy.
+- Full five-example motion teaching, neutral lead-ins, movement diagnostics, scan freezing, swipe-driven selection and profile reload also passed.
