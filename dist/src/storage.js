@@ -1,8 +1,9 @@
+import {STARTER_PHRASES} from './communication.js';
 import {FEATURE_VERSION,finiteVector} from './core.js';
 const KEY='relay.profiles.v1';
 const modalities=new Set(['face','hand']);
 export function createProfile(name,modality='face'){
- return {version:1,featureVersion:FEATURE_VERSION,id:crypto.randomUUID(),name:name.trim()||'My voice',modality,createdAt:new Date().toISOString(),rest:[],gestures:[],trials:[],settings:{holdMs:450,restMs:350,scanMs:1400,mode:'step',audio:false}};
+ return {version:1,featureVersion:FEATURE_VERSION,id:crypto.randomUUID(),name:name.trim()||'My voice',modality,createdAt:new Date().toISOString(),rest:[],gestures:[],trials:[],phrases:[...STARTER_PHRASES],words:[],settings:{holdMs:450,restMs:350,scanMs:1400,mode:'step',audio:false}};
 }
 export function validateProfile(p){
  if(!p||p.version!==1||p.featureVersion!==FEATURE_VERSION||!modalities.has(p.modality)||(typeof p.id!=='string'||!/^[-a-zA-Z0-9_]{1,80}$/.test(p.id))||typeof p.name!=='string'||p.name.length>80)throw new Error('This is not a compatible Relay profile.');
@@ -19,6 +20,9 @@ export function validateProfile(p){
  if(!p.settings||!['step','auto'].includes(p.settings.mode))throw new Error('Invalid settings.');
  for(const [k,min,max] of [['holdMs',200,2000],['restMs',200,2000],['scanMs',700,5000]])if(!Number.isFinite(p.settings[k])||p.settings[k]<min||p.settings[k]>max)throw new Error('Invalid timing settings.');
  if(!Array.isArray(p.trials)||p.trials.length>2000||p.trials.some(t=>!t||typeof t.kind!=='string'||typeof t.at!=='string'||typeof t.passed!=='boolean'))throw new Error('Invalid validation records.');
+ if(p.phrases!==undefined&&(!Array.isArray(p.phrases)||p.phrases.length>24||p.phrases.some(v=>typeof v!=='string'||!v.trim()||v.length>300)))throw new Error('Invalid personal phrases.');
+ if(p.words!==undefined&&(!Array.isArray(p.words)||p.words.length>100||p.words.some(v=>typeof v!=='string'||v.length>50||!/^[\p{L}\p{M}'’-]+$/u.test(v))))throw new Error('Invalid personal words.');
+ if(p.settings.completions!==undefined&&typeof p.settings.completions!=='boolean')throw new Error('Invalid completion setting.');
  return p;
 }
 export function loadProfiles(){const raw=localStorage.getItem(KEY);if(!raw)return [];const data=JSON.parse(raw);if(!Array.isArray(data))throw new Error('Saved profile collection is damaged. Export or recover your browser data.');return data.map(validateProfile);}

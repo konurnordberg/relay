@@ -9,7 +9,7 @@ Avoid claiming universal access, clinical reliability, first-ever personalized g
 - 0:00–0:20: Explain the communication problem and the one/two-signal keyboard.
 - 0:20–1:15: Open a fresh profile. Show resting capture and one new personal signal. Explain that each gesture has five separate examples. Use a saved, genuinely calibrated profile for the remaining demo if time is short; clearly identify the switch.
 - 1:15–2:05: Activate camera input. Write a short unprepared word or phrase. Delete a character, restore it with Undo, then confirm speech.
-- 2:05–2:30: Show an unfamiliar movement producing no action. Show the measured results screen.
+- 2:05–2:30: Open Signal studio and show how rest, a learned signal, and an unfamiliar movement lead to different decisions. Show the fresh-attempt breakdown.
 - 2:30–3:00: Show a different profile / input family if it has been validated. Finish with the next step: co-design and test with AAC users and practitioners.
 
 A fresh full rest + two-gesture calibration takes roughly 85 seconds plus setup. Rehearse against the actual pitch time; do not pretend a preloaded profile is freshly trained.
@@ -44,3 +44,8 @@ If recognition is inconsistent, narrow to the best-performing profile and fewer 
 - Real demo video and exported validation report.
 - Library/model attribution and honest prior-art comparison.
 - Public access must be explicitly enabled if using the private hosted preview as a judge link.
+
+## Stronger 1.1 demonstration
+Prepare one personal word (such as your name) and one phrase that you authored in My vocabulary. Spell the first two letters and explicitly select the suggested completion. Switch to My phrases through the gesture keyboard. Use Focus view for readability. Show that the draft survives a reload. Explain that the model’s visible separation diagnostic is different from actual held-out test results; show both if you have measured them.
+
+The credible closing line: “Our next milestone is showing that intended users can set this up, communicate comfortably, and return to it tomorrow. We’ve built the calibration, recovery, and measurement loop to test that.”

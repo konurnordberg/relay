@@ -4,7 +4,9 @@ export class VisionCamera{
   this.stop();const session=++this.session;this.mode=mode;this.onState('loading','Loading local vision model…');
   try{
    if(!navigator.mediaDevices?.getUserMedia)throw new Error('Camera access requires localhost or HTTPS. Open this app in Chrome or Edge.');
-   const [{FilesetResolver,FaceLandmarker,HandLandmarker},stream]=await Promise.all([import('../vendor/vision_bundle.mjs'),navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},...(deviceId?{deviceId:{exact:deviceId}}:{facingMode:'user'})},audio:false})]);
+   const {FilesetResolver,FaceLandmarker,HandLandmarker}=await import('../vendor/vision_bundle.mjs');
+   if(session!==this.session)return;
+   const stream=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},...(deviceId?{deviceId:{exact:deviceId}}:{facingMode:'user'})},audio:false});
    if(session!==this.session){stream.getTracks().forEach(t=>t.stop());return;}
    this.stream=stream;this.video.srcObject=stream;await this.video.play();
    const vision=await FilesetResolver.forVisionTasks(new URL('../vendor/wasm',import.meta.url).href);

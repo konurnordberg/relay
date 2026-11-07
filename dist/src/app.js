@@ -1,21 +1,26 @@
 import {REST,UNKNOWN,train,predict,summarize,EventGate,Composer,trialSummary} from './core.js';
 import {createProfile,loadProfiles,saveProfiles,exportProfile,importProfile} from './storage.js';
 import {VisionCamera} from './camera.js';
+import {RelayComposer,STARTER_PHRASES} from './communication.js';
+import {studioView,liveInsightHTML,vocabularyView} from './views.js';
+import {signalDiagnostics,confusionRows,readiness} from './insights.js';
+import {readDraft,writeDraft,removeDraft} from './drafts.js';
 const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const btn=(label,action,cls='',extra='')=>'<button class="button '+cls+'" data-action="'+action+'" '+extra+'>'+label+'</button>';
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let profiles=[],storageError='';
 try{profiles=loadProfiles();}catch(e){storageError=e.message;}
-let profile=profiles[0]||null,view='home',modelError='',model=null,gate=new EventGate(),composer=new Composer(),live=false;
+let profile=profiles[0]||null,view='home',modelError='',model=null,gate=new EventGate(),composer=new RelayComposer(profile),live=false;
 let cameraState='off',cameraMessage='Your camera stays off until you start it.',latest=null,lastUI=0,recording=null,task=0,busy=false,attempt=null,restCheck=null,lastScan=0,lastTracking=0;
 let toastTimer,scanVoice='',speechStatus='',activeDialog=null;
+let draftSavedText=null,draftNotice='',speakingMessage=false;
 const actions={select:'Select',next:'Next',delete:'Delete',undo:'Undo',speak:'Speak',pause:'Pause',insert:'Insert text'};
-const navigation=[['home','Overview','◈'],['teach','Teach gestures','⌁'],['write','Write & speak','▤'],['check','Check accuracy','◎'],['profiles','My profiles','◉']];
+const navigation=[['home','Overview','◈'],['teach','Teach gestures','⌁'],['write','Write & speak','▤'],['check','Check accuracy','◎'],['studio','Signal studio','⌘'],['profiles','My profiles','◉']];
 const currentTrials=()=>profile?.trials.filter(t=>(t.revision||0)===(profile.revision||0))||[];
 function persist(){try{saveProfiles(profiles);storageError='';return true;}catch(e){storageError=e.message;toast('Could not save: '+e.message+'. Export a backup before closing.');return false;}}
 function changed(){profile.revision=(profile.revision||0)+1;persist();rebuild();}
 function rebuild(){model=null;modelError='';gate=new EventGate(profile?.settings.holdMs,profile?.settings.restMs);if(profile){try{model=train(profile);}catch(e){modelError=e.message;}}}
-rebuild();
+rebuild();restoreDraft();
 $('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home"><img src="./favicon.svg" alt="">relay<span class="sr-only">home</span></a><div><div class="eyebrow nav-label">YOUR WORKSPACE</div><nav class="nav" aria-label="Main navigation">'+navigation.map(([id,label,icon])=>'<button data-action="nav-'+id+'" data-nav="'+id+'"><span class="nav-icon" aria-hidden="true">'+icon+'</span><span>'+label+'</span></button>').join('')+'</nav></div><div class="side-bottom"><div class="privacy-note"><strong>◌ &nbsp; Built around you.</strong>Your camera is processed on this device. Your gesture profile stays in this browser.</div><div class="side-foot">TRIANGLE AI HACKATHON · 2026</div></div></aside><div class="workspace"><header class="topbar"><div class="breadcrumb">Your movement <span>/</span> <b id="page-label">Overview</b></div><div class="profile-switch"><span class="avatar" aria-hidden="true">↗</span><label class="sr-only" for="profile-select">Active profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3>Your signal</h3><span class="pill" id="camera-pill">CAMERA OFF</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><div class="camera-placeholder" id="camera-placeholder"><div class="face-outline" aria-hidden="true"></div><p>A little movement goes a long way.</p></div><div class="camera-corners"></div><span class="camera-tag">LOCAL VISION · NO VIDEO UPLOAD</span></div><div class="camera-controls"><p class="camera-status" id="camera-status"></p><button class="button" id="camera-button" data-action="camera">Enable camera ↗</button></div><div class="recognition"><div class="eyebrow">LIVE RECOGNITION</div><div class="signal-name"><span id="signal-name">Waiting for you</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div></section><section class="card rail-quote"><div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><h3>Your words.<br>Your way.</h3><p>One reliable movement can open an entire alphabet. You decide what to say.</p></section><p class="rail-note">Choose movements you can comfortably repeat. You can change them any time.</p></aside></div><footer class="footer"><span>DESIGNED FOR INDIVIDUAL EXPRESSION</span><span>Research prototype · Personal calibration required</span></footer></div></div>';
 const camera=new VisionCamera($('#video'),$('#overlay'),onFrame,onCameraState);
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),6500);}
@@ -26,7 +31,7 @@ function render(){
  $('#profile-select').disabled=busy;
  document.querySelectorAll('[data-nav]').forEach(b=>{b.classList.toggle('active',b.dataset.nav===view);if(b.dataset.nav===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
  $('#page-label').textContent=navigation.find(n=>n[0]===view)?.[1]||'Overview';
- $('#main').innerHTML=(storageError?'<div class="notice error">Storage: '+esc(storageError)+'</div>':'')+({home:homeView,teach:teachView,write:writeView,check:checkView,profiles:profilesView}[view]());
+ $('#main').innerHTML=(storageError?'<div class="notice error">Storage: '+esc(storageError)+'</div>':'')+({home:homeView,teach:teachView,write:writeView,check:checkView,studio:()=>studioView(profile,model),profiles:profilesView}[view]());
  updateCamera();if(view==='write')renderWriter();
 }
 const heading=(title,sub)=>'<div class="page-heading"><div class="eyebrow" style="margin-bottom:12px">YOUR MOVEMENT. YOUR WORDS.</div><h2>'+title+'</h2><p class="muted">'+sub+'</p></div>';
@@ -40,19 +45,22 @@ function teachView(){
  return heading('Teach us your language.','A few movements. A few examples. A vocabulary that belongs to you.')+'<div class="progress-steps"><span class="'+(done?'done':'')+'">01 &nbsp; Rest</span><span class="'+(model?'done':'')+'">02 &nbsp; Your gestures</span><span class="'+(currentTrials().length?'done':'')+'">03 &nbsp; Check & communicate</span></div><div class="card"><div class="section-label" style="margin-top:0"><h3>01 &nbsp; Your resting state</h3><span class="badge">'+(done?'Recorded':'Start here')+'</span></div><p class="small-text muted">Relax naturally for 12 seconds. Blink and look around as you normally would. '+(profile.modality==='hand'?'Keep your resting hand visible.':'Keep your face visible.')+' This teaches Relay what should <strong>not</strong> select a key.</p>'+btn(done?'Record rest again':'Learn my resting state','record-rest','secondary',busy?'disabled':'')+'</div><div class="card"><div class="section-label" style="margin-top:0"><h3>02 &nbsp; Your gestures</h3><span>'+profile.gestures.length+' personal signals</span></div><p class="small-text muted">Choose a deliberate movement you can hold briefly. We’ll guide you through five separate examples, returning to rest between each.</p><div class="gesture-list">'+profile.gestures.map((g,i)=>'<div class="gesture-item"><span class="gesture-icon">'+String(i+1).padStart(2,'0')+'</span><div class="gesture-detail"><strong>'+esc(g.name)+'</strong><small>'+esc(actions[g.action])+(g.action==='insert'?' · '+esc(g.value):'')+' · '+g.samples.length+' examples'+(g.enabled===false?' · Disabled':'')+'</small></div><div class="gesture-actions">'+btn(g.samples.length?'Retrain':'Record','record-gesture','small secondary','data-id="'+g.id+'" '+(busy?'disabled':''))+'<button class="icon-button" data-action="edit-gesture" data-id="'+g.id+'" aria-label="Edit '+esc(g.name)+'">⋯</button></div></div>').join('')+'</div>'+(profile.gestures.length?'':'<div class="empty-state">Choose a movement that feels comfortable to you.</div>')+'<div style="margin-top:16px">'+btn('＋ Add a gesture','add-gesture','secondary',!done||busy?'disabled':'')+'</div></div><div id="record-area"></div>'+(model?'<div class="callout"><span class="circle-icon">✓</span><p><strong>Your recognizer is trained.</strong>Test it with new attempts before using it to write.</p></div>'+model.warnings.map(w=>'<div class="notice warn">'+esc(w)+'</div>').join('')+'<div class="button-row">'+btn('Check my gestures →','nav-check')+btn('Open keyboard','nav-write','secondary')+'</div>':'')+(profile.gestures.some(g=>g.samples.length>=3)&&modelError?'<div class="notice warn">'+esc(modelError)+'</div>':'')+'<p class="small-text muted">Input: '+(profile.modality==='face'?'face & head, with experimental coarse eye features':'one visible hand')+'. Setup may be assisted. Recognition learns your examples; it does not recognize every possible movement.</p>';
 }
 function writeView(){
- return heading('Make yourself heard.','Choose letters, make corrections, and speak when you’re ready.')+'<div id="writer-status"></div><div class="card composer-card"><div class="composer-head"><span>YOUR MESSAGE</span><span id="word-count">0 words</span></div><div id="message" class="message" role="log" aria-label="Composed message" aria-live="polite"></div><div class="composer-bottom"><span id="focus-label"></span><div class="button-row">'+btn('Copy','copy','small secondary')+btn('Speak ↗','speak','small')+'</div></div></div><div id="keyboard" class="keyboard" aria-label="Accessible keyboard"></div><div id="writer-help"></div><div class="button-row" style="margin-top:15px">'+btn('Next →','manual-next','secondary')+btn('Select ↵','manual-select','secondary')+btn('Keyboard settings','writer-settings','secondary')+'</div><p class="small-text muted" style="margin-top:14px">Pointer buttons are available for setup and preview. Camera input is labeled separately. Speech uses a local browser voice when one is available.</p><div class="speech-state" id="speech-status" role="status"></div>';
+ return heading('Make yourself heard.','Choose letters, make corrections, and speak when you’re ready.')+'<div id="writer-status"></div><div class="card composer-card"><div class="composer-head"><span>YOUR MESSAGE <small id="draft-status"></small></span><span id="word-count">0 words</span></div><div id="message" class="message" role="log" aria-label="Composed message" aria-live="polite"></div><div class="composer-bottom"><span id="focus-label"></span><div class="button-row">'+btn('Copy','copy','small secondary')+btn('Speak ↗','speak','small')+'</div></div></div><div id="keyboard" class="keyboard" aria-label="Accessible keyboard"></div><div id="writer-help"></div><div class="button-row" style="margin-top:15px">'+btn('Next →','manual-next','secondary')+btn('Select ↵','manual-select','secondary')+btn('Keyboard settings','writer-settings','secondary')+btn('Focus view','focus','secondary')+'</div><p class="small-text muted" style="margin-top:14px">Pointer buttons are available for setup and preview. Camera input is labeled separately. Speech uses a local browser voice when one is available.</p><div class="speech-state" id="speech-status" role="status"></div>';
 }
 function renderWriter(){
  if(view!=='write')return;
+ composer.configure(profile);saveDraft();
  $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot" style="background:'+(live?'#5a8b38':'#aa9164')+'"></span>'+(live?(composer.paused?'Paused · select Resume to continue':'Camera input · '+(profile.settings.mode==='auto'?'automatic scanning':'next / select')):'Pointer preview · no camera selections')+'</span>'+btn(live?'Stop camera input':'Use my gestures',live?'stop-live':'start-live',live?'small secondary':'small',!model?'disabled':'')+'</div>'+(!model?'<div class="demo-banner">Explore the keyboard now. Train a profile to write with your movements.</div>':'');
  const m=$('#message');m.textContent=composer.text||'Your next thought starts here…';m.classList.toggle('empty',!composer.text);if(composer.text){const c=document.createElement('span');c.className='cursor';c.setAttribute('aria-hidden','true');m.append(c);}m.scrollTop=m.scrollHeight;
  $('#word-count').textContent=(composer.text.trim()?composer.text.trim().split(/\s+/).length:0)+' words · '+Array.from(composer.text).length+' characters';
  const rows=composer.rows;
- $('#keyboard').innerHTML=rows.map((row,i)=>'<div class="key-row '+(i===composer.row?'focus-row':'')+'">'+row.map((k,j)=>'<button class="key '+(k.type!=='text'||k.value.length!==1||/\s/.test(k.value)?'control':'')+' '+(i===composer.row&&j===composer.col&&composer.level==='key'?'focus-key':'')+'" data-action="key" data-row="'+i+'" data-col="'+j+'" aria-label="'+esc(k.label)+'">'+esc(k.label)+'</button>').join('')+(i===composer.row&&composer.level==='key'?'<button class="key control '+(composer.col===row.length?'focus-key':'')+'" data-action="back-rows">↩ Rows</button>':'')+'</div>').join('');
+ $('#keyboard').innerHTML=rows.map((row,i)=>'<div class="key-row '+(i===composer.row?'focus-row':'')+'">'+row.map((k,j)=>'<button class="key '+(k.type!=='text'||k.value.length!==1||/\s/.test(k.value)?'control':'')+' '+(i===composer.row&&j===composer.col&&composer.level==='key'?'focus-key':'')+'" data-action="key" data-kind="'+k.type+'" data-row="'+i+'" data-col="'+j+'" aria-label="'+esc(k.label)+'">'+esc(k.label)+'</button>').join('')+(i===composer.row&&composer.level==='key'?'<button class="key control '+(composer.col===row.length?'focus-key':'')+'" data-action="back-rows">↩ Rows</button>':'')+'</div>').join('');
  const focus=composer.level==='row'?'Row '+(composer.row+1)+' of '+rows.length:(rows[composer.row]?.[composer.col]?.label||'Back to rows');
  $('#focus-label').textContent=composer.confirm?'Confirm '+composer.confirm:composer.paused?'Paused':focus;
  $('#writer-help').innerHTML='<div class="keyboard-help"><span><kbd>Next</kbd> advances the highlight</span><span><kbd>Select</kbd> chooses a row, then a key</span><span>Return to rest between gestures</span></div>';
  $('#speech-status').textContent=speechStatus;
+ $('#draft-status').textContent=draftNotice;
+ if(document.body.classList.contains('focus-mode'))requestAnimationFrame(()=>document.querySelector('.focus-row')?.scrollIntoView({block:'nearest'}));
  if(live&&profile.settings.audio&&focus!==scanVoice){scanVoice=focus;say(focus,true);}
 }
 
@@ -62,7 +70,7 @@ function checkView(){
  return heading('Confidence comes from practice.','Test fresh attempts. These recordings are never added to training.')+'<div class="metrics"><div class="card metric"><div class="eyebrow">CHECKED</div><b>'+summary.total+'</b><small>separate attempts</small></div><div class="card metric"><div class="eyebrow">CORRECT</div><b>'+(summary.accuracy===null?'—':Math.round(summary.accuracy*100)+'%')+'</b><small>'+summary.correct+' / '+summary.total+' attempts</small></div><div class="card metric"><div class="eyebrow">REST CHECKS</div><b>'+rests.filter(t=>t.passed).length+' / '+rests.length+'</b><small>no false selections & adequate tracking</small></div></div>'+(!model?'<div class="notice warn">Record rest and at least three examples for each enabled gesture first.</div>':'')+'<div class="card"><h3>Check a gesture</h3><p class="small-text muted">Five new attempts. Start at rest; perform your gesture when prompted, then return to rest. A correct attempt has exactly one matching selection. Misses, extra selections, and wrong gestures count as failures.</p><div class="test-choice"><label class="field">Gesture<select id="test-gesture">'+profile.gestures.filter(g=>g.enabled!==false&&g.samples.length).map(g=>'<option value="'+g.id+'">'+esc(g.name)+'</option>').join('')+'</select></label>'+btn('Run 5 attempts','validate','',!model||busy?'disabled':'')+'</div></div><div class="card"><h3>Check everyday rest</h3><p class="small-text muted">Read the screen, blink, and rest naturally. We measure accidental selections and time with usable tracking.</p><div class="button-row">'+btn('30-second check','rest-check','secondary','data-duration="30000" '+(!model||busy?'disabled':''))+btn('5-minute demo check','rest-check','secondary','data-duration="300000" '+(!model||busy?'disabled':''))+'</div></div><div id="record-area"></div><div class="card"><div class="section-label" style="margin-top:0"><h3>Recorded results</h3>'+btn('Export report','export-report','small secondary')+'</div>'+(currentTrials().length?'<div class="table-wrap"><table><thead><tr><th>Test</th><th>Result</th><th>Details</th></tr></thead><tbody>'+currentTrials().slice(-30).reverse().map(t=>'<tr><td>'+esc(t.label||'Rest')+'</td><td class="'+(t.passed?'result-pass':'result-fail')+'">'+(t.passed?'Pass':'Needs practice')+'</td><td>'+esc(t.detail)+'</td></tr>').join('')+'</tbody></table></div>':'<p class="small-text muted">No results yet. We won’t claim accuracy before you measure it.</p>')+'</div><p class="small-text muted">Results apply to this profile version and these test conditions. Small practice sets are not clinical validation. Retraining starts a new set of results; older records remain in exports.</p>';
 }
 function profilesView(){
- return heading('A profile that grows with you.','Keep your vocabulary, change your gestures, and take a backup with you.')+'<div class="button-row" style="margin-bottom:22px">'+btn('＋ New profile','new-profile')+btn('Import backup','import','secondary')+'<input type="file" accept=".json,application/json" id="import-file" hidden></div>'+profiles.map(p=>'<div class="card profile-card"><div><h3>'+esc(p.name)+(p===profile?' <span class="badge">Active</span>':'')+'</h3><p>'+(p.modality==='face'?'Face & head':'Hand')+' · '+p.gestures.length+' gestures · '+p.rest.length+' resting samples</p></div><div class="button-row">'+btn('Use','use-profile','small secondary','data-id="'+p.id+'"')+btn('Export','export-profile','small secondary','data-id="'+p.id+'"')+btn('Delete','delete-profile','small danger','data-id="'+p.id+'"')+'</div></div>').join('')+(profile?settingsView():'')+'<div class="notice">Profiles are stored in this browser, on this origin. Clearing browser data removes them. Export a backup before switching computers or moving between the local and hosted app. No raw camera video is saved.</div>';
+ return heading('A profile that grows with you.','Keep your vocabulary, change your gestures, and take a backup with you.')+'<div class="button-row" style="margin-bottom:22px">'+btn('＋ New profile','new-profile')+btn('Import backup','import','secondary')+'<input type="file" accept=".json,application/json" id="import-file" hidden></div>'+profiles.map(p=>'<div class="card profile-card"><div><h3>'+esc(p.name)+(p===profile?' <span class="badge">Active</span>':'')+'</h3><p>'+(p.modality==='face'?'Face & head':'Hand')+' · '+p.gestures.length+' gestures · '+p.rest.length+' resting samples</p></div><div class="button-row">'+btn('Use','use-profile','small secondary','data-id="'+p.id+'"')+btn('Export','export-profile','small secondary','data-id="'+p.id+'"')+btn('Delete','delete-profile','small danger','data-id="'+p.id+'"')+'</div></div>').join('')+(profile?vocabularyView(profile)+settingsView():'')+'<div class="notice">Profiles are stored in this browser, on this origin. Clearing browser data removes them. Export a backup before switching computers or moving between the local and hosted app. No raw camera video is saved.</div>';
 }
 function settingsView(){return '<form id="settings-form" class="card"><h3>Settings for '+esc(profile.name)+'</h3><div class="settings-grid"><label class="field">Navigation<select name="mode"><option value="step" '+(profile.settings.mode==='step'?'selected':'')+'>Two gestures: next + select</option><option value="auto" '+(profile.settings.mode==='auto'?'selected':'')+'>One gesture: automatic scanning + select</option></select></label><label class="field">Scan interval<select name="scanMs">'+[900,1400,2000,3000,4000].map(v=>'<option value="'+v+'" '+(v===profile.settings.scanMs?'selected':'')+'>'+(v/1000)+' seconds</option>').join('')+'</select></label><label class="field">Hold a gesture for<select name="holdMs">'+[250,450,650,900,1200,1600].map(v=>'<option value="'+v+'" '+(v===profile.settings.holdMs?'selected':'')+'>'+(v/1000)+' seconds</option>').join('')+'</select><small>Longer holds may reduce accidental selections.</small></label><label class="field">Return to rest for<select name="restMs">'+[250,350,500,750,1000].map(v=>'<option value="'+v+'" '+(v===profile.settings.restMs?'selected':'')+'>'+(v/1000)+' seconds</option>').join('')+'</select></label></div><label class="toggle"><input type="checkbox" name="audio" '+(profile.settings.audio?'checked':'')+'> Read scan highlights aloud (uses available browser voice)</label><button class="button secondary" type="submit">Save settings</button></form>';}
 function openDialog(html){if(activeDialog)activeDialog.remove();const d=document.createElement('dialog');d.innerHTML=html;document.body.append(d);activeDialog=d;d.addEventListener('close',()=>{d.remove();if(activeDialog===d)activeDialog=null;});d.showModal();return d;}
@@ -72,9 +80,9 @@ function gestureDialog(id){
  const g=profile.gestures.find(g=>g.id===id),defaultAction=profile.gestures.some(g=>g.action==='select')?'next':'select';
  openDialog(dialogHeader(g?'Edit your signal':'Add a personal signal')+'<p>Choose your own movement. A name such as “my eyebrow lift” will help you remember it.</p><form id="gesture-form" data-id="'+(g?.id||'')+'"><label class="field">Gesture name<input name="name" maxlength="65" placeholder="Name your movement" value="'+esc(g?.name||'')+'" required></label><label class="field">What should it do?<select name="action">'+Object.entries(actions).map(([v,l])=>'<option value="'+v+'" '+((g?.action||defaultAction)===v?'selected':'')+'>'+l+'</option>').join('')+'</select></label><label class="field">Text for “Insert text”<input name="value" maxlength="300" placeholder="A letter, word, or personal phrase" value="'+esc(g?.value||'')+'"><small>Only used when the action is Insert text.</small></label>'+(g?'<label class="toggle"><input name="enabled" type="checkbox" '+(g.enabled!==false?'checked':'')+'> Enable this gesture</label>':'')+'<div class="button-row"><button class="button" type="submit">'+(g?'Save changes':'Add & record')+'</button>'+(g?btn('Delete gesture','delete-gesture','danger','data-id="'+g.id+'"'):'')+'</div></form>');
 }
-function selectProfile(id){if(busy)return;const p=profiles.find(p=>p.id===id);if(!p)return;camera.stop();cameraState='off';cameraMessage='Profile changed. Enable the camera when you’re ready.';profile=p;composer=new Composer();live=false;latest=null;rebuild();render();}
+function selectProfile(id){if(busy)return;const p=profiles.find(p=>p.id===id);if(!p)return;camera.stop();cameraState='off';cameraMessage='Profile changed. Enable the camera when you’re ready.';profile=p;composer=new RelayComposer(profile);restoreDraft();live=false;latest=null;rebuild();render();}
 function updateCamera(){
- if(cameraState!=='ready'){$('#signal-name').textContent='Waiting for you';$('#signal-detail').textContent='—';$('#signal-meter').style.width='0';}
+ if(cameraState!=='ready'){if(view==='studio'&&$('#live-insights'))$('#live-insights').innerHTML='<div class="empty-state">Enable your camera to see the recognizer work.</div>';$('#signal-name').textContent='Waiting for you';$('#signal-detail').textContent='—';$('#signal-meter').style.width='0';}
  $('#camera-status').textContent=cameraMessage;
  $('#camera-pill').textContent=cameraState==='ready'?'ON DEVICE':cameraState==='loading'?'STARTING':cameraState==='error'?'NEEDS ATTENTION':'CAMERA OFF';
  $('#camera-pill').classList.toggle('green',cameraState==='ready');
@@ -90,24 +98,33 @@ function onFrame(frame){
  let event=null;if(!frame.vector)gate.reset();else if(model)event=gate.update(result.id,frame.now);
  if(restCheck){restCheck.total++;if(frame.vector)restCheck.tracked++;if(event)restCheck.events.push(event);}
  if(attempt&&event)attempt.events.push(event);
- if(event&&live&&view==='write'){const g=profile.gestures.find(g=>g.id===event);if(g){dispatchGesture(g);lastScan=frame.now;}}
+ if(event&&live&&view==='write'&&!activeDialog){const g=profile.gestures.find(g=>g.id===event);if(g){dispatchGesture(g);lastScan=frame.now;}}
  if(frame.now-lastUI>120){
   lastUI=frame.now;
   $('#signal-name').textContent=!frame.vector?'No tracking':!model?'Ready to learn':result.id===REST?'Resting':result.id===UNKNOWN?'Uncertain — no action':result.label;
   $('#signal-detail').textContent=!frame.vector?'Move into view':model?(gate.armed?'Ready':'Return to rest'):Math.round(frame.latency)+' ms';
   $('#signal-meter').style.width=(gate.progress*100)+'%';
+  if(view==='studio'&&$('#live-insights'))$('#live-insights').innerHTML=liveInsightHTML(model,frame.vector,result,gate,frame.latency);
  }
 }
 function dispatchGesture(g){let effect;if(g.action==='next')composer.next();else if(g.action==='select')effect=composer.select();else effect=composer.direct(g.action,g.value);handleEffect(effect);renderWriter();}
-function handleEffect(effect){if(effect==='speak')say(composer.text);if(effect==='pause'){window.speechSynthesis?.cancel();toast('Paused. Select Resume to continue.');}}
+function handleEffect(effect){if(effect==='focus')toggleFocus();if(effect==='bookmark')saveMessagePhrase();if(effect==='speak')say(composer.text);if(effect==='pause'){speakingMessage=false;window.speechSynthesis?.cancel();toast('Paused. Select Resume to continue.');}}
 function say(text,cue=false){
+ if(cue&&speakingMessage)return;
  if(!('speechSynthesis' in window)){speechStatus='Speech is unavailable in this browser. Your message remains visible.';toast(speechStatus);return;}
  speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(text),voices=speechSynthesis.getVoices();
  u.voice=voices.find(v=>v.localService&&v.lang.startsWith('en'))||voices.find(v=>v.localService)||null;
  if(!u.voice){speechStatus='No local voice is installed. Install a system voice to use offline speech.';if(!cue){toast(speechStatus);renderWriter();}return;}
- u.rate=cue?1.1:0.95;u.onstart=()=>{if(!cue){speechStatus='Speaking…';if($('#speech-status'))$('#speech-status').textContent=speechStatus;}};
- u.onend=()=>{if(!cue){speechStatus='Finished speaking.';if($('#speech-status'))$('#speech-status').textContent=speechStatus;}};
- u.onerror=e=>{if(['interrupted','canceled'].includes(e.error))return;speechStatus='Speech unavailable ('+e.error+'). Your message is still visible.';if($('#speech-status'))$('#speech-status').textContent=speechStatus;};
+ u.rate=cue?1.1:0.95;u.onstart=()=>{if(!cue){speechStatus='Speaking…';if($('#speech-status'))$('#speech-status').textContent=speechStatus;
+ $('#draft-status').textContent=draftNotice;
+ if(document.body.classList.contains('focus-mode'))requestAnimationFrame(()=>document.querySelector('.focus-row')?.scrollIntoView({block:'nearest'}));}};
+ u.onend=()=>{if(!cue){speakingMessage=false;speechStatus='Finished speaking.';if($('#speech-status'))$('#speech-status').textContent=speechStatus;
+ $('#draft-status').textContent=draftNotice;
+ if(document.body.classList.contains('focus-mode'))requestAnimationFrame(()=>document.querySelector('.focus-row')?.scrollIntoView({block:'nearest'}));}};
+ u.onerror=e=>{if(['interrupted','canceled'].includes(e.error))return;speakingMessage=false;speechStatus='Speech unavailable ('+e.error+'). Your message is still visible.';if($('#speech-status'))$('#speech-status').textContent=speechStatus;
+ $('#draft-status').textContent=draftNotice;
+ if(document.body.classList.contains('focus-mode'))requestAnimationFrame(()=>document.querySelector('.focus-row')?.scrollIntoView({block:'nearest'}));};
+ if(!cue)speakingMessage=true;
  speechSynthesis.speak(u);
 }
 async function enableCamera(){if(!profile){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;gate.reset();updateCamera();renderWriter();return;}await camera.start(profile.modality);}
@@ -171,11 +188,13 @@ document.addEventListener('click',async e=>{
   if(a==='use-profile')return selectProfile(id);
   if(a==='export-profile')return exportOne(id);
   if(a==='delete-profile')return deleteProfile(id);
-  if(a==='confirm-delete-profile'){profiles=profiles.filter(p=>p.id!==id);if(profile?.id===id){camera.stop();cameraState='off';cameraMessage='Camera off.';profile=profiles[0]||null;live=false;composer=new Composer();rebuild();}persist();activeDialog?.close();render();return;}
+  if(a==='confirm-delete-profile'){const deleted=profiles.find(p=>p.id===id);if(deleted)removeDraft(deleted);profiles=profiles.filter(p=>p.id!==id);if(profile?.id===id){camera.stop();cameraState='off';cameraMessage='Camera off.';profile=profiles[0]||null;live=false;composer=new RelayComposer(profile);restoreDraft();rebuild();}persist();activeDialog?.close();render();return;}
   if(a==='import')return $('#import-file').click();
-  if(a==='export-report'){download('relay-validation.json',JSON.stringify({app:'Relay',profile:profile.name,modality:profile.modality,revision:profile.revision||0,settings:profile.settings,summary:trialSummary(currentTrials()),trials:profile.trials,limitations:'User-recorded practice results, not clinical validation. Separate attempts; no frame-level train/test split.'},null,2));return;}
+  if(a==='export-report'){download('relay-validation.json',JSON.stringify({app:'Relay',profile:profile.name,modality:profile.modality,revision:profile.revision||0,settings:profile.settings,summary:trialSummary(currentTrials()),breakdown:confusionRows(profile),trainingDiagnostics:signalDiagnostics(model),practiceMilestones:readiness(profile,model),trials:profile.trials,limitations:'User-recorded practice results, not clinical validation. Separate attempts; no frame-level train/test split.'},null,2));return;}
   if(a==='start-live')return startLive();
   if(a==='stop-live'){live=false;gate.reset();renderWriter();return;}
+  if(a==='focus'){toggleFocus();return;}
+  if(a==='inspect-gesture'){setView('teach');gestureDialog(id);return;}
   if(a==='writer-settings')return setView('profiles');
   if(a==='copy'){try{await navigator.clipboard.writeText(composer.text);toast('Message copied.');}catch{toast('Clipboard is unavailable in this browser.');}return;}
   if(a==='speak'){handleEffect(composer.apply({type:'speak'}));renderWriter();return;}
@@ -190,7 +209,7 @@ document.addEventListener('click',async e=>{
 document.addEventListener('submit',async e=>{
  e.preventDefault();const f=e.target,data=new FormData(f);
  try{
-  if(f.id==='profile-form'){profile=createProfile(String(data.get('name')),String(data.get('modality')));profiles.push(profile);camera.stop();cameraState='off';cameraMessage='Enable your camera to begin calibration.';live=false;composer=new Composer();persist();rebuild();activeDialog?.close();setView('teach');return;}
+  if(f.id==='profile-form'){profile=createProfile(String(data.get('name')),String(data.get('modality')));profiles.push(profile);camera.stop();cameraState='off';cameraMessage='Enable your camera to begin calibration.';live=false;composer=new RelayComposer(profile);restoreDraft();persist();rebuild();activeDialog?.close();setView('teach');return;}
   if(f.id==='gesture-form'){
    let g=profile.gestures.find(g=>g.id===f.dataset.id),fresh=!g;
    if(!g){g={id:crypto.randomUUID(),samples:[]};profile.gestures.push(g);}
@@ -199,7 +218,14 @@ document.addEventListener('submit',async e=>{
    if(fresh&&profile.gestures.some(g=>g.action==='next')&&profile.gestures.some(g=>g.action==='select'))profile.settings.mode='step';
    changed();activeDialog?.close();render();if(fresh&&cameraState==='ready')await recordGesture(g.id);return;
   }
-  if(f.id==='settings-form'){profile.settings={mode:String(data.get('mode')),holdMs:Number(data.get('holdMs')),restMs:Number(data.get('restMs')),scanMs:Number(data.get('scanMs')),audio:data.has('audio')};changed();toast('Settings saved. Run fresh checks with your new timing.');render();}
+  if(f.id==='vocabulary-form'){
+   const phrases=String(data.get('phrases')).split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+   const words=[...new Set(String(data.get('words')).split(',').map(s=>s.trim()).filter(Boolean))];
+   if(phrases.length>24||phrases.some(p=>p.length>300))throw new Error('Use at most 24 phrases, with 300 characters each.');
+   if(words.length>100||words.some(w=>w.length>50||!/^[\p{L}\p{M}'’-]+$/u.test(w)))throw new Error('Use up to 100 individual words (letters, hyphens and apostrophes), separated by commas.');
+   profile.phrases=phrases;profile.words=words;profile.settings.completions=data.has('completions');composer.configure(profile);persist();toast('Your vocabulary is saved. Find My phrases on the keyboard.');render();return;
+  }
+  if(f.id==='settings-form'){profile.settings={...profile.settings,mode:String(data.get('mode')),holdMs:Number(data.get('holdMs')),restMs:Number(data.get('restMs')),scanMs:Number(data.get('scanMs')),audio:data.has('audio')};changed();toast('Settings saved. Run fresh checks with your new timing.');render();}
  }catch(err){toast(err.message);}
 });
 document.addEventListener('change',async e=>{
@@ -214,7 +240,7 @@ document.addEventListener('keydown',e=>{
 document.addEventListener('visibilitychange',()=>{gate.reset();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
 window.addEventListener('beforeunload',()=>camera.stop());
 setInterval(()=>{
- if(live&&view==='write'&&profile.settings.mode==='auto'&&!composer.paused){
+ if(live&&view==='write'&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
   const now=performance.now();if(now-lastTracking>700){lastScan=now;return;}
   // Stop the scanning highlight while a deliberate selection is in progress.
   if(gate.candidate||gate.progress>0){lastScan=now;return;}
@@ -223,3 +249,27 @@ setInterval(()=>{
 },80);
 render();
 
+
+function restoreDraft(){
+ draftSavedText=null;draftNotice='';
+ try{composer.text=readDraft(profile);draftSavedText=composer.text;if(composer.text)draftNotice='· Draft restored';}
+ catch{draftNotice='· Draft recovery unavailable';}
+}
+function saveDraft(){
+ if(composer.text===draftSavedText)return;
+ try{writeDraft(profile,composer.text);draftSavedText=composer.text;draftNotice='· Saved on this device';}
+ catch(e){draftNotice='· Could not save draft';toast(e.message);}
+}
+function toggleFocus(){
+ document.body.classList.toggle('focus-mode');
+ if(view==='write'){renderWriter();window.scrollTo({top:0});}
+}
+function saveMessagePhrase(){
+ if(!profile){toast('Create a profile to save personal phrases.');return;}
+ const text=composer.text.trim();if(!text){toast('Write a message first.');return;}
+ if(text.length>300){toast('Keep a saved phrase to 300 characters or fewer.');return;}
+ profile.phrases??=[...STARTER_PHRASES];
+ if(profile.phrases.includes(text)){toast('That phrase is already in your vocabulary.');return;}
+ if(profile.phrases.length>=24){toast('Your 24 phrase slots are full. Edit My vocabulary to make room.');return;}
+ profile.phrases.push(text);persist();composer.configure(profile);toast('Saved to My phrases. Select it any time with your gestures.');
+}

@@ -3,6 +3,13 @@
 
 Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held movements, then turns recognized signals into controls for writing and speaking original text.
 
+## New in 1.1
+- **Signal studio:** live recognizer decisions, match distances, overlap diagnostics, and measured error breakdowns.
+- **My vocabulary:** personal phrases and local word completion, reachable with the same gesture controls. Names and personal words take priority. Suggestions never insert automatically.
+- **Draft recovery:** messages are saved locally per profile and restored after reload. Profile exports do not include drafts.
+- **Focus view:** larger communication controls for a live demonstration, also reachable from the gesture keyboard.
+- **Product plan:** see [PRODUCT.md](PRODUCT.md) for co-design, validation and commercialization hypotheses.
+
 ## Run
 No API key, account, build step, or paid service is required.
 ```sh
@@ -63,7 +70,7 @@ Training units are summaries of separate gesture bouts. Neutral samples cover co
 
 ## Test
 ```sh
-node --test tests/core.test.mjs
+node --test tests/core.test.mjs tests/enhancements.test.mjs
 node scripts/check.mjs
 ```
 Optional browser checks (Chrome must be installed):
@@ -72,11 +79,13 @@ python3 scripts/setup-browser-tests.py
 # In another terminal: node scripts/serve.mjs
 node tests/browser.mjs
 node tests/integration.mjs
+node tests/enhanced-browser.mjs
+node tests/vision.mjs
 ```
 The first browser test uses a synthetic camera to check real MediaPipe initialization. The integration test substitutes synthetic feature vectors to exercise guided calibration, training, event gating, writing and profile restoration. These tests do **not** measure recognition accuracy on people. Do not present synthetic results as user performance.
 
 ## Privacy and storage
-No backend, analytics, video upload, or raw-video recording. Features, labels, settings and validation records are saved in localStorage on the current origin. Exported JSON includes movement-derived features; treat it as personal data. Different browsers, computers, local URLs and hosted URLs have separate storage. Clearing site data erases local profiles. Export backups.
+No backend, analytics, video upload, or raw-video recording. Word completion uses a small built-in local vocabulary plus explicitly supplied personal words; it is not an LLM. Features, labels, settings, personal vocabulary, drafts and validation records are saved in localStorage on the current origin. Exported JSON includes movement-derived features; treat it as personal data. Different browsers, computers, local URLs and hosted URLs have separate storage. Clearing site data erases local profiles. Export backups.
 
 ## Scope and limitations
 This is a research prototype, not a validated medical device or a guarantee of communication access. We have not yet conducted user testing with people who use AAC. Calibration may be assisted. The communication phase can run with the learned signals.
@@ -95,3 +104,5 @@ The keyboard covers English letters and common digits/symbols; it is not a full 
 - Playwright 1.56.1 is an optional development test dependency, not shipped with the application.
 
 Original application source is in `dist/src/`; presentation in `dist/index.html` and `dist/styles.css`. No build is needed to inspect or modify it.
+
+Signal studio separation is a heuristic calculated from training samples and model radii. It is not held-out accuracy. Its four practice milestones are introductory checks, not clinical validation or the demo readiness targets. Evidence exports preserve this distinction.

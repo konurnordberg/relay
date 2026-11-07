@@ -3,7 +3,7 @@ from pathlib import Path
 import zipfile
 root=Path(__file__).resolve().parents[1]
 out=root.parent/"Relay-hackathon.zip"
-include=["dist","scripts","tests","README.md","DEMO.md","VERIFICATION.md","package.json",".gitignore"]
+include=["dist","scripts","tests","README.md","DEMO.md","VERIFICATION.md","PRODUCT.md","CHANGELOG.md","package.json",".gitignore"]
 with zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED,compresslevel=6) as archive:
     for item in include:
         p=root/item
