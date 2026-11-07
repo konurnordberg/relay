@@ -6,7 +6,7 @@ import {RelayComposer} from '../dist/src/communication.js';
 import {createProfile,exportProfile,importProfile} from '../dist/src/storage.js';
 import {hand,pairHands} from './hand-fixture.mjs';
 test('classic is default; environment preferences roundtrip without retraining',()=>{
- assert.equal(environmentById(undefined).id,'classic');assert.equal(ENVIRONMENTS.length,2);
+ assert.equal(environmentById(undefined).id,'classic');assert.equal(ENVIRONMENTS.length,3);
  const p=createProfile('Environment');p.settings.environment='finger-grid';p.settings.gridSwap=true;p.settings.gridHoldMs=1200;
  const imported=importProfile(exportProfile(p));assert.equal(imported.settings.environment,'finger-grid');assert.equal(imported.settings.gridSwap,true);
  assert.equal(imported.settings.gridHoldMs,1200);p.settings.environment='unrecognized';assert.throws(()=>exportProfile(p),/environment/);
@@ -36,11 +36,11 @@ test('counts 0–5 including thumb across rotated, scaled and mirrored hands',()
  }
  assert.equal(countFingers(hand(1,{thumbOnly:true})),1);
 });
-test('bad, cropped, tiny, edge-on and ambiguous geometry abstains',()=>{
+test('bad, cropped, tiny and edge-on geometry abstains; a sideways extended finger still counts',()=>{
  assert.equal(countFingers([]),null);const bad=hand(5);bad[8].x=NaN;assert.equal(countFingers(bad),null);
  const cropped=hand(5);cropped[8].x=1.1;assert.equal(countFingers(cropped),null);
  assert.equal(countFingers(hand(5,{scale:.03})),null);
- const uncertain=hand(1);uncertain[7]={x:.475,y:.36,z:0};uncertain[8]={x:.53,y:.26,z:0};assert.equal(countFingers(uncertain),null);
+ const uncertain=hand(1);uncertain[7]={x:.475,y:.36,z:0};uncertain[8]={x:.53,y:.26,z:0};assert.equal(countFingers(uncertain),1);
  const edge=hand(5).map(p=>({...p,x:.5}));assert.equal(countFingers(edge),null);
 });
 test('preview positions assign row/column independently of detection order; swap and crossings handled',()=>{

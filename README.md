@@ -3,6 +3,19 @@
 
 Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held poses and short movements, then turns recognized signals into controls for writing and speaking original text.
 
+## New in 1.4
+- **Air letters environment:** index-tip trajectories become multi-stroke ink. Pinch thumb/index to draw, release to reposition, pause for three handwriting-model suggestions, and hold thumbs-up for 850 ms to insert the first choice (or click any choice). Mouse/touch drawing and correction buttons are available. No letter is automatically inserted.
+- **Local neural inference:** an MIT-licensed EMNIST Balanced CNN runs in a dedicated ONNX Runtime Web worker. Upright, aspect-preserving, centered 28×28 rasters at three stroke widths are averaged. Lower/uppercase classes are combined; digit lookalikes remain visibly ambiguous. No API key, video upload, or training is needed for this environment.
+- **More tolerant finger counts:** image-plane and 3D evidence combine tip reach, overall extension, bends and thumb separation. A single bent/noisy joint no longer vetoes a whole hand. Fresh-frame stability and short uncertainty pauses reduce flicker without allowing uncertain frames to select a cell.
+- **Shared workspace:** Classic, Finger grid and Air letters share message text, undo, speech confirmation and saved drafts. Switching environments stops active input.
+- **Limits:** air writing is one printed A–Z letter at a time, not cursive word recognition. Constructed trace/geometry checks are not evidence of accuracy on people; real-camera testing remains necessary.
+
+### Try Air letters
+Write & speak → Environment: Air letters → Start air writing. Keep one full hand in view. Touch thumb and index fingertips and move the index tip to draw. Separate them to lift the pen; pinch again for another stroke. After a roughly one-second pause, review the choices. Hold a thumbs-up to insert the first, or click the desired letter. Space, punctuation, Delete, Undo and case are below the pad. The camera stays visible while scrolling.
+
+### Additional checks
+Run node tests/letter-model.mjs for the actual bundled neural model on 26 constructed paths at two jitter levels (52 checks; not human accuracy). Run node tests/air-browser.mjs for tracked pinch paths through actual inference, deliberate insertion, editing, confirmation, environment switching and desktop/mobile camera visibility. Run node tests/finger-vision.mjs for actual MediaPipe inference on public hand photos, and node tests/finger-environment.mjs for coordinate typing. Model provenance and exact licenses are in dist/MODEL_NOTICES.md.
+
 ## New in 1.2
 - **All signals by default:** one profile tracks facial expressions, head poses, and both hands together. There is no face-versus-hand choice during setup.
 - **Held poses and movements:** teach a held pose or record a short finger swipe/movement. Five motion sequences retain order and direction; temporal matching tolerates modest speed differences. This is experimental gesture-command recognition, not continuous swipe-to-word typing.
@@ -27,7 +40,7 @@ node scripts/serve.mjs
 ```
 Open **http://localhost:4173** in current Chrome or Edge. The server binds only to this computer. Node 22+ is recommended. If Node is unavailable, run `python3 -m http.server 4173 --bind 127.0.0.1 --directory dist`.
 
-All computer-vision assets are bundled in `dist/` (about 34 MB). Once downloaded, the local application does not need a network connection. Browser speech requires an installed local system voice. Opening index.html directly with file:// will not work: use the local server or HTTPS.
+All computer-vision assets are bundled in `dist/` (including the local handwriting runtime). Once downloaded, the local application does not need a network connection. Browser speech requires an installed local system voice. Opening index.html directly with file:// will not work: use the local server or HTTPS.
 
 If models are absent, run `python3 scripts/download-assets.py`. Pinned download URLs and SHA-256 digests are in `dist/assets-manifest.json`.
 

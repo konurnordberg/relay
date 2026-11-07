@@ -85,3 +85,19 @@ body.finger-writing .message{min-height:68px;max-height:100px;font-size:27px}
 
 .finger-camera-message{background:#f0f6e9;border:1px solid #dce7d3;border-radius:9px;padding:10px;margin-bottom:10px}.finger-camera-message[hidden]{display:none}.finger-camera-message>span{font-size:8px;letter-spacing:1px;color:var(--muted)}.finger-camera-message p{font-size:17px;line-height:1.3;margin:5px 0 0;overflow-wrap:anywhere;max-height:2.6em;overflow:auto;white-space:pre-wrap}.finger-writing .camera-controls>.camera-status{display:none}
 @media(max-width:760px){.camera-docked .finger-camera-message{padding:6px;margin-bottom:6px}.camera-docked .finger-camera-message p{font-size:13px;max-height:2.6em}}
+
+/* Air letters: persistent ink, explicit suggestions and a camera companion. */
+#air-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;transform:none;z-index:2;object-fit:cover}
+.air-workspace{background:#fffdf8;border:1px solid var(--line);border-radius:18px;padding:20px}
+.air-guide h3{font-size:25px;margin:12px 0 8px}.air-guide ol{padding-left:20px;margin:8px 0 18px;display:grid;gap:7px;font-size:13px;line-height:1.5;color:var(--muted)}.air-guide strong{color:var(--ink)}
+.air-pad{position:relative;overflow:hidden;border-radius:14px;background:#102923;border:1px solid #335d4e}
+#air-canvas{display:block;width:100%;height:auto;touch-action:none;cursor:crosshair}
+.air-pad-label,.air-ink-badge{position:absolute;top:13px;pointer-events:none;font-size:10px;letter-spacing:1px;font-weight:700}.air-pad-label{left:15px;color:#b0c9ba}.air-ink-badge{right:12px;color:#ffd18f;background:#203c32;border:1px solid #ffffff25;border-radius:20px;padding:5px 9px}.air-ink-badge.inking{color:#a8ffca}
+.air-feedback{display:grid;gap:5px;padding:16px 0 12px}.air-feedback strong{font-size:16px}.air-feedback span{font-size:12px;color:var(--muted);line-height:1.5}
+.air-candidates{display:flex;gap:10px}.air-choice{flex:1;display:flex;flex-direction:column;align-items:center;font-size:35px!important;min-height:86px;border:1px solid var(--line);background:#edf3e9}.air-choice.primary{background:#254f3d;color:white;border-color:#254f3d}.air-choice small{font-size:8px;letter-spacing:1px;margin-top:5px}
+.air-tools{margin-top:14px}.air-note{font-size:11px;margin:16px 0 0}.air-correction{margin-top:16px;font-size:12px}.air-correction summary{cursor:pointer}.air-correction>div{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-top:12px}.air-correction button{padding:9px}.air-message-tools{margin-top:15px}
+.air-writing .rail-quote,.air-writing .rail-note{display:none}
+@media(max-width:760px){.air-workspace{padding:13px}.air-guide h3{font-size:22px}.air-guide ol{font-size:12px}.air-writing .camera-card{border:2px solid #679b79}.air-writing .camera-tag{display:none}.air-choice{font-size:30px!important}.air-message-tools{gap:6px}.air-message-tools button{padding:10px 12px}}
+
+.air-camera-hud{position:absolute;top:8px;left:8px;z-index:3;padding:5px 9px;background:#102b24dd;color:#c4ffda;border:1px solid #a3ffc140;border-radius:20px;font-size:11px;pointer-events:none}.camera-docked .air-camera-hud{font-size:8px;padding:3px 5px;top:4px;left:4px}
+.air-choice{color:#214735}.air-choice.primary{color:#fff}

@@ -33,5 +33,21 @@
     "url": "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task",
     "bytes": 7819105,
     "sha256": "fbc2a30080c3c557093b5ddfc334698132eb341044ccee322ccf8bcf3607cde1"
+  },
+  "models/letters.onnx": {
+    "bytes": 3532861,
+    "sha256": "70a332be1863ff4d7c67bb741efaf5600c3565f57f1e2929c7c0d150ae222f7e"
+  },
+  "vendor/ort/ort.wasm.min.js": {
+    "bytes": 49926,
+    "sha256": "c6bc9f8e1d0ecc3983a57910e6a30b2230a512bcd2e0207cd64306459c3de7b4"
+  },
+  "vendor/ort/ort-wasm-simd-threaded.mjs": {
+    "bytes": 20321,
+    "sha256": "90a557d15c02bac4504d95b67f431d8594635ed2a0a62a7f2cd83d090ff91d3e"
+  },
+  "vendor/ort/ort-wasm-simd-threaded.wasm": {
+    "bytes": 11905541,
+    "sha256": "45eaee27761ad883742a8d4b8fce1538d60ce43b51adf1726fafccc59b8c1a15"
   }
 }
