@@ -6,8 +6,8 @@ Creator now starts with a blank canvas. There is no dial, table, or swipe-keyboa
 
 1. Open **Creator space → New environment**. Set **Environment name** to `Palm Writer` and **Creator name** to `konurnordberg`.
 2. In **Add choices**, choose **A–Z**. Each letter becomes a separate text choice in the **Choices** group.
-3. Click **Select group choices**. Choose **Circle** in **Arrange**, then click **Arrange**. This places the letters once; they remain freely draggable. For the recording, optionally drag one letter elsewhere and click **Undo edit** to demonstrate this.
-4. Under **Components**, click **Selection target**. In its fields below the canvas, enter **Target X** `0.5`, **Target Y** `0.14`, and **Target reach** `0.08`.
+3. Choose **Circle** in **Arrange**, leave **Arrange which choices** set to **All in active group**, then click **Arrange**. You do not need to select all the letters first. This places the letters once; they remain freely draggable. For the recording, optionally drag one letter elsewhere and click **Undo edit** to demonstrate this.
+4. Under **Components**, click **Selection target**. Drag its **Target** handle, or in its fields below the canvas enter **Target X** `0.5`, **Target Y** `0.14`, and **Target reach** `0.08`.
 5. Under **Inputs → properties**, click **+ Connect an input**. Set **Input signal** to **Hand rotation**, **Property** to **Group rotation**, and **Target group** to **Choices**.
 6. Enter **Input from** `-60`, **Input to** `60`, **Output from** `-180`, and **Output to** `180`. Leave **Limit to this range** enabled. These values map a 120-degree hand range to a complete turn of the letters.
 7. Set **Choose a choice using** to **Choice nearest a fixed target**. Set **Hold before selecting (ms)** to `900`.
@@ -15,6 +15,8 @@ Creator now starts with a blank canvas. There is no dial, table, or swipe-keyboa
 9. Tilt your hand left or right in the camera plane, like turning a steering wheel. Bring a letter under the fixed target and hold for about 0.9 seconds to insert it. Move to a different letter before the next selection. If the direction feels backward, swap the two output values.
 10. Click **Use environment** to install it and open User space. Click **Start camera input** to use it there. The preview text is separate from the main message. Clear is immediate and Undo restores the previous message; speaking asks for confirmation.
 11. Optionally select **Publish to feed** from its Creator editor to share the finished environment inside this private app.
+
+Camera preview is available even while an environment is unfinished. Any missing setup for the active surface appears directly beside the preview controls. Other unfinished surfaces only block Use environment and Publish to feed. Allow camera access if prompted; no personal gesture profile is needed for hand rotation. Editing pauses preview input, so click Start camera preview again after changing settings.
 
 The prebuilt Rotate & hold dial is no longer in the catalog or installed choices. User-created copies remain. This walkthrough builds its behavior from a blank canvas without a dial-specific component or template. `tests/thumbnail-demo-browser.mjs` verifies this exact construction and rotation/dwell selection with controlled camera landmarks; rehearse once with your laptop camera before recording.
 
@@ -60,3 +62,5 @@ Canvas packages use format version 2; version 1 packages still import and run. V
 Run `npm test`, `npm run check`, and `npm run build`. Node 24 is used for the SQLite loopback preview. In a Windows/WSL checkout, run the server inside WSL so its ignored `.local/feed-preview.sqlite` uses the native filesystem. The hosted feed uses Sites identity and D1; local preview identity is not deployed.
 
 Browser checks use the updated preview on port 4175: `tests/creator-canvas-browser.mjs`, `tests/creator-browser.mjs`, and `tests/creator-editing-browser.mjs`. They cover component construction, arbitrary letter relocation, grouped rotation, translation, conditions, keyboard editing, real local recognition workers, private sharing, and layouts at 320–1440px. Controlled camera fixtures verify software behavior, not live-user recognition accuracy. Rehearse with the actual laptop camera before presenting.
+
+Creator interaction regression checks: set RELAY_PREVIEW_URL to the running local preview and run node tests/creator-interactions-browser.mjs. This covers arrangement persistence and scope, target position/reach and dragging, clicks beneath the target, unfinished surfaces, camera error/retry/navigation, and actual bundled vision startup using Chrome’s simulated camera.

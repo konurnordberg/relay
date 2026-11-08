@@ -12,3 +12,14 @@
 @media(max-width:600px){.scene-studio>.card{padding:14px}.scene-inspector>.creator-form{grid-template-columns:1fr}.scene-editor-board{min-height:0}.scene-component{font-size:.75rem;min-width:18px;min-height:18px}.scene-group-handle{width:26px;height:26px;min-width:26px;min-height:26px}.scene-selection-target{width:30px;height:30px;min-width:30px;min-height:30px}.mapping-ranges{grid-template-columns:repeat(2,minmax(0,1fr))}.mapping-flow>label{flex-basis:100%}.mapping-flow>span{display:none}.scene-toolbar label{flex-basis:40%}.scene-rules{padding:16px}.scene-mapping{padding:12px}.primitive-flow{gap:7px}.primitive-flow span{padding:10px;font-size:.85rem}.run-board.canvas .run-cell{font-size:.8rem}}
 
 .environment-thumbnail{background:#edf3e7;border-bottom:1px solid #d9e2d2;overflow:hidden}.environment-thumbnail svg{display:block;width:100%;height:auto;aspect-ratio:320/194;max-height:220px;font-family:inherit}.environment-thumbnail text{font-family:inherit}.environment-thumbnail.thumbnail-trace svg{background:#edf3e7}
+
+/* The target marks a position without preventing selection of a letter beneath it. */
+.scene-selection-target{pointer-events:none}
+.scene-target-grip{pointer-events:auto;position:absolute;bottom:100%;left:100%;padding:4px 6px;background:#fff3d8;border:1px solid #9b6340;border-radius:5px;font-size:.65rem;line-height:1.2;white-space:nowrap;cursor:grab}
+#creator-preview-status .notice{margin:12px 0}
+#creator-preview-status p{margin:8px 0}
+#creator-preview-status ul{margin:8px 0;padding-left:24px}
+
+.scene-target-range{position:absolute;transform:translate(-50%,-50%);border:1px dashed #9b6340;border-radius:50%;background:#fff3d826;pointer-events:none;z-index:4;box-sizing:border-box}
+
+.scene-selection-target{background:transparent;border:0}

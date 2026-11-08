@@ -68,7 +68,7 @@ function resetInput(){customRuntime?.reset();creator?.runtime?.reset();gate.rese
 function syncCameraForContext(){if(camera.running&&(camera.mode!==cameraMode()||(camera.handDelegate!==undefined&&camera.handDelegate!==handDelegate())))startCamera();}
 
 let customRuntime=null,customRuntimeKey='';
-const creator=new CreatorStudio({notify:toast,onUse:env=>useEnvironmentDocument(env),startPreview:async()=>{if(cameraState!=='ready'||camera.mode!=='combined')await startCamera();if(cameraState!=='ready')throw new Error('Enable the camera before starting a preview.');gate.reset();}});
+const creator=new CreatorStudio({notify:toast,onUse:env=>useEnvironmentDocument(env),startPreview:async()=>{if(cameraState!=='ready'||camera.mode!=='combined')await startCamera();if(cameraState!=='ready')throw new Error(cameraMessage||'Allow camera access, then try again.');gate.reset();}});
 const creatorView=()=>view==='creator'||view==='feed';
 const customDocument=()=>environment.startsWith('custom:')?creator.library.get(environment.slice(7)):null;
 const customWriting=()=>view==='write'&&!!customDocument();
@@ -524,11 +524,11 @@ function updateCamera(){
  $('#camera-button').textContent=cameraState==='loading'?'Loading vision…':cameraState==='ready'?'Turn camera off':'Enable camera';
  $('#camera-button').disabled=cameraState==='loading'||busy;
 }
-function onCameraState(state,message){if(state==='ready')queueMicrotask(syncCameraForContext);cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){flowRace.cancel('Trial cancelled because camera tracking stopped.');chordRace.cancel('Trial cancelled because camera tracking stopped.');live=false;creator.live=false;resetInput();}updateCamera();if(view==='write')renderWriter();}
+function onCameraState(state,message){if(state==='ready')queueMicrotask(syncCameraForContext);cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){flowRace.cancel('Trial cancelled because camera tracking stopped.');chordRace.cancel('Trial cancelled because camera tracking stopped.');live=false;if(!creator.previewStarting)creator.stopPreview();resetInput();}updateCamera();if(view==='write')renderWriter();}
 function onFrame(frame){
  latest=frame;
  const personalInput=creatorView()?creator.runtime?.block?.input.source==='scan':customWriting()?customRuntime?.block?.input.source==='scan':!flowWriting()&&!chordWriting()&&!cirrinWriting()&&!airWriting()&&!fingerWriting();
- if(creatorView())creator.runtime?.frame(frame,creator.live&&!activeDialog);
+ if(creatorView())creator.runtime?.frame(frame,creator.previewEnabled()&&!activeDialog);
  else if(customWriting())customRuntime?.frame(frame,live&&!activeDialog);
  else if(flowWriting()){if(!flow.pointerActive)flow.update(frame,live&&!activeDialog&&!flowComposer().confirm&&!flowComposer().paused);}
  else if(chordWriting())onChordFrame(frame);
@@ -543,7 +543,7 @@ function onFrame(frame){
  else if(!frame.vector)gate.reset();else if(model)event=gate.update(result.id,frame.now);
  if(restCheck){restCheck.total++;if(requiredTracking(model,frame.vector))restCheck.tracked++;if(event)restCheck.events.push(event);}
  if(attempt&&event)attempt.events.push(event);
- if(event&&personalInput&&creatorView()&&creator.live&&!activeDialog){const g=profile?.gestures.find(g=>g.id===event);if(g)creator.runtime?.gesture(g.action,g.value);}
+ if(event&&personalInput&&creatorView()&&creator.previewEnabled()&&!activeDialog){const g=profile?.gestures.find(g=>g.id===event);if(g)creator.runtime?.gesture(g.action,g.value);}
  if(event&&personalInput&&live&&view==='write'&&!activeDialog){const g=profile.gestures.find(g=>g.id===event);if(g){dispatchGesture(g);lastScan=frame.now;}}
  if(frame.now-lastUI>120){
   lastUI=frame.now;
@@ -582,7 +582,7 @@ function say(text,cue=false){
  if(!cue)speakingMessage=true;
  speechSynthesis.speak(u);
 }
-async function enableCamera(){if(!profile&&!fingerWriting()&&!airWriting()&&!cirrinWriting()&&!chordWriting()&&!flowWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;resetInput();updateCamera();renderWriter();return;}await startCamera();if(cameraState==='ready'&&view==='write'&&environment==='classic'&&model&&activeCapabilities().canWrite)await startLive();}
+async function enableCamera(){if(!profile&&!creatorView()&&!customWriting()&&!fingerWriting()&&!airWriting()&&!cirrinWriting()&&!chordWriting()&&!flowWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;creator.stopPreview();resetInput();updateCamera();renderWriter();return;}await startCamera();if(cameraState==='ready'&&view==='write'&&environment==='classic'&&model&&activeCapabilities().canWrite)await startLive();}
 function requireCamera(){if(cameraState!=='ready'){toast('Enable the camera before recording.');return false;}if(!latest?.vector||performance.now()-latest.now>700){toast('Move into view so the camera can track you.');return false;}return true;}
 function progress(title,detail,fraction=0){
  const newPhase=teachingPhase?.title!==title;teachingPhase={title,detail,fraction};updateTeachingPreview();
@@ -830,10 +830,10 @@ document.addEventListener('keydown',e=>{
  if(e.key==='ArrowRight'){e.preventDefault();if(customWriting())customRuntime?.gesture('next');else{composer.next();renderWriter();}}
  if(e.key==='Enter'&&e.target===document.body){e.preventDefault();if(customWriting())customRuntime?.gesture('select');else{handleEffect(composer.select());renderWriter();}}
 });
-document.addEventListener('visibilitychange',()=>{if(document.hidden)creator.live=false;const wasFlow=flowRace.active;if(document.hidden&&wasFlow){flowRace.cancel('Trial cancelled while the app was hidden.');live=false;if(flowWriting())renderWriter();}const wasTrial=chordRace.active;if(document.hidden)chordRace.cancel('Trial cancelled while the app was hidden.');resetInput();if(document.hidden&&wasTrial&&chordWriting())renderWriter();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)creator.stopPreview();const wasFlow=flowRace.active;if(document.hidden&&wasFlow){flowRace.cancel('Trial cancelled while the app was hidden.');live=false;if(flowWriting())renderWriter();}const wasTrial=chordRace.active;if(document.hidden)chordRace.cancel('Trial cancelled while the app was hidden.');resetInput();if(document.hidden&&wasTrial&&chordWriting())renderWriter();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
 window.addEventListener('beforeunload',()=>{customRuntime?.destroy();creator.unmount();camera.stop();flow.close();air.model.close();});
 setInterval(()=>{
- const now=performance.now();if(creatorView())creator.runtime?.tick(now,creator.live&&!activeDialog);if(customWriting())customRuntime?.tick(now,live&&!activeDialog);
+ const now=performance.now();if(creatorView())creator.runtime?.tick(now,creator.previewEnabled()&&!activeDialog);if(customWriting())customRuntime?.tick(now,live&&!activeDialog);
  if(!customWriting()&&!flowWriting()&&!chordWriting()&&!cirrinWriting()&&!airWriting()&&!fingerWriting()&&live&&view==='write'&&activeCapabilities().scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
   const now=performance.now();if(now-lastTracking>700){lastScan=now;return;}
   // Stop the scanning highlight while a deliberate selection is in progress.

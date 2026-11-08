@@ -1,3 +1,11 @@
+## Relay 2.1.5 — Creator interaction fixes
+
+Arrangement choices survive editor redraws. Arrange defaults to the whole active group, with an explicit selected-only option. Numeric target and group edits update the visible canvas, target reach is shown, and its drag handle no longer blocks letters.
+
+Camera preview is available on unfinished drafts without requiring a gesture profile. Status and missing setup appear next to the controls; only the active surface determines whether its camera selections run. Camera failure/retry, stopping, and navigation keep the preview control synchronized. Installation and publication still require a complete environment.
+
+Validation: 130 unit tests, source/asset checks, the original Creator/drawing/feed/demo workflows, and new browser regressions pass. Real bundled vision startup was checked with Chrome’s simulated camera; gesture selection tests use controlled landmarks.
+
 ## Relay 2.1.4 — Accurate previews and a blank-canvas demo
 
 The feed, drafts, and installed cards render layout-specific SVG previews: Classic's scan keyboard, the numbered finger grid, handwriting ink, Cirrin paths, Flow's QWERTY keys, and Chord phrase cards. Custom layouts use their saved positions and group transforms. The shipped Rotate & hold dial is removed from the catalog and installed choices while user-created copies remain. [CREATOR.md](CREATOR.md) gives the tested component-by-component recording recipe for building it from scratch.
