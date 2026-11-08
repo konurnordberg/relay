@@ -1,3 +1,9 @@
+## Relay 2.1.4 — Accurate previews and a blank-canvas demo
+
+The feed, drafts, and installed cards render layout-specific SVG previews: Classic's scan keyboard, the numbered finger grid, handwriting ink, Cirrin paths, Flow's QWERTY keys, and Chord phrase cards. Custom layouts use their saved positions and group transforms. The shipped Rotate & hold dial is removed from the catalog and installed choices while user-created copies remain. [CREATOR.md](CREATOR.md) gives the tested component-by-component recording recipe for building it from scratch.
+
+Validation: 130 unit tests pass; the thumbnail browser check verifies six distinct previews, mobile layout, catalog retirement, and construction through a controlled camera selection and installation.
+
 ## Relay 2.1.3 — Environment feed catalog
 
 The private feed includes seven existing environments, all credited to konurnordberg. Stable IDs prevent duplicates and preserve votes. The originals open in their existing user environments; remixes open as editable canvas components. Fixed catalog installation is a shared operation behind the owner-private Sites gateway and never overwrites user-owned records.

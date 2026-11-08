@@ -4,15 +4,19 @@ Creator now starts with a blank canvas. There is no dial, table, or swipe-keyboa
 
 ## Build the hand-turned wheel from scratch
 
-1. Open **Creator space → New environment** and name it.
-2. In **Add choices**, choose **A–Z**. Each letter is a separate text choice in a group.
-3. Select **Arrange → Circle**, then **Arrange**. This places the letters once. You can still drag any letter anywhere afterward. Click a single letter before dragging it; Shift-select moves several choices together.
-4. Add a **Selection target** from Components. Drag the + marker near the top of the circle, or use Target X `0.5`, Target Y `0.14`, and reach `0.08`.
-5. In **Inputs → properties**, choose **Connect an input**. Set **Input signal → Hand rotation**, **Property → Group rotation**, and **Target group → Choices**.
-6. The default mapping uses a comfortable hand range of −60° to +60° to rotate the group from −180° to +180°. Reverse the output endpoints if the direction feels backward. These are ordinary editable signal ranges, not a dial-specific setting.
-7. Set **Selection rule → Choice nearest a fixed target** and begin with a 900–1,000 ms hold.
-8. Start camera preview. Show your palm and wrist, select **Center inputs**, then tilt your hand in the camera plane. The group rotates; the closest choice within the target's reach highlights. Hold to select once. Move away before another selection.
-9. **Use environment** installs a snapshot in User space. Text joins the existing message composer. Speaking and clearing still ask for confirmation.
+1. Open **Creator space → New environment**. Set **Environment name** to `Palm Writer` and **Creator name** to `konurnordberg`.
+2. In **Add choices**, choose **A–Z**. Each letter becomes a separate text choice in the **Choices** group.
+3. Click **Select group choices**. Choose **Circle** in **Arrange**, then click **Arrange**. This places the letters once; they remain freely draggable. For the recording, optionally drag one letter elsewhere and click **Undo edit** to demonstrate this.
+4. Under **Components**, click **Selection target**. In its fields below the canvas, enter **Target X** `0.5`, **Target Y** `0.14`, and **Target reach** `0.08`.
+5. Under **Inputs → properties**, click **+ Connect an input**. Set **Input signal** to **Hand rotation**, **Property** to **Group rotation**, and **Target group** to **Choices**.
+6. Enter **Input from** `-60`, **Input to** `60`, **Output from** `-180`, and **Output to** `180`. Leave **Limit to this range** enabled. These values map a 120-degree hand range to a complete turn of the letters.
+7. Set **Choose a choice using** to **Choice nearest a fixed target**. Set **Hold before selecting (ms)** to `900`.
+8. Under **Try your environment**, click **Start camera preview**. Show one palm with your wrist visible and fingers generally upward. Click **Center inputs** while your hand is comfortably centered.
+9. Tilt your hand left or right in the camera plane, like turning a steering wheel. Bring a letter under the fixed target and hold for about 0.9 seconds to insert it. Move to a different letter before the next selection. If the direction feels backward, swap the two output values.
+10. Click **Use environment** to install it and open User space. Click **Start camera input** to use it there. The preview text is separate from the main message. Clear is immediate and Undo restores the previous message; speaking asks for confirmation.
+11. Optionally select **Publish to feed** from its Creator editor to share the finished environment inside this private app.
+
+The prebuilt Rotate & hold dial is no longer in the catalog or installed choices. User-created copies remain. This walkthrough builds its behavior from a blank canvas without a dial-specific component or template. `tests/thumbnail-demo-browser.mjs` verifies this exact construction and rotation/dwell selection with controlled camera landmarks; rehearse once with your laptop camera before recording.
 
 The same components can create a sliding strip: arrange choices in a horizontal line, put the target in the center, and map **Hand horizontal position → Group horizontal offset**. Or map finger count to **Highlighted choice index** while leaving the visual arrangement entirely free.
 

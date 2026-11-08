@@ -10,7 +10,6 @@ const definitions=[
  ['cirrin','Cirrin ring','Trace a word through letters arranged in a circle. Return inward between letters; review your spelling before inserting. Inspired by Cirrin.',['Letter paths','Finger drawing']],
  ['flow','Flow · swipe words','Swipe through a QWERTY arrangement in one continuous stroke. The local word-path model suggests words for insertion.',['Word swiping','Local AI']],
  ['chord','Chord · shortcuts','Choose reusable phrases with two-hand finger counts. Close both fists to arm, then hold a code to select. Customize every phrase in Creator.',['Two hands','Shortcuts']],
- ['dial','Rotate & hold dial','Turn your hand to rotate a group of letters beneath a fixed selection target. Hold to select. Built from editable canvas components and signal mappings.',['Hand rotation','Hold to select']]
 ];
 const stamp=new Date().toISOString();
 const docs=definitions.map(([kind,name,description,tags])=>{
