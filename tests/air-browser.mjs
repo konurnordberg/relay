@@ -1,3 +1,4 @@
+import {chooseEnvironment} from './environment-picker.mjs';
 import {chromium} from '../.local/node_modules/playwright-core/index.mjs';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
@@ -24,7 +25,7 @@ async function trace(letter){
 try{
  await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();
  await page.getByRole('button',{name:'z',exact:true}).click();
- await page.getByLabel('Communication environment').selectOption('air-letters');
+ await chooseEnvironment(page,'air-letters');
  await page.locator('#pen-mode').selectOption('pinch');await page.getByRole('button',{name:'Start air writing',exact:true}).click();
  await trace('H');
  assert.equal(await page.locator('.air-choice').first().getAttribute('data-letter'),'H');
@@ -57,11 +58,11 @@ try{
   assert.ok(await page.locator('#air-canvas').evaluate(b=>{const r=b.getBoundingClientRect();return b===document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);}));
   await page.screenshot({path:fileURLToPath(new URL('../artifacts/air-letters-'+viewport.width+'.png',import.meta.url)),fullPage:viewport.width>500});
  }
- await page.setViewportSize({width:1366,height:900});await page.getByLabel('Communication environment').selectOption('finger-grid');
+ await page.setViewportSize({width:1366,height:900});await chooseEnvironment(page,'finger-grid');
  assert.equal(await page.locator('#message').inputValue(),'zhi');assert.equal(await page.locator('.finger-key').count(),36);
- await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').inputValue(),'zhi');
- await page.getByLabel('Communication environment').selectOption('air-letters');await page.reload();
+ await chooseEnvironment(page,'classic');assert.equal(await page.locator('#message').inputValue(),'zhi');
+ await chooseEnvironment(page,'air-letters');await page.reload();
  await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
- assert.equal(await page.getByLabel('Communication environment').inputValue(),'air-letters');assert.equal(await page.locator('#message').inputValue(),'zhi');
+ assert.equal(await page.locator('[data-action="choose-environment"]').getAttribute('data-environment'),'air-letters');assert.equal(await page.locator('#message').inputValue(),'zhi');
  assert.deepEqual(errors,[]);console.log('PASS: tracked pinch strokes → actual neural H/I → deliberate thumbs-up/click insertion; undo, confirmation, environments, persistence and camera visibility');
 }finally{await browser.close();}

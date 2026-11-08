@@ -1,3 +1,4 @@
+import {chooseEnvironment} from './environment-picker.mjs';
 import {chromium} from '../.local/node_modules/playwright-core/index.mjs';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
@@ -26,7 +27,7 @@ async function pointerWord(word){
  await page.mouse.up();
 }
 try{
- await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();await page.getByLabel('Communication environment').selectOption('flow');
+ await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();await chooseEnvironment(page,'flow');
  await pointerWord('hello');await page.waitForFunction(()=>document.querySelector('#message').value==='hello ');
  await pointerWord('keyboard');await page.waitForFunction(()=>document.querySelector('#message').value==='hello keyboard ');
  await page.getByRole('button',{name:'Undo word',exact:true}).click();assert.equal(await page.locator('#message').inputValue(),'hello ');
@@ -61,7 +62,7 @@ try{
   await page.screenshot({path:fileURLToPath(new URL('../artifacts/flow-'+viewport.width+'.png',import.meta.url)),fullPage:viewport.width>500});
  }
  await page.setViewportSize({width:1366,height:900});await page.getByLabel('Pen control',{exact:false}).selectOption('middle-pinch');
- await page.getByLabel('Communication environment').selectOption('classic');await page.getByLabel('Communication environment').selectOption('flow');await page.reload();await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
- assert.equal(await page.getByLabel('Communication environment').inputValue(),'flow');assert.equal(await page.locator('#pen-mode').inputValue(),'middle-pinch');assert.equal(await page.locator('#message').inputValue(),saved+'x1');
+ await chooseEnvironment(page,'classic');await chooseEnvironment(page,'flow');await page.reload();await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
+ assert.equal(await page.locator('[data-action="choose-environment"]').getAttribute('data-environment'),'flow');assert.equal(await page.locator('#pen-mode').inputValue(),'middle-pinch');assert.equal(await page.locator('#message').inputValue(),saved+'x1');
  assert.deepEqual(errors,[]);console.log('PASS: novel-text keyboard/camera trials, exact completion, draft isolation, spelling/symbols, responsive camera visibility, pen/environment persistence. Controlled inputs, not live-user performance.');
 }catch(e){await page.screenshot({path:fileURLToPath(new URL('../artifacts/flow-failure.png',import.meta.url)),fullPage:true});console.error('Browser errors:',errors);console.error('Status:',await page.locator('#flow-status').textContent().catch(()=>''));console.error('Message:',await page.locator('#message').inputValue().catch(()=>''));throw e;}finally{await browser.close();}

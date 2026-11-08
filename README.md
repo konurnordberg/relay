@@ -1,3 +1,9 @@
+## Relay 2.1.2 — Saved gestures and environment workspace
+
+Legacy face recordings retain their original feature channel after migration. Completed gestures stay active when another gesture is unfinished, and Signal analyzer lists saved/ready counts with specific recording issues. The selected profile persists across refreshes. Classic separates camera state from gesture control and can start both together; physical editing temporarily pauses gesture control.
+
+Environment cards replace the dropdown, highlight Classic as default and Finger grid as recommended, and show genuinely upvoted private-feed environments. Finger grid keeps counts, selection target, percentage and remaining hold time directly above the letters. Laptop layouts keep all 36 cells and the camera in view; mobile feedback stays pinned during scrolling.
+
 ## Relay 2.1.1 — Demo controls
 
 The message is directly editable with a physical keyboard in every environment. Clear is immediate and Undo restores it. Signal analyzer is in the main navigation, with nearest competing pose comparisons. Current gesture feedback remains beneath the camera, independently of whether a command is armed. All-signals profiles keep face and hand tracking active across environments.

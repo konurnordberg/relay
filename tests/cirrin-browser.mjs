@@ -1,3 +1,4 @@
+import {chooseEnvironment} from './environment-picker.mjs';
 import {chromium} from '../.local/node_modules/playwright-core/index.mjs';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
@@ -28,7 +29,7 @@ async function tracePointer(word){
 try{
  await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();
  await page.getByRole('button',{name:'z',exact:true}).click();
- await page.getByLabel('Communication environment').selectOption('cirrin');await page.locator('#pen-mode').selectOption('pinch');await page.getByRole('button',{name:'Start Cirrin input',exact:true}).click();
+ await chooseEnvironment(page,'cirrin');await page.locator('#pen-mode').selectOption('pinch');await page.getByRole('button',{name:'Start Cirrin input',exact:true}).click();
  await traceCamera('hello');
  assert.equal(await page.locator('#message').inputValue(),'z','word preview must not insert');
  assert.equal(await page.locator('#cirrin-word').innerText(),'hello');
@@ -59,12 +60,12 @@ try{
  await page.getByText('Movement range & positioning',{exact:true}).click();
  await page.getByRole('button',{name:'Center on my finger',exact:true}).click();
  assert.match(await page.locator('#cirrin-status').innerText(),/Centered/);
- await page.getByLabel('Communication environment').selectOption('air-letters');assert.ok(await page.locator('#air-canvas').isVisible());
- await page.getByLabel('Communication environment').selectOption('finger-grid');assert.equal(await page.locator('.finger-key').count(),36);
- await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').inputValue(),'z relay. hello ');
- await page.getByLabel('Communication environment').selectOption('cirrin');await page.reload();
+ await chooseEnvironment(page,'air-letters');assert.ok(await page.locator('#air-canvas').isVisible());
+ await chooseEnvironment(page,'finger-grid');assert.equal(await page.locator('.finger-key').count(),36);
+ await chooseEnvironment(page,'classic');assert.equal(await page.locator('#message').inputValue(),'z relay. hello ');
+ await chooseEnvironment(page,'cirrin');await page.reload();
  await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
- assert.equal(await page.getByLabel('Communication environment').inputValue(),'cirrin');assert.equal(await page.locator('#message').inputValue(),'z relay. hello ');
+ assert.equal(await page.locator('[data-action="choose-environment"]').getAttribute('data-environment'),'cirrin');assert.equal(await page.locator('#message').inputValue(),'z relay. hello ');
  assert.equal(await page.getByLabel('Cirrin movement range').inputValue(),'1.8');
  assert.deepEqual(errors,[]);console.log('PASS: camera and pointer Cirrin words, doubled L, deliberate confirmation, whole-word undo, spacing, speech, camera docking and saved environment/range');
 }finally{await browser.close();}

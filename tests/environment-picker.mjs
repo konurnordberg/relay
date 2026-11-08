@@ -1,0 +1,1 @@
+export async function chooseEnvironment(page,id){await page.locator('[data-action="choose-environment"]').click();await page.locator('[data-action="pick-environment"]').and(page.locator('[data-id="'+id+'"]')).click();}

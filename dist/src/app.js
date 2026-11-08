@@ -1,3 +1,4 @@
+import {buildPersonalModel,chooseProfile,rememberProfile} from './profile-runtime.js';
 import {CreatorStudio} from './creator-ui.js';
 import {CreatorRuntime} from './creator-runtime.js';
 import {summarizeVisible} from './teaching.js';
@@ -30,14 +31,15 @@ let displaySize='standard';try{if(localStorage.getItem('relay.display.v1')==='la
 document.documentElement.dataset.textSize=displaySize;
 try{trailsEnabled=localStorage.getItem('relay.trails.v1')==='true';}catch{}
 try{profiles=loadProfiles();const upgraded=profiles.map(upgradeFaceProfile);if(upgraded.some((p,i)=>p!==profiles[i])){localStorage.setItem('relay.profiles.before-all-signals.v1',JSON.stringify(profiles));saveProfiles(upgraded);profiles=upgraded;}}catch(e){storageError=e.message;}
-let profile=profiles[0]||null,view='home',modelError='',model=null,gate=new EventGate(),composer=new RelayComposer(profile),live=false;
+let profile=chooseProfile(profiles),view='home',modelError='',model=null,gate=new EventGate(),composer=new RelayComposer(profile),live=false;
 let cameraState='off',cameraMessage='Your camera stays off until you start it.',latest=null,lastUI=0,recording=null,task=0,busy=false,attempt=null,restCheck=null,lastScan=0,lastTracking=0;
-let teachingPhase=null,lastGestureMessage='';
+let teachingPhase=null,lastGestureMessage='',modelReport={excluded:[],readyIds:[]};
 let toastTimer,scanVoice='',speechStatus='',activeDialog=null;
 let draftSavedText=null,draftNotice='',speakingMessage=false;
 let guestEnvironment={environment:'classic',gridHoldMs:850,gridSwap:false,cirrinGain:2.4,chordHoldMs:180,penMode:'point',flowGain:2.4,flowAuto:true};
 try{const saved=JSON.parse(localStorage.getItem('relay.environment.v1')||'{}');if(ENVIRONMENTS.some(e=>e.id===saved.environment))guestEnvironment.environment=saved.environment;if([600,850,1200,1600].includes(saved.gridHoldMs))guestEnvironment.gridHoldMs=saved.gridHoldMs;if([1.3,1.8,2.4].includes(saved.cirrinGain))guestEnvironment.cirrinGain=saved.cirrinGain;if([120,180,260].includes(saved.chordHoldMs))guestEnvironment.chordHoldMs=saved.chordHoldMs;if(PEN_MODES.includes(saved.penMode))guestEnvironment.penMode=saved.penMode;if([1.3,1.8,2.4,3].includes(saved.flowGain))guestEnvironment.flowGain=saved.flowGain;if(typeof saved.flowAuto==='boolean')guestEnvironment.flowAuto=saved.flowAuto;if(typeof saved.gridSwap==='boolean')guestEnvironment.gridSwap=saved.gridSwap;}catch{}
 const environmentSettings=()=>profile?.settings||guestEnvironment;
+let lastFingerUI=0;
 let environment=environmentById(environmentSettings().environment).id,fingerPage='letters',fingerStatus=null;
 const fingerTracker=new FingerPairTracker();
 const air=new AirWriter(()=>{if(airWriting())updateAirDisplay();},letter=>{if(!airWriting()||composer.confirm||composer.paused)return;handleEffect(composer.apply({type:'text',value:composer.caps?letter:letter.toLowerCase()}));renderWriter();});
@@ -80,7 +82,7 @@ function customAction(item){
 function renderCustomWriter(){
  const doc=customDocument();if(!doc)return;
  renderMessage();$('#draft-status').textContent=draftNotice;$('#focus-label').textContent=composer.confirm?'Confirm '+composer.confirm:composer.paused?'Paused':doc.name;
- $('#writer-status').innerHTML='<div class="input-strip"><span>'+esc(live?'Camera input active':'Camera input off')+'</span>'+btn(live?'Stop camera input':'Start camera input',live?'stop-live':'start-live',live?'secondary small':'small',cameraState==='loading'?'disabled':'')+'</div>';
+ $('#writer-status').innerHTML='<div class="input-strip"><span>'+esc(inputStatus())+'</span>'+btn(live?'Stop camera input':'Start camera input',live?'stop-live':'start-live',live?'secondary small':'small',cameraState==='loading'?'disabled':'')+'</div>';
  const previousKey=customRuntimeKey;const key=doc.id+':'+doc.revision+':'+(composer.confirm||'')+':'+composer.paused;
  if(customRuntimeKey!==key||!customRuntime){customRuntime?.destroy();let document=doc;
   if(composer.confirm||composer.paused){document=structuredClone(doc);const base=customRuntime?.block||doc.pages[0].blocks[0],block=structuredClone(base);block.name=composer.paused?'Resume communication':'Confirm '+composer.confirm;block.items=(composer.paused?[{label:'Resume',action:'resume'}]:[{label:'Cancel',action:'cancel'},{label:composer.confirm==='speak'?'Speak now':'Clear message',action:'confirm'}]).map((x,i)=>({...x,id:'guard-'+i,value:'',x:.3+i*.4,y:.5}));block.rows=1;block.columns=block.items.length;block.input.behavior='select';if(block.input.source==='pen'){block.input.source='pointer-hand';block.input.model='hands';}if(base.scene&&!['trace','swipe'].includes(base.input.behavior)){block.layout='canvas';const choices=base.items.filter(i=>i.kind!=='label');block.items=block.items.map((item,i)=>({...choices[i?Math.floor(choices.length/2):0],...item,x:choices[i?Math.floor(choices.length/2):0]?.x??(.3+i*.4),y:choices[i?Math.floor(choices.length/2):0]?.y??.5,group:choices[i?Math.floor(choices.length/2):0]?.group||base.scene.groups[0].id,w:.16,h:.1}));}else{delete block.scene;if(!['ring','grid'].includes(block.layout))block.layout='grid';}document.pages=[{id:'guard-page',name:block.name,blocks:[block]}];}
@@ -93,9 +95,13 @@ function renderCustomWriter(){
 const actions={select:'Select',next:'Next',delete:'Delete',undo:'Undo',speak:'Speak',pause:'Pause',insert:'Insert text'};
 const navigation=[['home','Get started'],['write','Write & speak'],['teach','Teach gestures'],['check','Check accuracy'],['profiles','Settings'],['studio','Signal analyzer']];
 const currentTrials=()=>profile?.trials.filter(t=>(t.revision||0)===(profile.revision||0))||[];
-function persist(){try{saveProfiles(profiles);storageError='';return true;}catch(e){storageError=e.message;toast('Could not save: '+e.message+'. Export a backup before closing.');return false;}}
+function persist(){try{saveProfiles(profiles);rememberProfile(profile);storageError='';return true;}catch(e){storageError=e.message;toast('Could not save: '+e.message+'. Export a backup before closing.');return false;}}
 function changed(){profile.revision=(profile.revision||0)+1;persist();rebuild();}
-function rebuild(){model=null;modelError='';gate=new EventGate(profile?.settings.holdMs,profile?.settings.restMs);if(profile){try{model=profile.modality==='combined'?trainCombined(profile):train(profile);if(model.combined)gate=new CombinedGate(model,profile.settings.holdMs,profile.settings.restMs);}catch(e){modelError=e.message;}}}
+function rebuild(){const report=buildPersonalModel(profile);modelReport=report;model=report.model;modelError=report.error;gate=model?.combined?new CombinedGate(model,profile.settings.holdMs,profile.settings.restMs):new EventGate(profile?.settings.holdMs,profile?.settings.restMs);}
+function activeCapabilities(){return writingCapabilities(profile?{...profile,gestures:profile.gestures.filter(g=>modelReport.readyIds.includes(g.id))}:null);}
+function inputStatus(){return cameraState==='ready'?(live?'Camera on · Gesture control active':'Camera on · Gesture control paused'):cameraState==='loading'?'Camera starting…':cameraState==='error'?'Camera needs permission':'Camera off';}
+function profileNotice(){return !model?'<div class="notice warn">'+esc(modelError||'No trained gestures are available in this profile.')+' '+btn('Review gestures','nav-teach','secondary small')+'</div>':modelReport.excluded.length?'<div class="notice">'+modelReport.readyIds.length+' gestures ready. '+modelReport.excluded.length+' unfinished gestures remain saved in Teach gestures.</div>':'';}
+
 rebuild();restoreDraft();if(model)view='write';
 $('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home" aria-label="Relay home"><img src="./favicon.svg" alt="">Relay</a><div class="space-switch" aria-label="Relay spaces"><button data-action="nav-write" data-space="user">User space</button><button data-action="nav-creator" data-space="creator">Creator space</button></div><nav class="nav creator-navigation" aria-label="Creator navigation"><button data-action="nav-creator" data-nav="creator">My environments</button><button data-action="nav-feed" data-nav="feed">Environment feed</button></nav><nav class="nav user-navigation" aria-label="Main navigation">'+navigation.filter(([id])=>['write','teach','check','studio','profiles'].includes(id)).map(([id,label])=>'<button data-action="nav-'+id+'" data-nav="'+id+'">'+label+'</button>').join('')+'</nav><p class="side-bottom local-note">Video is processed on this device.</p></aside><div class="workspace"><header class="topbar"><span id="page-label" class="sr-only">Get started</span><div class="profile-switch"><label for="profile-select">Profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3 id="camera-heading">Camera</h3><span class="pill" id="camera-pill">Off</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><canvas id="air-overlay" aria-hidden="true" hidden></canvas><div class="camera-placeholder" id="camera-placeholder"><p>Camera off</p></div><div class="air-camera-hud" id="air-camera-hud" hidden></div><div class="finger-camera-hud" id="finger-camera-hud" hidden><span id="camera-row-count">Row —</span><span id="camera-col-count">Column —</span></div></div><div class="camera-prompt" id="camera-prompt" hidden><h3 id="camera-prompt-title"></h3><p id="camera-prompt-detail"></p><progress id="camera-prompt-progress" max="1" value="0" aria-label="Current recording phase"></progress><button class="button secondary" data-action="cancel-task" id="camera-prompt-cancel">Cancel recording</button></div><div class="camera-controls"><div class="finger-camera-message" id="finger-camera-message" hidden><span>Message</span><p id="finger-camera-text"></p></div><p class="camera-status" id="camera-status" role="status"></p><button class="button" id="camera-button" data-action="camera">Enable camera</button></div><div id="tracking-parts" class="tracking-parts" aria-label="Visible body parts"></div><div class="recognition" aria-label="Current gesture"><div class="eyebrow">Current gesture</div><div class="signal-name"><span id="signal-name">Camera off</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div><details class="camera-options"><summary>Camera options</summary><div class="trail-controls"><label class="trail-toggle"><input id="trails-toggle" type="checkbox" role="switch" aria-describedby="trails-help"><span class="trail-switch" aria-hidden="true"></span><span>Enable trails</span></label><p id="trails-help">Show a fading line behind your fingertip.</p></div><p id="camera-performance" class="camera-performance" hidden></p></details></section></aside></div><footer class="footer">Saved profiles and drafts stay in this browser.</footer></div></div><div id="phase-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>';
 const camera=new VisionCamera($('#video'),$('#overlay'),onFrame,onCameraState);
@@ -119,13 +125,13 @@ window.addEventListener('resize',updateTeachingPreview);
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),6500);}
 function setView(next){flowRace.cancel();if(chordRace.active){chordRace.cancel();live=false;}if(busy){toast('Finish or cancel the current recording first.');return;}creator.unmount();customRuntime?.destroy();customRuntime=null;customRuntimeKey='';view=next;live=false;resetInput();render();syncCameraForContext();$('#main').focus({preventScroll:true});window.scrollTo({top:0,behavior:'auto'});}
 function render(){
- document.body.dataset.view=view;document.body.classList.toggle('creator-space',creatorView());document.querySelectorAll('[data-space]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.space===(creatorView()?'creator':'user'))));updateTeachingPreview();
+ document.body.dataset.view=view;document.body.dataset.environment=view==='write'?environment:'';document.body.classList.toggle('creator-space',creatorView());document.querySelectorAll('[data-space]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.space===(creatorView()?'creator':'user'))));updateTeachingPreview();
  $('#profile-select').innerHTML=profiles.length?profiles.map(p=>'<option value="'+esc(p.id)+'" '+(p===profile?'selected':'')+'>'+esc(p.name)+'</option>').join(''):'<option>No profile yet</option>';
  $('#profile-select').disabled=busy||!profiles.length;
  document.querySelectorAll('[data-nav]').forEach(b=>b.disabled=busy);
  document.querySelectorAll('[data-nav]').forEach(b=>{b.classList.toggle('active',b.dataset.nav===view);if(b.dataset.nav===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
  $('#page-label').textContent=navigation.find(n=>n[0]===view)?.[1]||'Get started';
- $('#main').innerHTML=(storageError?'<div class="notice error">Storage: '+esc(storageError)+'</div>':'')+({creator:()=>'<div id="creator-root"></div>',feed:()=>'<div id="creator-root"></div>',home:homeView,teach:teachView,write:writeView,check:checkView,studio:()=>studioView(profile,model),profiles:profilesView}[view]());
+ $('#main').innerHTML=(storageError?'<div class="notice error">Storage: '+esc(storageError)+'</div>':'')+({creator:()=>'<div id="creator-root"></div>',feed:()=>'<div id="creator-root"></div>',home:homeView,teach:teachView,write:writeView,check:checkView,studio:()=>studioView(profile,model,modelReport),profiles:profilesView}[view]());
  updateCamera();if(creatorView())creator.mount($('#creator-root'),view==='feed'?'feed':creator.doc?'editor':'library');if(view==='write')renderWriter();
 }
 const heading=title=>'<div class="page-heading"><h1>'+title+'</h1></div>';
@@ -160,8 +166,9 @@ function renderWriter(){
  if(airWriting()){renderAirWriter();return;}
  if(fingerWriting()){renderFingerWriter();return;}
  $('#keyboard').classList.remove('finger-keyboard');$('#keyboard').setAttribute('aria-label','Accessible keyboard');
- const capabilities=writingCapabilities(profile);
- $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot" style="background:'+(live?'#5a8b38':'#aa9164')+'"></span>'+(live?(composer.paused?'Paused · select Resume to continue':'Camera input · '+(capabilities.direct.length?(capabilities.scanning?'text + keyboard gestures':'direct text gestures'):(profile.settings.mode==='auto'?'automatic scanning':'next / select'))):'Camera input off')+'</span>'+btn(live?'Stop camera input':'Use my gestures',live?'stop-live':'start-live',live?'small secondary':'small',!model?'disabled':'')+'</div>'+(!model?'<div class="demo-banner">Use the keys below, or teach gestures to use camera input.</div>':'');
+ const capabilities=activeCapabilities();
+ $('#writer-status').innerHTML='<div class="input-strip"><span class="status">'+esc(inputStatus())+'</span>'+btn(live?'Pause gestures':cameraState==='ready'?'Use my gestures':'Enable camera & gestures',live?'stop-live':'start-live',live?'small secondary':'small',!model||cameraState==='loading'?'disabled':'')+'</div>'+profileNotice();
+
  renderMessage();
  const rows=composer.rows;
  $('#keyboard').innerHTML=rows.map((row,i)=>'<div class="key-row '+(i===composer.row?'focus-row':'')+'">'+row.map((k,j)=>'<button class="key '+(k.type!=='text'||k.value.length!==1||/\s/.test(k.value)?'control':'')+' '+(i===composer.row&&j===composer.col&&composer.level==='key'?'focus-key':'')+'" data-action="key" data-kind="'+k.type+'" data-row="'+i+'" data-col="'+j+'" aria-label="'+esc(k.label)+'">'+esc(k.label)+'</button>').join('')+(i===composer.row&&composer.level==='key'?'<button class="key control '+(composer.col===row.length?'focus-key':'')+'" data-action="back-rows">↩ Rows</button>':'')+'</div>').join('');
@@ -178,17 +185,31 @@ function renderMessage(){
  $('#word-count').textContent=(composer.text.trim()?composer.text.trim().split(/\s+/).length:0)+' words · '+Array.from(composer.text).length+' characters';
 }
 function renderEnvironmentPicker(){
- if(document.activeElement?.id==='environment-select')return;
- $('#environment-picker').innerHTML='<label class="environment-choice"><span>Input method</span><select id="environment-select" aria-label="Communication environment">'+[...ENVIRONMENTS,...creator.library.data.installed.map(e=>({id:'custom:'+e.id,name:e.name+' · custom'}))].map(e=>'<option value="'+e.id+'" '+(environment===e.id?'selected':'')+'>'+esc(e.name)+(e.id==='classic'?' · default':'')+'</option>').join('')+'</select></label>';
+ const current=customDocument()||environmentById(environment);
+ $('#environment-picker').innerHTML='<button class="environment-current" data-environment="'+esc(environment)+'" data-action="choose-environment" aria-haspopup="dialog"><span class="environment-mini" aria-hidden="true">'+(environment==='finger-grid'?'▦':environment==='classic'?'Aa':'✦')+'</span><span><small>Environment</small><strong>'+esc(current.name)+'</strong></span><span class="environment-change">Change ↗</span></button>';
 }
+function environmentCard(e,badge='',action='pick-environment'){
+ const previews={classic:'A B C', 'finger-grid':'0 1 2 · 3 4 5','air-letters':'✎ Aa',cirrin:'◯ ABC',flow:'Q W E',chord:'✋ ✋'};
+ return '<button class="environment-card" data-action="'+action+'" data-id="'+esc(e.id)+'" aria-pressed="'+(environment===e.id)+'"><span class="environment-art art-'+esc(e.id)+'" aria-hidden="true">'+esc(previews[e.id]||'✦')+'</span><span class="environment-card-copy">'+(badge?'<small>'+esc(badge)+'</small>':'')+'<strong>'+esc(e.name)+'</strong><span>'+esc(e.description||'A custom communication environment.')+'</span></span>'+(environment===e.id?'<b class="environment-selected">Selected ✓</b>':'')+'</button>';
+}
+async function chooseEnvironment(){
+ const recommended=ENVIRONMENTS.filter(e=>['classic','finger-grid','air-letters'].includes(e.id)),others=ENVIRONMENTS.filter(e=>!recommended.includes(e));
+ const d=openDialog(dialogHeader('Choose an environment')+'<h3>Start here</h3><div class="environment-gallery">'+recommended.map(e=>environmentCard(e,e.id==='classic'?'Default':e.id==='finger-grid'?'Recommended · two hands':'Try drawing')).join('')+'</div><h3>More ways to write</h3><div class="environment-gallery">'+others.map(e=>environmentCard(e)).join('')+'</div>'+(creator.library.data.installed.length?'<h3>Your environments</h3><div class="environment-gallery">'+creator.library.data.installed.map(e=>environmentCard({...e,id:'custom:'+e.id},'Installed')).join('')+'</div>':'')+'<h3>Popular in the private feed</h3><div id="popular-environments" role="status">Loading voted environments…</div>');
+ d.classList.add('environment-dialog');
+ try{const data=await creator.feed.list();if(activeDialog!==d)return;const rows=data.environments.filter(e=>e.score>0).sort((a,b)=>b.score-a.score).slice(0,3);creator.feedRows=data.environments;
+ d.querySelector('#popular-environments').innerHTML=rows.length?'<div class="environment-gallery">'+rows.map(r=>environmentCard({...r.document,id:r.document.id},r.score+' net votes','use-popular-environment')).join('')+'</div>':'<p>No rated environments yet. Vote on your favorites in the environment feed.</p>'+btn('Explore environment feed','open-environment-feed','secondary');
+ }catch{if(activeDialog===d)d.querySelector('#popular-environments').innerHTML='<p>The feed is unavailable. Built-in and installed environments are ready to use.</p>';}
+}
+
 function renderFingerWriter(){
  const settings=environmentSettings(),keys=gridKeys(composer,fingerPage);
- $('#writer-status').innerHTML='<div class="input-strip"><span class="status"><span class="dot" style="background:'+(live?'#5a8b38':'#aa9164')+'"></span>'+(live?'Camera input · finger coordinates':'Finger preview · no camera selections')+'</span>'+btn(live?'Stop finger input':'Start finger input',live?'stop-live':'start-live',live?'small secondary':'small',cameraState==='loading'?'disabled':'')+'</div><section class="finger-guide"><div class="finger-guide-top"><strong>Finger grid</strong><span class="badge">0 = fist · 5 = open palm</span></div><p>'+(settings.gridSwap?'Right':'Left')+' side of your mirrored preview chooses the <b>row</b>; '+(settings.gridSwap?'left':'right')+' chooses the <b>column</b>. Hold the pair to select. Change counts for the next cell; briefly lower a hand to repeat the same cell.</p><div class="finger-readouts"><span>ROW <b id="finger-row">—</b></span><span>COLUMN <b id="finger-col">—</b></span><div><strong id="finger-target">Show both hands</strong><div class="meter"><div id="finger-meter" style="width:0"></div></div></div></div><p id="finger-status">Face your palms toward the camera. Extend raised fingers comfortably; 4 is four fingers with your thumb tucked, 5 includes your thumb.</p><details><summary>Timing & hand roles</summary><div class="finger-options"><label>Hold to select<select id="finger-hold" aria-label="Finger selection hold">'+[600,850,1200,1600].map(n=>'<option value="'+n+'" '+((settings.gridHoldMs||850)===n?'selected':'')+'>'+n/1000+' seconds</option>').join('')+'</select></label><label class="toggle"><input type="checkbox" id="finger-swap" '+(settings.gridSwap?'checked':'')+'> Swap row and column hands</label></div></details></section>';
+ $('#writer-status').innerHTML='<div class="input-strip"><span class="status">'+esc(inputStatus())+'</span>'+btn(live?'Pause finger input':'Start finger input',live?'stop-live':'start-live',live?'small secondary':'small',cameraState==='loading'?'disabled':'')+'</div>';
+
  renderMessage();
  $('#focus-label').textContent=composer.confirm?'Confirm '+composer.confirm:composer.paused?'Paused':PAGE_NAMES[fingerPage]+' · 6 × 6';
  const keyboard=$('#keyboard');keyboard.classList.add('finger-keyboard');keyboard.setAttribute('aria-label','Finger keyboard');
- keyboard.innerHTML='<div class="finger-page-heading"><strong>'+esc(composer.paused?'Paused':composer.confirm?'Confirm your choice':PAGE_NAMES[fingerPage])+'</strong><span>Row 5, column 5 → next page</span></div><table class="finger-table" aria-label="6 by 6 finger coordinates"><thead><tr><th scope="col"><span class="sr-only">Row / Column</span>↘</th>'+Array.from({length:6},(_,c)=>'<th scope="col">'+c+'</th>').join('')+'</tr></thead><tbody>'+Array.from({length:6},(_,row)=>'<tr><th scope="row">'+row+'</th>'+keys.slice(row*6,row*6+6).map((key,col)=>'<td><button class="finger-key '+(key.type==='text'&&key.value.length===1&&!/\s/.test(key.value)?'letter':'control')+'" data-action="finger-key" data-index="'+(row*6+col)+'" aria-label="Row '+row+', column '+col+': '+esc(key.label)+'" '+(key.type==='noop'?'disabled':'')+'>'+esc(key.label)+'</button></td>').join('')+'</tr>').join('')+'</tbody></table>';
- $('#writer-help').innerHTML='<div class="keyboard-help"><span>Bottom row: Delete · Undo · Case · Speak · Tools · Page</span><span>Pages: Letters → Numbers → Symbols → My phrases</span></div>';
+ keyboard.innerHTML='<div class="finger-livebar"><div class="finger-readouts"><span>ROW <b id="finger-row">—</b></span><span>COLUMN <b id="finger-col">—</b></span><div><strong id="finger-target">Show both hands</strong><div class="finger-hold-detail"><span id="finger-countdown">Hold '+(settings.gridHoldMs||850)/1000+' s</span><span id="finger-percent">0%</span></div><div class="meter" role="progressbar" id="finger-progress" aria-label="Hold to select" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><div id="finger-meter" style="width:0"></div></div></div></div><p id="finger-status">Show both hands</p></div><div class="finger-page-heading"><strong>'+esc(composer.paused?'Paused':composer.confirm?'Confirm your choice':PAGE_NAMES[fingerPage])+'</strong>'+btn('Grid settings','finger-settings','secondary small')+'</div><table class="finger-table" aria-label="6 by 6 finger coordinates"><thead><tr><th scope="col"><span class="sr-only">Row / Column</span>↘</th>'+Array.from({length:6},(_,c)=>'<th scope="col">'+c+'</th>').join('')+'</tr></thead><tbody>'+Array.from({length:6},(_,row)=>'<tr><th scope="row">'+row+'</th>'+keys.slice(row*6,row*6+6).map((key,col)=>'<td><button class="finger-key '+(key.type==='text'&&key.value.length===1&&!/\s/.test(key.value)?'letter':'control')+'" data-action="finger-key" data-index="'+(row*6+col)+'" aria-label="Row '+row+', column '+col+': '+esc(key.label)+'" '+(key.type==='noop'?'disabled':'')+'>'+esc(key.label)+'</button></td>').join('')+'</tr>').join('')+'</tbody></table>';
+ $('#writer-help').innerHTML='<p class="finger-help">0 = fist · 5 = open palm · Bottom-right cell changes page</p>';
  $('#writer-actions').innerHTML=btn('Focus view','focus','secondary');
  $('#speech-status').textContent=speechStatus;
  updateFingerDisplay();updateTeachingPreview();
@@ -204,7 +225,8 @@ function updateFingerDisplay(){
  $('#finger-row').textContent=pair.row??'—';$('#finger-col').textContent=pair.col??'—';
  const index=pair.row!==null&&pair.col!==null?pair.row*6+pair.col:null,key=index===null?null:gridKeys(composer,fingerPage)[index];
  $('#finger-target').textContent=key&&key.type!=='noop'?key.label:'Show a clear pair';
- $('#finger-meter').style.width=(live?(out?.progress||0)*100:0)+'%';
+ const progress=live?(out?.locked?1:out?.progress||0):0,percent=Math.round(progress*100),remaining=Math.max(0,(1-progress)*(environmentSettings().gridHoldMs||850)/1000);
+ $('#finger-meter').style.width=percent+'%';$('#finger-progress').setAttribute('aria-valuenow',percent);$('#finger-percent').textContent=percent+'%';$('#finger-countdown').textContent=out?.locked?'Selected ✓':live&&progress>0?remaining.toFixed(1)+' s remaining':'Hold '+(environmentSettings().gridHoldMs||850)/1000+' s';
  $('#finger-status').textContent=pair.reason||(live?(out?.locked?'Selected once. Change the pair, or lower a hand briefly to repeat.':key?.type==='noop'?'This cell is empty. Choose another pair.':'Hold this pair steady to select.'):'Preview only. Start finger input when your counts look right.');
  document.querySelectorAll('.finger-key').forEach(b=>{const n=Number(b.dataset.index);b.classList.toggle('finger-row-match',pair.row!==null&&Math.floor(n/6)===pair.row);b.classList.toggle('finger-col-match',pair.col!==null&&n%6===pair.col);b.classList.toggle('finger-target',n===index);});
  const swap=environmentSettings().gridSwap;
@@ -218,7 +240,7 @@ function onFingerFrame(frame){
  const out=live&&!activeDialog?fingerGate.update(pair,frame.handFrameAt,frame.now):null;
  fingerStatus={pair,out};
  if(out?.index!==null&&out?.index!==undefined)useFingerKey(out.index);
- if(frame.now-lastUI>80){lastUI=frame.now;updateFingerDisplay();
+ if(frame.now-lastFingerUI>80){lastFingerUI=frame.now;updateFingerDisplay();
   $('#tracking-parts').textContent=frame.hands?.length===2?'Both hands visible':'Show both hands';
   const metrics=frame.metrics;$('#camera-performance').hidden=!metrics;
   if(metrics)$('#camera-performance').textContent='Camera '+metrics.cameraFps+' fps · Hands '+metrics.handFps+' fps';
@@ -483,7 +505,7 @@ function gestureDialog(id,writing=false){
  const g=profile.gestures.find(g=>g.id===id),defaultKind=writing?'motion':'pose',defaultAction=writing?'insert':profile.gestures.some(g=>g.action==='select')?'next':'select';
  openDialog(dialogHeader(g?'Edit gesture':writing?'Teach a writing movement':'Add a gesture')+'<p>Name the gesture and choose what it does. Keep the parts you use visible during rest and recording.</p><form id="gesture-form" data-id="'+(g?.id||'')+'"><label class="field">Gesture name<input name="name" maxlength="65" placeholder="Name your movement" value="'+esc(g?.name||'')+'" required></label>'+(profile.modality==='combined'?'<label class="field">How do you perform it?<select name="kind"><option value="pose" '+((g?.kind||defaultKind)!=='motion'?'selected':'')+'>Hold a pose</option><option value="motion" '+((g?.kind||defaultKind)==='motion'?'selected':'')+'>Make a swipe or movement</option></select><small>Hold a pose: a face or hand shape. Movement: a short motion with a pause at the end.</small></label>':'')+'<label class="field">What should it do?<select name="action">'+Object.entries(actions).map(([v,l])=>'<option value="'+v+'" '+((g?.action||defaultAction)===v?'selected':'')+'>'+l+'</option>').join('')+'</select></label><label class="field" id="insert-text-field" '+((g?.action||defaultAction)==='insert'?'':'hidden')+'>Text for “Insert text”<input name="value" maxlength="300" placeholder="A letter, word, or personal phrase" value="'+esc(g?.value||'')+'"><small>Enter the letter, word, or phrase this gesture should write.</small></label>'+(g?'<label class="toggle"><input name="enabled" type="checkbox" '+(g.enabled!==false?'checked':'')+'> Enable this gesture</label>':'')+'<div class="button-row"><button class="button" type="submit">'+(g?'Save changes':'Add & record')+'</button>'+(g?btn('Delete gesture','delete-gesture','danger','data-id="'+g.id+'"'):'')+'</div></form>');
 }
-function selectProfile(id){lastGestureMessage='';if(busy)return;const p=profiles.find(p=>p.id===id);if(!p)return;camera.stop();cameraState='off';cameraMessage='Profile changed. Enable the camera when you’re ready.';profile=p;composer=new RelayComposer(profile);restoreDraft();live=false;latest=null;rebuild();render();}
+function selectProfile(id){lastGestureMessage='';if(busy)return;const p=profiles.find(p=>p.id===id);if(!p)return;camera.stop();cameraState='off';cameraMessage='Profile changed. Enable the camera when you’re ready.';profile=p;rememberProfile(profile);composer=new RelayComposer(profile);restoreDraft();live=false;latest=null;rebuild();render();}
 function updateCamera(){
  document.body.dataset.camera=cameraState;
  updateTeachingPreview();
@@ -559,7 +581,7 @@ function say(text,cue=false){
  if(!cue)speakingMessage=true;
  speechSynthesis.speak(u);
 }
-async function enableCamera(){if(!profile&&!fingerWriting()&&!airWriting()&&!cirrinWriting()&&!chordWriting()&&!flowWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;resetInput();updateCamera();renderWriter();return;}await startCamera();}
+async function enableCamera(){if(!profile&&!fingerWriting()&&!airWriting()&&!cirrinWriting()&&!chordWriting()&&!flowWriting()){newProfileDialog();return;}if(cameraState==='ready'){camera.stop();cameraState='off';cameraMessage='Camera turned off.';live=false;resetInput();updateCamera();renderWriter();return;}await startCamera();if(cameraState==='ready'&&view==='write'&&environment==='classic'&&model&&activeCapabilities().canWrite)await startLive();}
 function requireCamera(){if(cameraState!=='ready'){toast('Enable the camera before recording.');return false;}if(!latest?.vector||performance.now()-latest.now>700){toast('Move into view so the camera can track you.');return false;}return true;}
 function progress(title,detail,fraction=0){
  const newPhase=teachingPhase?.title!==title;teachingPhase={title,detail,fraction};updateTeachingPreview();
@@ -647,10 +669,11 @@ async function startLive(){
  }
  if(fingerWriting()){
   if(cameraState!=='ready'){await startCamera();if(!fingerWriting()||cameraState!=='ready')return;}
-  live=true;resetInput();fingerGate.holdMs=environmentSettings().gridHoldMs||850;renderWriter();toast('Finger input active. Hold a row and column pair to select.');return;
+  live=true;resetInput();fingerGate.holdMs=environmentSettings().gridHoldMs||850;renderWriter();return;
  }
- if(!model||!requireCamera())return;
- if(!writingCapabilities(profile).canWrite){toast('Assign a gesture to Insert text, or set up Select with Next / automatic scanning.');return;}
+ if(!model){toast(modelError);return;}
+ if(cameraState!=='ready'){await startCamera();if(view!=='write'||environment!=='classic'||cameraState!=='ready')return;}
+ if(!activeCapabilities().canWrite){toast('Assign a gesture to Insert text, or set up Select with Next / automatic scanning.');return;}
  live=true;resetInput();lastScan=performance.now();composer.resetFocus();renderWriter();toast('Camera input active. Return to rest, then make your gesture.');
 }
 
@@ -660,6 +683,11 @@ document.addEventListener('click',async e=>{
  try{
   if(flowRace.active&&!a.startsWith('flow-')){flowRace.cancel('Trial cancelled when leaving the test controls.');live=false;resetInput();renderWriter();}
   if(chordRace.active&&!a.startsWith('chord-')){chordRace.cancel('Trial cancelled when leaving the test controls.');live=false;resetInput();renderWriter();}
+  if(a==='finger-settings'){const settings=environmentSettings();openDialog(dialogHeader('Finger grid settings')+'<p>Use the left side of your mirrored preview for the row, and the right side for the column. A fist is 0; an open palm is 5.</p><label class="field">Hold to select<select id="finger-hold" aria-label="Finger selection hold">'+[600,850,1200,1600].map(n=>'<option value="'+n+'" '+((settings.gridHoldMs||850)===n?'selected':'')+'>'+n/1000+' seconds</option>').join('')+'</select></label><label class="toggle"><input type="checkbox" id="finger-swap" '+(settings.gridSwap?'checked':'')+'> Swap row and column hands</label><p>Change counts to select another cell. Lower a hand briefly to repeat the same cell. Keep both palms facing the camera.</p>');return;}
+  if(a==='choose-environment'){await chooseEnvironment();return;}
+  if(a==='pick-environment'){activeDialog?.close();selectEnvironment(id);return;}
+  if(a==='use-popular-environment'){const row=creator.feedRows.find(r=>r.document.id===id);if(row){creator.library.install(row.document);activeDialog?.close();selectEnvironment('custom:'+id);}return;}
+  if(a==='open-environment-feed'){activeDialog?.close();setView('feed');return;}
   if(a.startsWith('nav-'))return setView(a.slice(4));
   if(a==='close-dialog'){activeDialog?.close();return;}
   if(a==='cancel-task'){cancelTask();return;}
@@ -778,9 +806,8 @@ document.addEventListener('change',async e=>{
  if(e.target.id==='chord-swap'){if(chordRace.active)return;saveEnvironmentSetting('gridSwap',e.target.checked);live=false;resetInput();renderWriter();return;}
  if(e.target.id==='chord-hold'){if(chordRace.active)return;saveEnvironmentSetting('chordHoldMs',Number(e.target.value));chordGate.holdMs=Number(e.target.value);live=false;resetInput();renderWriter();return;}
  if(e.target.id==='chord-scenario'){if(chordRace.select(e.target.value)){live=false;resetInput();renderWriter();}return;}
- if(e.target.id==='environment-select'){selectEnvironment(e.target.value);return;}
  if(e.target.id==='cirrin-gain'){saveEnvironmentSetting('cirrinGain',Number(e.target.value));cirrin.setGain(Number(e.target.value));live=false;renderWriter();return;}
- if(e.target.id==='finger-hold'||e.target.id==='finger-swap'){saveEnvironmentSetting(e.target.id==='finger-hold'?'gridHoldMs':'gridSwap',e.target.id==='finger-hold'?Number(e.target.value):e.target.checked);live=false;resetInput();fingerGate.holdMs=environmentSettings().gridHoldMs||850;renderWriter();return;}
+ if(e.target.id==='finger-hold'||e.target.id==='finger-swap'){saveEnvironmentSetting(e.target.id==='finger-hold'?'gridHoldMs':'gridSwap',e.target.id==='finger-hold'?Number(e.target.value):e.target.checked);resetInput();fingerGate.holdMs=environmentSettings().gridHoldMs||850;renderWriter();return;}
  if(e.target.id==='trails-toggle'){
   trailsEnabled=e.target.checked;camera.setTrails?.(trailsEnabled);
   try{localStorage.setItem('relay.trails.v1',String(trailsEnabled));}catch{}
@@ -791,7 +818,9 @@ document.addEventListener('change',async e=>{
  if(e.target.id==='profile-select')selectProfile(e.target.value);
  if(e.target.id==='import-file'){try{const file=e.target.files[0];if(!file)return;const p=upgradeFaceProfile(importProfile(await file.text()));profiles.push(p);persist();selectProfile(p.id);toast('Profile imported. Check recognition in your current camera setup.');}catch(err){toast('Import failed: '+err.message);}}
 });
-document.addEventListener('focusin',e=>{if(e.target.id==='message'){live=false;resetInput();renderWriter();}});
+let resumeAfterEditing=false;
+document.addEventListener('focusin',e=>{if(e.target.id==='message'){resumeAfterEditing=live;live=false;resetInput();renderWriter();}});
+document.addEventListener('focusout',e=>{if(e.target.id==='message'&&resumeAfterEditing){resumeAfterEditing=false;if(cameraState==='ready'&&view==='write'){resetInput();live=true;lastScan=performance.now();const status=$('#writer-status .input-strip>span');if(status)status.textContent=inputStatus();const control=$('#writer-status [data-action="start-live"]');if(control){control.dataset.action='stop-live';control.textContent='Pause gestures';}}}});
 document.addEventListener('input',e=>{if(e.target.id==='message'&&view==='write'){if(e.target.value!==composer.text)composer.change(e.target.value);composer.confirm=null;composer.resetFocus();if(!e.isComposing)renderWriter();else{saveDraft();$('#draft-status').textContent=draftNotice;}}});
 document.addEventListener('compositionend',e=>{if(e.target.id==='message')renderWriter();});
 document.addEventListener('keydown',e=>{
@@ -804,7 +833,7 @@ document.addEventListener('visibilitychange',()=>{if(document.hidden)creator.liv
 window.addEventListener('beforeunload',()=>{customRuntime?.destroy();creator.unmount();camera.stop();flow.close();air.model.close();});
 setInterval(()=>{
  const now=performance.now();if(creatorView())creator.runtime?.tick(now,creator.live&&!activeDialog);if(customWriting())customRuntime?.tick(now,live&&!activeDialog);
- if(!customWriting()&&!flowWriting()&&!chordWriting()&&!cirrinWriting()&&!airWriting()&&!fingerWriting()&&live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
+ if(!customWriting()&&!flowWriting()&&!chordWriting()&&!cirrinWriting()&&!airWriting()&&!fingerWriting()&&live&&view==='write'&&activeCapabilities().scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
   const now=performance.now();if(now-lastTracking>700){lastScan=now;return;}
   // Stop the scanning highlight while a deliberate selection is in progress.
   if(gate.candidate||gate.progress>0||gate.motionActive){lastScan=now;return;}

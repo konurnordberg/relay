@@ -1,3 +1,4 @@
+import {chooseEnvironment} from './environment-picker.mjs';
 import {chromium} from '../.local/node_modules/playwright-core/index.mjs';
 import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
@@ -30,7 +31,7 @@ try{
    assert.equal(await page.locator('h1').count(),1);
   }
   for(const environment of ['classic','finger-grid','air-letters','cirrin','flow','chord']){
-   await page.getByLabel('Communication environment').selectOption(environment);await noOverflow(size.join('x')+' '+environment);
+   await chooseEnvironment(page,environment);await noOverflow(size.join('x')+' '+environment);
   }
  }
  console.log('PASS: all four primary sections and six input methods fit 320–1440px with large text');
@@ -53,7 +54,7 @@ try{
  await page.waitForFunction(()=>!document.body.classList.contains('teaching-active'));
  console.log('PASS: phase announcements stay quiet between changes; recording camera and cancel remain visible at four sizes; Escape cancels');
  await page.setViewportSize({width:1440,height:1000});await page.locator('[data-nav="teach"]').click();await screenshot('teach-ready');
- await page.locator('[data-nav="write"]').click();await page.getByLabel('Communication environment').selectOption('classic');await screenshot('write-final');
+ await page.locator('[data-nav="write"]').click();await chooseEnvironment(page,'classic');await screenshot('write-final');
  await page.locator('[data-nav="profiles"]').click();await screenshot('settings');
  await page.locator('[data-nav="studio"]').click();await noOverflow('advanced');
  assert.equal(await page.locator('h1').innerText(),'Signal analyzer');

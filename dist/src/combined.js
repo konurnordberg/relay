@@ -10,6 +10,8 @@ export function resample(frames,n=24){
 }
 function neutralSamples(profile,g){return [...g.samples.flatMap(s=>s.neutral?[s.neutral]:[]),...profile.rest];}
 function inferChannels(profile,g){
+ // Preserve the feature channel used by pre-all-signals face calibration.
+ if(profile.upgradedFrom==='face'&&g.kind!=='motion'&&g.samples.every(s=>s.vector[0]>.95&&!s.vector[1]&&!s.vector[2]))return [CHANNELS[0]];
  const neutral=neutralSamples(profile,g),moving=g.kind==='motion';
  const scores=CHANNELS.map(c=>{
   const samples=g.samples.filter(s=>hasChannels(s.vector,[c])&&(!moving||s.sequence?.every(v=>hasChannels(v,[c]))));

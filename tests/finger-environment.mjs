@@ -1,3 +1,4 @@
+import {chooseEnvironment} from './environment-picker.mjs';
 import {chromium} from '../.local/node_modules/playwright-core/index.mjs';
 import assert from 'node:assert/strict';
 import {fileURLToPath} from 'node:url';
@@ -18,11 +19,11 @@ const coord=(r,c)=>page.locator('.finger-key[data-index="'+(r*6+c)+'"]');
 const hold=async(row,col)=>{await page.evaluate(pair=>window.__pair=pair,[row,col]);await page.waitForTimeout(1150);};
 try{
  await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();
- assert.equal(await page.getByLabel('Communication environment').inputValue(),'classic');
+ assert.equal(await page.locator('[data-action="choose-environment"]').getAttribute('data-environment'),'classic');
  await page.getByRole('button',{name:'z',exact:true}).click();
- await page.getByLabel('Communication environment').selectOption('finger-grid');
+ await chooseEnvironment(page,'finger-grid');
  assert.equal(await page.locator('.finger-key').count(),36);assert.equal(await page.locator('#message').inputValue(),'z');
- await page.getByText('Timing & hand roles',{exact:true}).click();await page.getByLabel('Finger selection hold').selectOption('600');
+ await page.getByRole('button',{name:'Grid settings',exact:true}).click();await page.getByLabel('Finger selection hold').selectOption('600');await page.keyboard.press('Escape');
  await page.getByRole('button',{name:'Start finger input',exact:true}).click();
  await hold(1,1);assert.equal(await page.locator('#message').inputValue(),'zh');
  await page.waitForTimeout(1000);assert.equal(await page.locator('#message').inputValue(),'zh');
@@ -36,7 +37,7 @@ try{
  assert.equal(await page.locator('.finger-key:enabled').count(),2);await hold(0,0);
  assert.equal(await page.locator('#message').inputValue(),'zhi3');
  console.log('PASS: raw hand geometry → finger counts → hi + number, one event per hold, paging, delete/undo, speech confirmation');
- await page.evaluate(()=>window.__pair=[2,3]);await page.getByRole('button',{name:'Stop finger input',exact:true}).click();
+ await page.evaluate(()=>window.__pair=[2,3]);await page.getByRole('button',{name:'Pause finger input',exact:true}).click();
  await page.waitForTimeout(1200);assert.equal(await page.locator('#message').inputValue(),'zhi3');
  for(const viewport of [{width:1366,height:900},{width:390,height:844}]){
   await page.setViewportSize(viewport);await page.locator('.finger-table').scrollIntoViewIfNeeded();await page.waitForTimeout(250);
@@ -48,11 +49,11 @@ try{
   await page.screenshot({path:fileURLToPath(new URL('../artifacts/finger-grid-'+viewport.width+'.png',import.meta.url)),fullPage:viewport.width>500});
  }
  await page.setViewportSize({width:1366,height:900});
- await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').inputValue(),'zhi3');
+ await chooseEnvironment(page,'classic');assert.equal(await page.locator('#message').inputValue(),'zhi3');
  assert.ok(await page.getByRole('button',{name:'Next',exact:true}).isVisible());
- await page.getByLabel('Communication environment').selectOption('finger-grid');await page.reload();
+ await chooseEnvironment(page,'finger-grid');await page.reload();
  await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
- assert.equal(await page.getByLabel('Communication environment').inputValue(),'finger-grid');assert.equal(await page.locator('#message').inputValue(),'zhi3');
+ assert.equal(await page.locator('[data-action="choose-environment"]').getAttribute('data-environment'),'finger-grid');assert.equal(await page.locator('#message').inputValue(),'zhi3');
  // A calibrated Classic gesture must not execute alongside finger coordinates.
  await page.evaluate(async()=>{
   const {createProfile}=await import('/src/storage.js');const p=createProfile('Input isolation');p.settings.environment='finger-grid';

@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createProfile,upgradeFaceProfile} from '../dist/src/storage.js';
+import {buildPersonalModel,chooseProfile,rememberProfile} from '../dist/src/profile-runtime.js';
+import {predictCombined} from '../dist/src/combined.js';
+const sample=v=>({vector:v,spread:v.map(()=>.001),frames:20});
+const legacy=()=>{const p=createProfile('Original face gestures','face');p.rest=Array.from({length:5},()=>sample(Array(60).fill(0)));p.gestures=[0,1].map(n=>({id:'g'+n,name:n?'Eyebrow':'Mouth',action:n?'next':'select',value:'',enabled:true,samples:Array.from({length:5},()=>{const v=Array(60).fill(0);v[n]=.1;return sample(v);})}));return p;};
+test('older subtle face recordings remain usable after all-signals migration',()=>{const old=legacy(),before=JSON.stringify(old),upgraded=upgradeFaceProfile(old),r=buildPersonalModel(upgraded);assert.ok(r.model);assert.deepEqual(r.readyIds,['g0','g1']);assert.equal(predictCombined(r.model,upgraded.gestures[0].samples[0].vector).id,'g0');assert.equal(JSON.stringify(old),before);});
+test('an unfinished gesture never disables existing trained gestures or disappears from storage',()=>{const p=upgradeFaceProfile(legacy());p.gestures.push({id:'draft',name:'New hand gesture',action:'insert',value:'hi',kind:'pose',samples:[]});const before=JSON.stringify(p),r=buildPersonalModel(p);assert.ok(r.model);assert.equal(r.excluded[0].name,'New hand gesture');assert.deepEqual(r.readyIds,['g0','g1']);assert.equal(JSON.stringify(p),before);});
+test('a recorded but unusable gesture reports its error without blocking useful gestures',()=>{const p=upgradeFaceProfile(legacy());p.gestures.push({id:'bad',name:'Rest copy',action:'next',value:'',samples:p.rest});const r=buildPersonalModel(p);assert.ok(r.model);assert.equal(r.excluded[0].id,'bad');});
+test('no usable model returns an actionable reason while preserving saved gesture counts',()=>{const p=legacy();p.rest=[];const r=buildPersonalModel(p);assert.equal(r.model,null);assert.match(r.error,/saved/);assert.equal(p.gestures.length,2);});
+test('profile selection remembers the user and otherwise prefers recorded gestures over a blank profile',()=>{const data=new Map(),storage={getItem:k=>data.get(k),setItem:(k,v)=>data.set(k,v)},blank=createProfile('Empty'),p=legacy();assert.equal(chooseProfile([blank,p],storage).id,p.id);rememberProfile(blank,storage);assert.equal(chooseProfile([blank,p],storage).id,blank.id);});

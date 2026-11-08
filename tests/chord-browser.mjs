@@ -1,3 +1,4 @@
+import {chooseEnvironment} from './environment-picker.mjs';
 import {chromium} from '../.local/node_modules/playwright-core/index.mjs';
 import {fileURLToPath} from 'node:url';
 import assert from 'node:assert/strict';
@@ -14,7 +15,7 @@ async function pointer(index){await page.getByRole('button',{name:'Bank '+Math.f
 try{
  await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();
  await page.getByRole('button',{name:'z',exact:true}).click();
- await page.getByLabel('Communication environment').selectOption('chord');
+ await chooseEnvironment(page,'chord');
  assert.equal(await page.locator('.chord-key').count(),5);
  await page.getByRole('button',{name:'Start Chord input',exact:true}).click();
  assert.equal(await page.evaluate(()=>window.__cameraMode),'hands');assert.equal(await page.evaluate(()=>window.__cameraDelegate),'CPU');
@@ -85,10 +86,10 @@ try{
  }
  await page.setViewportSize({width:1366,height:900});
  await page.getByRole('button',{name:'Start camera trial',exact:true}).click();
- await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').inputValue(),savedDraft+code+'a');
- await page.getByLabel('Communication environment').selectOption('chord');assert.match(await page.locator('#chord-race-status').textContent(),/cancelled/);
+ await chooseEnvironment(page,'classic');assert.equal(await page.locator('#message').inputValue(),savedDraft+code+'a');
+ await chooseEnvironment(page,'chord');assert.match(await page.locator('#chord-race-status').textContent(),/cancelled/);
  await page.reload();await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
- assert.equal(await page.getByLabel('Communication environment').inputValue(),'chord');assert.match(await page.locator('.chord-key').first().textContent(),/Code block/);
+ assert.equal(await page.locator('[data-action="choose-environment"]').getAttribute('data-environment'),'chord');assert.match(await page.locator('.chord-key').first().textContent(),/Code block/);
  assert.equal(await page.locator('#message').inputValue(),savedDraft+code+'a');
  assert.deepEqual(errors,[]);
  console.log('PASS: Chord camera release-to-write, cancellation, words, code snippets, persistence, benchmark isolation/exact completion/paste prevention, mobile camera dock and environment switching. Controlled fixtures, not a human speed measurement.');
