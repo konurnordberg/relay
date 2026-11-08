@@ -64,3 +64,11 @@ body[data-view="landing"] .topbar{height:60px;border-bottom:0}
 @media(max-width:680px){body[data-view="landing"] .main-grid{padding:24px 18px}.home-hero,.home-definition,.home-paths,.home-creator-showcase{grid-template-columns:1fr}.home-hero{padding:8px 0 36px;gap:30px}.home-hero h1{font-size:2.55rem;max-width:500px}.home-lead{font-size:1rem}.home-actions .button{width:auto;flex:1 1 150px}.home-definition{padding:36px 0;gap:28px}.home-parts{gap:16px}.home-paths{gap:16px}.home-creator-showcase{padding:38px 0;gap:26px}.home-creator-copy{grid-row:1}.home-feed{padding:25px}.home-questions{padding-top:36px}.home-bottom{align-items:start;flex-direction:column}.home-example-caption{min-height:190px}.home-example-title{padding:16px 16px 10px}.home-example-options button{font-size:.78rem}}
 @media(prefers-reduced-motion:reduce){.relay-home *{scroll-behavior:auto}}
 
+
+.account-controls{display:flex;gap:12px;align-items:center;flex-shrink:0;font-size:.82rem;min-height:44px}
+.account-controls a{color:var(--green);font-weight:600;padding:10px 0;text-underline-offset:3px}
+.account-status{color:#51644f}
+.feed-account a{font-weight:650;color:var(--green);text-underline-offset:3px}
+.feed-votes a.button{text-decoration:none;display:inline-flex;align-items:center;justify-content:center}
+.publish-panel a.button{text-decoration:none;display:inline-flex;align-items:center;min-height:44px}
+@media(max-width:480px){.account-controls{gap:8px;font-size:.75rem}.account-status{display:none}.topbar{gap:8px}.profile-switch{gap:5px}.profile-switch select{max-width:125px}}

@@ -1,3 +1,11 @@
+## Relay 2.3.0 — Public launch
+
+Anyone can open Relay, use its local camera features, build environments, and browse, try, or remix the shared feed without an account. ChatGPT sign-in is required only to publish environments or vote. Sign-in and sign-out use the hosting platform's top-level redirects; creators return to their saved draft and must explicitly confirm publication.
+
+Public publication explains which layout, output text, and custom sketch examples become downloadable. Personal profiles, calibration, message drafts, and camera video remain local. The six built-in examples are available for remix with attribution. Previously private user packages stay owner-only until explicitly republished with a public license. The former catalog-maintenance endpoint is removed.
+
+Validation includes 135 unit tests, anonymous read/authenticated write checks, shared reversible votes across accounts, private-package isolation, safe sign-in return paths, and browser flows for guest browsing, saved-draft sign-in return, publication, voting, and sign-out. Browser authentication redirects are simulated locally; the actual public gateway is checked after access changes.
+
 ## Relay 2.2.1 — Creator showcase
 
 The Home page now presents all six editable environment templates together and explains how layouts, inputs, and selection rules can be combined in Creator space. This replaces the dial-specific example with a broader invitation to remix or start from a blank canvas.

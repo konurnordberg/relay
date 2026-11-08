@@ -3,11 +3,11 @@
     "format": "relay-environment",
     "version": 2,
     "id": "relay-builtin-classic-v1",
-    "revision": 1,
+    "revision": 2,
     "name": "Classic keyboard",
     "description": "Write with your learned Next and Select gestures. Includes letters, numbers, punctuation, phrases and message controls.",
     "author": "konurnordberg",
-    "license": "private",
+    "license": "CC-BY-4.0",
     "tags": [
       "Default",
       "Learned gestures"
@@ -2496,11 +2496,11 @@
     "format": "relay-environment",
     "version": 2,
     "id": "relay-builtin-finger-grid-v1",
-    "revision": 1,
+    "revision": 2,
     "name": "Finger grid",
     "description": "Hold up 0–5 fingers on each hand to choose a row and column. Five pages include letters, numbers, symbols, phrases and tools.",
     "author": "konurnordberg",
-    "license": "private",
+    "license": "CC-BY-4.0",
     "tags": [
       "Two hands",
       "Finger counts"
@@ -5049,11 +5049,11 @@
     "format": "relay-environment",
     "version": 2,
     "id": "relay-builtin-air-letters-v1",
-    "revision": 1,
+    "revision": 2,
     "name": "Air letters",
     "description": "Draw printed letters with your index fingertip. The local handwriting model suggests letters for you to review and insert.",
     "author": "konurnordberg",
-    "license": "private",
+    "license": "CC-BY-4.0",
     "tags": [
       "Handwriting",
       "Local AI"
@@ -5101,11 +5101,11 @@
     "format": "relay-environment",
     "version": 2,
     "id": "relay-builtin-cirrin-v1",
-    "revision": 1,
+    "revision": 2,
     "name": "Cirrin ring",
     "description": "Trace a word through letters arranged in a circle. Return inward between letters; review your spelling before inserting. Inspired by Cirrin.",
     "author": "konurnordberg",
-    "license": "private",
+    "license": "CC-BY-4.0",
     "tags": [
       "Letter paths",
       "Finger drawing"
@@ -5494,11 +5494,11 @@
     "format": "relay-environment",
     "version": 2,
     "id": "relay-builtin-flow-v1",
-    "revision": 1,
+    "revision": 2,
     "name": "Flow · swipe words",
     "description": "Swipe through a QWERTY arrangement in one continuous stroke. The local word-path model suggests words for insertion.",
     "author": "konurnordberg",
-    "license": "private",
+    "license": "CC-BY-4.0",
     "tags": [
       "Word swiping",
       "Local AI"
@@ -5887,11 +5887,11 @@
     "format": "relay-environment",
     "version": 2,
     "id": "relay-builtin-chord-v1",
-    "revision": 1,
+    "revision": 2,
     "name": "Chord · shortcuts",
     "description": "Choose reusable phrases with two-hand finger counts. Close both fists to arm, then hold a code to select. Customize every phrase in Creator.",
     "author": "konurnordberg",
-    "license": "private",
+    "license": "CC-BY-4.0",
     "tags": [
       "Two hands",
       "Shortcuts"
