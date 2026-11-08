@@ -68,10 +68,11 @@ function resetInput(){customRuntime?.reset();creator?.runtime?.reset();gate.rese
 function syncCameraForContext(){if(camera.running&&(camera.mode!==cameraMode()||(camera.handDelegate!==undefined&&camera.handDelegate!==handDelegate())))startCamera();}
 
 let customRuntime=null,customRuntimeKey='';
-const creator=new CreatorStudio({notify:toast,onUse:env=>{setView('write');selectEnvironment('custom:'+env.id);},startPreview:async()=>{if(cameraState!=='ready'||camera.mode!=='combined')await startCamera();if(cameraState!=='ready')throw new Error('Enable the camera before starting a preview.');gate.reset();}});
+const creator=new CreatorStudio({notify:toast,onUse:env=>useEnvironmentDocument(env),startPreview:async()=>{if(cameraState!=='ready'||camera.mode!=='combined')await startCamera();if(cameraState!=='ready')throw new Error('Enable the camera before starting a preview.');gate.reset();}});
 const creatorView=()=>view==='creator'||view==='feed';
 const customDocument=()=>environment.startsWith('custom:')?creator.library.get(environment.slice(7)):null;
 const customWriting=()=>view==='write'&&!!customDocument();
+function useEnvironmentDocument(doc){const builtin=ENVIRONMENTS.find(e=>'relay-builtin-'+e.id+'-v1'===doc.id);setView('write');selectEnvironment(builtin?.id||'custom:'+doc.id);}
 function customAction(item){
  if(!customWriting())return;
  if(composer.confirm&&!['cancel','confirm'].includes(item.action)||composer.paused&&item.action!=='resume')return;
@@ -686,7 +687,7 @@ document.addEventListener('click',async e=>{
   if(a==='finger-settings'){const settings=environmentSettings();openDialog(dialogHeader('Finger grid settings')+'<p>Use the left side of your mirrored preview for the row, and the right side for the column. A fist is 0; an open palm is 5.</p><label class="field">Hold to select<select id="finger-hold" aria-label="Finger selection hold">'+[600,850,1200,1600].map(n=>'<option value="'+n+'" '+((settings.gridHoldMs||850)===n?'selected':'')+'>'+n/1000+' seconds</option>').join('')+'</select></label><label class="toggle"><input type="checkbox" id="finger-swap" '+(settings.gridSwap?'checked':'')+'> Swap row and column hands</label><p>Change counts to select another cell. Lower a hand briefly to repeat the same cell. Keep both palms facing the camera.</p>');return;}
   if(a==='choose-environment'){await chooseEnvironment();return;}
   if(a==='pick-environment'){activeDialog?.close();selectEnvironment(id);return;}
-  if(a==='use-popular-environment'){const row=creator.feedRows.find(r=>r.document.id===id);if(row){creator.library.install(row.document);activeDialog?.close();selectEnvironment('custom:'+id);}return;}
+  if(a==='use-popular-environment'){const row=creator.feedRows.find(r=>r.document.id===id);if(row){creator.library.install(row.document);activeDialog?.close();useEnvironmentDocument(row.document);}return;}
   if(a==='open-environment-feed'){activeDialog?.close();setView('feed');return;}
   if(a.startsWith('nav-'))return setView(a.slice(4));
   if(a==='close-dialog'){activeDialog?.close();return;}

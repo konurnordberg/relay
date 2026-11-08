@@ -1,3 +1,4 @@
+import {ensureCatalog} from './catalog.js';
 import {validateEnvironment,environmentIssues} from '../dist/src/creator-schema.js';
 const json=(data,status=200)=>new Response(JSON.stringify(data),{status,headers:{'Content-Type':'application/json; charset=utf-8','Cache-Control':'private, no-store','X-Content-Type-Options':'nosniff','Vary':'Cookie'}});
 const limit=260000;
@@ -8,6 +9,7 @@ export async function feedAPI(request,env){const url=new URL(request.url),user=r
  const path=url.pathname.slice('/api/environments'.length),match=path.match(/^\/([a-zA-Z0-9_-]{1,80})(\/vote)?$/);
  try{
  if(!path&&request.method==='GET'){
+  await ensureCatalog(env.DB);
   const rows=await env.DB.prepare('SELECT e.id,e.owner,e.document,e.published_at,COALESCE(SUM(v.value),0) AS score,COALESCE(SUM(CASE WHEN v.value=1 THEN 1 ELSE 0 END),0) AS upvotes,COALESCE(SUM(CASE WHEN v.value=-1 THEN 1 ELSE 0 END),0) AS downvotes,COALESCE(MAX(CASE WHEN v.user_id=? THEN v.value END),0) AS myVote FROM environments e LEFT JOIN environment_votes v ON v.environment_id=e.id GROUP BY e.id ORDER BY score DESC,e.published_at DESC LIMIT 100').bind(user).all();
   return json({signedIn:true,environments:rows.results.map(row=>({document:JSON.parse(row.document),publishedAt:row.published_at,owned:row.owner===user,score:row.score,upvotes:row.upvotes,downvotes:row.downvotes,myVote:row.myVote})),limit:100});
  }
@@ -24,4 +26,8 @@ export async function feedAPI(request,env){const url=new URL(request.url),user=r
  return json({error:'Unknown feed operation.'},404);
  }catch(error){if(error instanceof SyntaxError||/Invalid|Choose|Use |Duplicate|missing|package|between|up to|link|toggle|Rows/.test(error.message))return json({error:error.message},400);console.error('Environment feed request failed');return json({error:'The feed could not be updated. Your local draft is safe. Try again.'},500);}
 }
-export default {async fetch(request,env){const path=new URL(request.url).pathname;if(path==='/api/environments'||path.startsWith('/api/environments/'))return feedAPI(request,env);return env.ASSETS.fetch(request);}};
+export default {async fetch(request,env){const path=new URL(request.url).pathname;if(path==='/api/catalog/seed'){
+ // Sites' owner-private gateway also authenticates service calls, without visitor headers.
+ // This endpoint only installs the fixed shared catalog; personal records retain their existing authorization.
+ const url=new URL(request.url),origin=request.headers.get('origin');if(request.method!=='POST')return json({error:'Use POST.'},405);if(origin&&origin!==url.origin||request.headers.get('sec-fetch-site')==='cross-site')return json({error:'This request must come from Relay.'},403);if(!env.DB)return json({error:'Shared storage is unavailable.'},503);return json({environments:await ensureCatalog(env.DB)});
+ }if(path==='/api/environments'||path.startsWith('/api/environments/'))return feedAPI(request,env);return env.ASSETS.fetch(request);}};

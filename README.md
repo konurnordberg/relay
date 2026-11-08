@@ -1,3 +1,7 @@
+## Relay 2.1.3 — Environment feed catalog
+
+The private feed includes seven existing environments, all credited to konurnordberg. Stable IDs prevent duplicates and preserve votes. The originals open in their existing user environments; remixes open as editable canvas components. Fixed catalog installation is a shared operation behind the owner-private Sites gateway and never overwrites user-owned records.
+
 ## Relay 2.1.2 — Saved gestures and environment workspace
 
 Legacy face recordings retain their original feature channel after migration. Completed gestures stay active when another gesture is unfinished, and Signal analyzer lists saved/ready counts with specific recording issues. The selected profile persists across refreshes. Classic separates camera state from gesture control and can start both together; physical editing temporarily pauses gesture control.
