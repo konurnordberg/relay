@@ -12,7 +12,7 @@ async function pose(row,col,ms=330){
 async function chord(index){await pose(Math.floor(index/5),index%5+1,300);await pose(0,0,210);}
 async function pointer(index){await page.getByRole('button',{name:'Bank '+Math.floor(index/5),exact:true}).click();await page.locator('.chord-key[data-index="'+index+'"]').click();}
 try{
- await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Explore the keyboard'}).click();
+ await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();
  await page.getByRole('button',{name:'z',exact:true}).click();
  await page.getByLabel('Communication environment').selectOption('chord');
  assert.equal(await page.locator('.chord-key').count(),5);
@@ -31,7 +31,7 @@ try{
  await pointer(2);assert.equal(await page.locator('#message').textContent(),"z I'll take a look and get back to you. ");
  const savedDraft=await page.locator('#message').textContent();
  // Timed keyboard and camera drafts never modify the user's shared message.
- await page.getByText('Race your keyboard',{exact:true}).click();await page.getByRole('button',{name:'Start keyboard trial',exact:true}).click();
+ await page.getByText('Typing speed test',{exact:true}).click();await page.getByRole('button',{name:'Start keyboard trial',exact:true}).click();
  const target=await page.locator('.chord-target').textContent(),trial=page.locator('#chord-keyboard-trial');
  assert.equal(await trial.evaluate(el=>el.dispatchEvent(new ClipboardEvent('paste',{bubbles:true,cancelable:true}))),false);
  await trial.pressSequentially('x');await trial.press('Backspace');

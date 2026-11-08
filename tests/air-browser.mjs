@@ -22,7 +22,7 @@ async function trace(letter){
  await page.waitForFunction(()=>document.querySelectorAll('.air-choice').length===3,{},{timeout:12000});
 }
 try{
- await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Explore the keyboard'}).click();
+ await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();
  await page.getByRole('button',{name:'z',exact:true}).click();
  await page.getByLabel('Communication environment').selectOption('air-letters');
  await page.locator('#pen-mode').selectOption('pinch');await page.getByRole('button',{name:'Start air writing',exact:true}).click();
@@ -36,7 +36,7 @@ try{
  await page.locator('.air-choice').first().click();assert.equal(await page.locator('#message').innerText(),'zhi');
  await page.getByRole('button',{name:'Delete',exact:true}).click();assert.equal(await page.locator('#message').innerText(),'zh');
  await page.getByRole('button',{name:'Undo',exact:true}).click();assert.equal(await page.locator('#message').innerText(),'zhi');
- await page.getByRole('button',{name:'Speak ↗',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Speak now',exact:true}).isVisible());
+ await page.getByRole('button',{name:'Speak message',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Speak now',exact:true}).isVisible());
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  // The camera remains running while pointer drawing pauses camera input.
  await page.locator('#air-canvas').scrollIntoViewIfNeeded();

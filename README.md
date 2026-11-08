@@ -3,6 +3,16 @@
 
 Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held poses and short movements, then turns recognized signals into controls for writing and speaking original text.
 
+## New in 1.8 — Simplified interface
+
+The primary navigation is **Write & speak**, **Teach gestures**, **Check accuracy**, and **Settings**. Technical diagnostics are under **Advanced → Signal details**. Promotional headlines, illustrations and repeated subtitles have been removed; the existing cream and green palette is retained.
+
+Returning users with a trained profile start in the writing workspace, with the camera still off. Setup presents rest, gestures and checking in order; completed rest is collapsed but can be rerecorded. Camera options, gesture instructions and personal vocabulary remain available in labeled disclosures. All six input methods, existing profiles, calibration, editing, speech confirmation and backups are preserved.
+
+Controls are larger, text has stronger contrast, and **Settings → Text and controls → Large** persists on the device. Dialogs have accessible names, focus the form and restore focus on close. Recording announces phase changes instead of repeatedly replacing a live region; Escape cancels. The camera and cancellation control stay visible during mobile teaching. Reduced-motion preferences are respected.
+
+`tests/interface-browser.mjs` checks keyboard dialogs, display persistence, all input layouts at 320–1440px with large text, pinned recording controls, phase announcements and accessible control labels. These are automated usability checks, not a claim of accessibility certification or user-study results.
+
 ## Fixed in 1.7.1 — Teach hand symbols
 
 Teaching and Classic recognition now use the CPU hand detector already used by the hand environments. Old face-only profiles automatically expand to face + both hands, preserving their identifiers, actions, examples and drafts. The pre-upgrade collection is backed up in this browser; prior accuracy records remain historical because the recognizer revision changes.

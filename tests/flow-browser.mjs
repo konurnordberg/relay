@@ -26,7 +26,7 @@ async function pointerWord(word){
  await page.mouse.up();
 }
 try{
- await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Explore the keyboard'}).click();await page.getByLabel('Communication environment').selectOption('flow');
+ await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();await page.getByLabel('Communication environment').selectOption('flow');
  await pointerWord('hello');await page.waitForFunction(()=>document.querySelector('#message').textContent==='hello ');
  await pointerWord('keyboard');await page.waitForFunction(()=>document.querySelector('#message').textContent==='hello keyboard ');
  await page.getByRole('button',{name:'Undo word',exact:true}).click();assert.equal(await page.locator('#message').textContent(),'hello ');
@@ -40,7 +40,7 @@ try{
  await hover(5.5/6,.93,1300);assert.equal(await page.locator('[data-action="flow-mode"][aria-pressed="true"]').getAttribute('data-mode'),'spell','holding Mode must change exactly once');
  await hover(4.5/6,.93,1300);assert.ok(await page.getByRole('button',{name:'Lowercase',exact:true}).isVisible(),'case must change once');
  await hover(.5,.53,180);await hover(4.5/6,.93);assert.ok(await page.getByRole('button',{name:'Uppercase',exact:true}).isVisible());
- await page.getByRole('button',{name:'Speak ↗',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Speak now',exact:true}).isVisible());await page.getByRole('button',{name:'Cancel',exact:true}).click();
+ await page.getByRole('button',{name:'Speak message',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Speak now',exact:true}).isVisible());await page.getByRole('button',{name:'Cancel',exact:true}).click();
  console.log('PASS: camera alternative correction, held mode/case control locks and speech confirmation');
  const saved=await page.locator('#message').textContent();
  await page.getByText('Compare with your keyboard',{exact:true}).click();

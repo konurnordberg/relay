@@ -12,7 +12,7 @@ export class VisionCamera{
  constructor(video,canvas,onFrame,onState){this.onFrame=onFrame;this.onState=onState;this.canvas=canvas;}
  async start(mode,deviceId,delegate){this.stop();this.running=true;this.mode=mode;this.handDelegate=delegate;window.__camera={mode,delegate};this.onState('ready','Controlled hand fixture');let i=0;
  this.timer=setInterval(()=>{
-  const title=document.querySelector('.record-panel h3')?.textContent||'',record=title.startsWith('Now:')||title==='Hold your movement';
+  const title=document.querySelector('.record-panel h2')?.textContent||'',record=title.startsWith('Now:')||title==='Hold your gesture';
   const kind=record?(window.__teaching||'one'):(title?'rest':window.__signal||'rest');
   const face=Array(60).fill(.03);if(kind==='face')face[5]=.85;
   let hands=[extendedHandFeatures(hand(kind==='one'?2:kind==='both'?5:0)),extendedHandFeatures(hand(kind==='both'?2:0,{mirror:true}))];
@@ -37,7 +37,7 @@ try{
   localStorage.setItem('relay.profiles.v1',JSON.stringify([p]));
  });
  await page.reload();await page.getByRole('button',{name:'Teach gestures',exact:true}).click();
- assert.match(await page.locator('#main').innerText(),/Your saved face gestures are preserved/);
+ assert.match(await page.locator('#main').innerText(),/Saved face gesture/);
  assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('relay.profiles.before-all-signals.v1'))[0].modality),'face');
  await page.getByRole('button',{name:'Enable camera'}).click();
  await page.waitForFunction(()=>document.querySelector('#tracking-parts').textContent.includes('Left hand ✓'));

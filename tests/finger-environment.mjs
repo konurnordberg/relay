@@ -17,7 +17,7 @@ export class VisionCamera{
 const coord=(r,c)=>page.locator('.finger-key[data-index="'+(r*6+c)+'"]');
 const hold=async(row,col)=>{await page.evaluate(pair=>window.__pair=pair,[row,col]);await page.waitForTimeout(1150);};
 try{
- await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Explore the keyboard'}).click();
+ await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();
  assert.equal(await page.getByLabel('Communication environment').inputValue(),'classic');
  await page.getByRole('button',{name:'z',exact:true}).click();
  await page.getByLabel('Communication environment').selectOption('finger-grid');
@@ -49,7 +49,7 @@ try{
  }
  await page.setViewportSize({width:1366,height:900});
  await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').innerText(),'zhi3');
- assert.ok(await page.getByRole('button',{name:'Next →',exact:true}).isVisible());
+ assert.ok(await page.getByRole('button',{name:'Next',exact:true}).isVisible());
  await page.getByLabel('Communication environment').selectOption('finger-grid');await page.reload();
  await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
  assert.equal(await page.getByLabel('Communication environment').inputValue(),'finger-grid');assert.equal(await page.locator('#message').innerText(),'zhi3');
@@ -66,12 +66,12 @@ try{
  assert.ok(!(await page.locator('#message').innerText()).includes('BAD'));
  await hold(1,1);assert.equal(await page.locator('#message').innerText(),'h');
  console.log('PASS: learned Classic gestures cannot dispatch while Finger grid is active');
- // An existing classic face profile remains a face profile when leaving the two-hand environment.
+ // Legacy face profiles expand to all signals; returning to teaching retains CPU hands.
  await page.evaluate(async()=>{const {createProfile}=await import('/src/storage.js');const p=createProfile('Classic face','face');p.settings.environment='finger-grid';localStorage.setItem('relay.profiles.v1',JSON.stringify([p]));});
  await page.reload();await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();await page.getByRole('button',{name:'Start finger input',exact:true}).click();
  assert.equal(await page.evaluate(()=>window.__cameraModes.at(-1)),'combined');assert.equal(await page.evaluate(()=>window.__delegates.at(-1)),'CPU');
  await page.getByRole('button',{name:'Teach gestures',exact:true}).click();await page.waitForTimeout(150);
- assert.equal(await page.evaluate(()=>window.__cameraModes.at(-1)),'face');assert.equal(await page.evaluate(()=>window.__delegates.at(-1)),'GPU');
- assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('relay.profiles.v1'))[0].modality),'face');
+ assert.equal(await page.evaluate(()=>window.__cameraModes.at(-1)),'combined');assert.equal(await page.evaluate(()=>window.__delegates.at(-1)),'CPU');
+ assert.equal(await page.evaluate(()=>JSON.parse(localStorage.getItem('relay.profiles.v1'))[0].modality),'combined');
  assert.deepEqual(errors,[]);console.log('PASS: input stop, 6×6 desktop/mobile layout, persistent preview, environment/draft persistence and classic-profile camera restoration');
 }finally{await browser.close();}

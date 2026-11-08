@@ -26,7 +26,7 @@ async function tracePointer(word){
  await page.waitForFunction(word=>document.querySelector('.cirrin-choice')?.dataset.word===word,word,{timeout:6000});
 }
 try{
- await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Explore the keyboard'}).click();
+ await page.goto('http://localhost:4173/');await page.getByRole('button',{name:'Open keyboard'}).click();
  await page.getByRole('button',{name:'z',exact:true}).click();
  await page.getByLabel('Communication environment').selectOption('cirrin');await page.locator('#pen-mode').selectOption('pinch');await page.getByRole('button',{name:'Start Cirrin input',exact:true}).click();
  await traceCamera('hello');
@@ -38,7 +38,7 @@ try{
  await page.getByRole('button',{name:'Undo',exact:true}).click();assert.equal(await page.locator('#message').innerText(),'z');
  await traceCamera('relay');await page.locator('.cirrin-choice').first().click();assert.equal(await page.locator('#message').textContent(),'z relay ');
  await page.getByRole('button',{name:'.',exact:true}).click();assert.equal(await page.locator('#message').textContent(),'z relay. ');
- await page.getByRole('button',{name:'Speak ↗',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Speak now',exact:true}).isVisible());
+ await page.getByRole('button',{name:'Speak message',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Speak now',exact:true}).isVisible());
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  // Pointer tracing must remain intact with a running camera.
  await tracePointer('hello');assert.equal(await page.locator('#cirrin-word').innerText(),'hello');

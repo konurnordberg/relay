@@ -16,15 +16,13 @@ export const HandLandmarker={createFromOptions:async()=>({detectForVideo:()=>{
 },close(){}})};`}));
 try{
  await page.goto('http://localhost:4173/');
- const toggle=page.getByRole('switch',{name:'Enable trails'});
- assert.equal(await toggle.isChecked(),false);
- await toggle.check();
- await page.reload();assert.equal(await toggle.isChecked(),true);
- await page.getByRole('button',{name:'Create your voice',exact:true}).click();
- await page.getByLabel('Profile name').fill('Trail preview');
- await page.getByRole('button',{name:'Start my setup'}).click();
+ await page.getByRole('button',{name:'Create a profile',exact:true}).click();
+ await page.getByLabel('Profile name').fill('Trail preview');await page.getByRole('button',{name:'Start setup'}).click();
+ await page.locator('.camera-options summary').click();
+ const toggle=page.getByRole('switch',{name:'Enable trails'});assert.equal(await toggle.isChecked(),false);await toggle.check();
+ await page.reload();await page.getByRole('button',{name:'Teach gestures',exact:true}).click();await page.locator('.camera-options summary').click();assert.equal(await toggle.isChecked(),true);
  await page.getByRole('button',{name:'Enable camera'}).click();
- await page.waitForFunction(()=>document.querySelector('#camera-pill').textContent==='ON DEVICE');
+ await page.waitForFunction(()=>document.querySelector('#camera-pill').textContent==='On');
  // Count camera inference requests while testing the real renderer.
  await page.evaluate(()=>{
   const ctx=document.querySelector('#overlay').getContext('2d'),curve=ctx.bezierCurveTo.bind(ctx);

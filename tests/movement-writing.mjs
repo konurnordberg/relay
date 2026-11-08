@@ -48,7 +48,7 @@ try{
  await page.getByRole('button',{name:'Stop camera input',exact:true}).click();
  await page.screenshot({path:fileURLToPath(new URL('../artifacts/movement-writing.png',import.meta.url)),fullPage:true});
  console.log('PASS: two learned movements write hi without Select/Next; no repeat and no idle scanning');
- await page.getByRole('button',{name:'Teach a writing movement',exact:true}).click();
+ await page.getByText('Gesture controls',{exact:true}).click();await page.getByRole('button',{name:'Teach a writing movement',exact:true}).click();
  assert.equal(await page.getByLabel('How do you perform it?').inputValue(),'motion');
  assert.equal(await page.getByLabel('What should it do?').inputValue(),'insert');
  assert.ok(await page.locator('#insert-text-field').isVisible());

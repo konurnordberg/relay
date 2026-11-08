@@ -18,7 +18,7 @@ await page.route('**/src/camera.js',r=>r.fulfill({contentType:'text/javascript',
 try{
  await page.goto('http://localhost:4173/');
  await page.getByRole('button',{name:'Enable camera'}).click();
- await page.getByRole('button',{name:'Signal studio',exact:true}).click();
+ await page.locator('.nav-more').evaluate(el=>el.open=true);await page.getByRole('button',{name:'Signal details',exact:true}).click();
  await page.waitForFunction(()=>document.querySelector('#live-insights .decision-state'));
  await page.getByText('Uses Left hand',{exact:false}).waitFor();
  assert.equal(await page.getByText('0.0× acceptance-radius separation',{exact:false}).count(),0);
@@ -30,7 +30,7 @@ try{
  await page.waitForTimeout(450);const focus=await page.locator('#focus-label').innerText();
  await page.waitForTimeout(350);assert.equal(await page.locator('#focus-label').innerText(),focus);
  await page.waitForTimeout(700);assert.match(await page.locator('#focus-label').innerText(),/^[a-z]$/);
- await page.getByRole('button',{name:'My profiles',exact:true}).click();
+ await page.getByRole('button',{name:'Settings',exact:true}).click();
  await page.getByRole('button',{name:'New profile',exact:false}).click();
  await page.screenshot({path:fileURLToPath(new URL('../artifacts/combined-setup.png',import.meta.url)),fullPage:true});
  await page.setViewportSize({width:390,height:844});

@@ -10,7 +10,7 @@ await context.route('**/src/camera.js',r=>r.fulfill({contentType:'text/javascrip
  constructor(v,c,onFrame,onState){this.frame=onFrame;this.state=onState;}
  async start(){this.stop();this.state('ready','Synthetic combined fixture');let phase='',start=0;
  this.timer=setInterval(()=>{
-  const now=performance.now(),title=document.querySelector('.record-panel h3')?.textContent||'';
+  const now=performance.now(),title=document.querySelector('.record-panel h2')?.textContent||'';
   if(title!==phase){phase=title;start=now;}
   const v=Array(201).fill(.03);v[0]=v[1]=v[2]=1;v[129]=.3;
   if(title.startsWith('Now: Finger swipe'))v[129]=.3+.4*Math.min(1,(now-start)/850);
@@ -21,14 +21,14 @@ await context.route('**/src/camera.js',r=>r.fulfill({contentType:'text/javascrip
 }`}));
 try{
  await page.goto('http://localhost:4173/');
- await page.getByRole('button',{name:'Create your voice',exact:true}).click();
+ await page.getByRole('button',{name:'Create a profile',exact:true}).click();
  assert.equal(await page.getByLabel('Camera input').count(),0);
  await page.getByLabel('Profile name').fill('Combined motion QA');
- await page.getByRole('button',{name:'Start my setup'}).click();
+ await page.getByRole('button',{name:'Start setup'}).click();
  await page.getByRole('button',{name:'Enable camera'}).click();
  await page.waitForFunction(()=>document.querySelector('#signal-name').textContent==='Ready to learn');
  await page.getByRole('button',{name:'Learn my resting state'}).click();
- await page.getByRole('button',{name:'Record rest again'}).waitFor({timeout:22000});
+ await page.getByRole('button',{name:'Record rest again'}).waitFor({state:'attached',timeout:22000});
  await page.getByRole('button',{name:'Add a gesture'}).click();
  await page.getByLabel('Gesture name').fill('Finger swipe');
  await page.getByLabel('How do you perform it?').selectOption('motion');
@@ -43,7 +43,7 @@ try{
  assert.equal(saved.modality,'combined');assert.equal(saved.gestures[0].kind,'motion');
  assert.equal(saved.gestures[0].samples[0].sequence.length,24);
  assert.equal(saved.gestures[0].samples[0].neutral.vector.length,201);
- await page.getByRole('button',{name:'Signal studio',exact:true}).click();
+ await page.locator('.nav-more').evaluate(el=>el.open=true);await page.getByRole('button',{name:'Signal details',exact:true}).click();
  await page.getByText('Recorded movement',{exact:true}).waitFor();
  await page.waitForFunction(()=>document.querySelector('#live-insights .decision-state'));
  await page.screenshot({path:fileURLToPath(new URL('../artifacts/combined-studio.png',import.meta.url)),fullPage:true});
