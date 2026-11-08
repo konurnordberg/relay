@@ -1,3 +1,11 @@
+## Relay 2.2.0 — Home
+
+Home now opens above Get started for new and returning visitors. It explains User space, Creator space, and the private Environment feed, with six selectable previews rendered from Relay's existing environment layouts. A component-built dial illustrates how layout, input mappings, and a selection rule work together.
+
+Home links directly to setup, writing, the creator, and the feed. Saved profiles and drafts remain available through Continue writing. The camera stays off on arrival and stops when returning Home. The existing green and cream palette is preserved, with responsive layouts and keyboard-operable preview controls.
+
+The home browser check covers all six previews, navigation, camera lifecycle, saved profiles/messages, and 320–1440px layouts including large text.
+
 ## Relay 2.1.6 — Stable camera feedback
 
 Finger grid and the shared camera renderer no longer overwrite the same tracking section. Persistent face/hand badges follow the active camera mode, update only when status changes, and tolerate brief display dropouts without changing gesture recognition. Performance details refresh once a second.
