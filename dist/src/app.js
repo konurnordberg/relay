@@ -1,3 +1,4 @@
+import {summarizeVisible} from './teaching.js';
 import {FlowInput} from './flow-input.js';
 import {drawFlow,flowCharacter,flowKeyLabel} from './flow-view.js';
 import {FLOW_LAYOUT} from './flow-core.js';
@@ -11,9 +12,9 @@ import {AirWriter} from './air-writing.js';
 import {ENVIRONMENTS,environmentById,GRID_PAGES,PAGE_NAMES,gridKeys,applyGridKey} from './environments.js';
 import {fingerPair,FingerPairTracker,FingerIndexGate} from './finger-index.js';
 import {trainCombined,predictCombined,CombinedGate,resample,requiredTracking} from './combined.js';
-import {CHANNELS,channelIndices} from './features.js';
+import {CHANNELS} from './features.js';
 import {REST,UNKNOWN,train,predict,summarize,EventGate,Composer,trialSummary} from './core.js';
-import {createProfile,loadProfiles,saveProfiles,exportProfile,importProfile} from './storage.js';
+import {createProfile,loadProfiles,saveProfiles,exportProfile,importProfile,upgradeFaceProfile} from './storage.js';
 import {VisionCamera} from './camera.js';
 import {RelayComposer,STARTER_PHRASES,writingCapabilities,COMMON} from './communication.js';
 import {studioView,liveInsightHTML,vocabularyView} from './views.js';
@@ -24,7 +25,7 @@ const btn=(label,action,cls='',extra='')=>'<button class="button '+cls+'" data-a
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 let profiles=[],storageError='',trailsEnabled=false;
 try{trailsEnabled=localStorage.getItem('relay.trails.v1')==='true';}catch{}
-try{profiles=loadProfiles();}catch(e){storageError=e.message;}
+try{profiles=loadProfiles();const upgraded=profiles.map(upgradeFaceProfile);if(upgraded.some((p,i)=>p!==profiles[i])){localStorage.setItem('relay.profiles.before-all-signals.v1',JSON.stringify(profiles));saveProfiles(upgraded);profiles=upgraded;}}catch(e){storageError=e.message;}
 let profile=profiles[0]||null,view='home',modelError='',model=null,gate=new EventGate(),composer=new RelayComposer(profile),live=false;
 let cameraState='off',cameraMessage='Your camera stays off until you start it.',latest=null,lastUI=0,recording=null,task=0,busy=false,attempt=null,restCheck=null,lastScan=0,lastTracking=0;
 let teachingPhase=null,lastGestureMessage='';
@@ -55,7 +56,7 @@ const cirrinWriting=()=>view==='write'&&environment==='cirrin';
 const airWriting=()=>view==='write'&&environment==='air-letters';
 const fingerWriting=()=>view==='write'&&environment==='finger-grid';
 const cameraMode=()=>view==='write'&&environmentById(environment).cameraMode!=='profile'?environmentById(environment).cameraMode:profile?.modality||'combined';
-const handDelegate=()=>view==='write'?environmentById(environment).handDelegate:'GPU';
+const handDelegate=()=>view==='write'?environmentById(environment).handDelegate:'CPU';
 const startCamera=()=>camera.start(cameraMode(),'',handDelegate());
 function resetInput(){gate.reset();fingerGate.reset();fingerTracker.reset();fingerStatus=null;air.reset();cirrin.reset();chordGate.reset();chordStatus=null;flow.reset();flowLastInsertion=null;}
 function syncCameraForContext(){if(camera.running&&(camera.mode!==cameraMode()||(camera.handDelegate!==undefined&&camera.handDelegate!==handDelegate())))startCamera();}
@@ -76,7 +77,7 @@ function updateTeachingPreview(){
  document.body.classList.toggle('camera-docked',(teaching||fingerWriting()||airWriting()||cirrinWriting()||flowWriting()||chordWriting())&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
  $('#camera-heading').textContent=teaching?'Your live camera':'Your signal';
  const prompt=$('#camera-prompt');prompt.hidden=!teaching;
- const phase=teachingPhase||{title:'See yourself as you learn',detail:'Keep the parts you use in view. Your recording instructions will appear here.',fraction:0};
+ const phase=teachingPhase||{title:'See yourself as you learn',detail:'Face and both hands are available. For a hand symbol, check the hand indicator below turns green before recording. Keep that hand visible during rest too.',fraction:0};
  for(const [id,value] of [['camera-prompt-title',phase.title],['camera-prompt-detail',phase.detail]])if($('#'+id).textContent!==value)$('#'+id).textContent=value;
  $('#camera-prompt-progress').value=phase.fraction;
  $('#camera-prompt-progress').hidden=!busy;$('#camera-prompt-cancel').hidden=!busy;
@@ -105,7 +106,7 @@ function homeView(){
 function noProfile(){return heading('Start with you.','Your profile holds your personal gestures and preferences.')+'<div class="card"><h3>Create your personal profile</h3><p class="muted">Face, both hands, and finger movements work together in one profile. Teach the signals that suit you.</p>'+btn('Create a profile','new-profile')+'</div>';}
 function teachView(){
  if(!profile)return noProfile();const done=profile.rest.length>0;
- return heading('Teach us your language.','A few movements. A few examples. A vocabulary that belongs to you.')+(profile.modality!=='combined'?'<div class="callout"><p><strong>Your classic profile is preserved.</strong>Create an all-signals profile to mix face, hand, and movement signals.</p>'+btn('New all-signals profile','new-profile','small secondary')+'</div>':'')+'<div class="progress-steps"><span class="'+(done?'done':'')+'">01 &nbsp; Rest</span><span class="'+(model?'done':'')+'">02 &nbsp; Your gestures</span><span class="'+(currentTrials().length?'done':'')+'">03 &nbsp; Check & communicate</span></div><div class="card"><div class="section-label" style="margin-top:0"><h3>01 &nbsp; Your resting state</h3><span class="badge">'+(done?'Recorded':'Start here')+'</span></div><p class="small-text muted">Relax naturally for 12 seconds. Blink and look around as you normally would. '+(profile.modality==='hand'?'Keep your resting hand visible.':'Keep your face visible. If you plan to use your hands, keep them comfortably in view too.')+' This teaches Relay what should <strong>not</strong> select a key.</p>'+btn(done?'Record rest again':'Learn my resting state','record-rest','secondary',busy?'disabled':'')+'</div><div class="card"><div class="section-label" style="margin-top:0"><h3>02 &nbsp; Your gestures</h3><span>'+profile.gestures.length+' personal signals</span></div><p class="small-text muted">'+(profile.modality==='combined'?'Choose a held pose or a short movement. Face and both hands can contribute together.':'Choose a comfortable held pose. Your saved input mode remains unchanged.')+' We’ll record five examples and a relaxed starting pose before each.</p><div class="gesture-list">'+profile.gestures.map((g,i)=>'<div class="gesture-item"><span class="gesture-icon">'+String(i+1).padStart(2,'0')+'</span><div class="gesture-detail"><strong>'+esc(g.name)+'</strong><small>'+esc(actions[g.action])+(g.action==='insert'?' · '+esc(g.value):'')+' · '+(g.kind==='motion'?'Movement':'Held pose')+' · '+g.samples.length+' examples'+(g.enabled===false?' · Disabled':'')+'</small></div><div class="gesture-actions">'+btn(g.samples.length?'Retrain':'Record','record-gesture','small secondary','data-id="'+g.id+'" '+(busy?'disabled':''))+'<button class="icon-button" data-action="edit-gesture" data-id="'+g.id+'" aria-label="Edit '+esc(g.name)+'">⋯</button></div></div>').join('')+'</div>'+(profile.gestures.length?'':'<div class="empty-state">Choose a movement that feels comfortable to you.</div>')+'<div style="margin-top:16px">'+btn('＋ Add a gesture','add-gesture','secondary',!done||busy?'disabled':'')+(profile.modality==='combined'?' '+btn('Teach a writing movement','add-writing-movement','secondary',!done||busy?'disabled':''):'')+'</div></div><div id="record-area"></div>'+(model?'<div class="callout"><span class="circle-icon">✓</span><p><strong>Your recognizer is trained.</strong>Test it with new attempts before using it to write.</p></div>'+model.warnings.map(w=>'<div class="notice warn">'+esc(w)+'</div>').join('')+'<div class="button-row">'+btn('Check my gestures →','nav-check')+btn('Open keyboard','nav-write','secondary')+'</div>':'')+(profile.gestures.some(g=>g.samples.length>=3)&&modelError?'<div class="notice warn">'+esc(modelError)+'</div>':'')+'<p class="small-text muted">Input: '+(profile.modality==='combined'?'face + both hands together; held poses and recorded movements':profile.modality==='face'?'saved face & head profile':'saved one-hand profile')+'. Setup may be assisted. Recognition learns your examples; it does not recognize every possible movement.</p>';
+ return heading('Teach us your language.','A few movements. A few examples. A vocabulary that belongs to you.')+(profile.upgradedFrom==='face'?'<div class="notice">Face + both hands are now enabled. Your saved face gestures are preserved; you can add hand symbols to this same profile.</div>':'')+(profile.modality!=='combined'?'<div class="callout"><p><strong>Your classic profile is preserved.</strong>Create an all-signals profile to mix face, hand, and movement signals.</p>'+btn('New all-signals profile','new-profile','small secondary')+'</div>':'')+'<div class="progress-steps"><span class="'+(done?'done':'')+'">01 &nbsp; Rest</span><span class="'+(model?'done':'')+'">02 &nbsp; Your gestures</span><span class="'+(currentTrials().length?'done':'')+'">03 &nbsp; Check & communicate</span></div><div class="card"><div class="section-label" style="margin-top:0"><h3>01 &nbsp; Your resting state</h3><span class="badge">'+(done?'Recorded':'Start here')+'</span></div><p class="small-text muted">Relax naturally for 12 seconds. Blink and look around as you normally would. '+(profile.modality==='hand'?'Keep your resting hand visible.':'Keep the parts you want to teach visible. For hand symbols, relax your hands in the camera frame; your face can be out of view.')+' This teaches Relay what should <strong>not</strong> select a key.</p>'+btn(done?'Record rest again':'Learn my resting state','record-rest','secondary',busy?'disabled':'')+'</div><div class="card"><div class="section-label" style="margin-top:0"><h3>02 &nbsp; Your gestures</h3><span>'+profile.gestures.length+' personal signals</span></div><p class="small-text muted">'+(profile.modality==='combined'?'Teach a hand symbol, two-hand pose, facial expression, or short movement. All are tracked together — no input mode to choose.':'Choose a comfortable held pose. Your saved input mode remains unchanged.')+' We’ll record five examples and a relaxed starting pose before each.</p><div class="gesture-list">'+profile.gestures.map((g,i)=>'<div class="gesture-item"><span class="gesture-icon">'+String(i+1).padStart(2,'0')+'</span><div class="gesture-detail"><strong>'+esc(g.name)+'</strong><small>'+esc(actions[g.action])+(g.action==='insert'?' · '+esc(g.value):'')+' · '+(g.kind==='motion'?'Movement':'Held pose')+' · '+g.samples.length+' examples'+(g.trainedChannels?.length?' · Learned: '+esc(g.trainedChannels.join(' + ')):'')+(g.enabled===false?' · Disabled':'')+'</small></div><div class="gesture-actions">'+btn(g.samples.length?'Retrain':'Record','record-gesture','small secondary','data-id="'+g.id+'" '+(busy?'disabled':''))+'<button class="icon-button" data-action="edit-gesture" data-id="'+g.id+'" aria-label="Edit '+esc(g.name)+'">⋯</button></div></div>').join('')+'</div>'+(profile.gestures.length?'':'<div class="empty-state">Choose a movement that feels comfortable to you.</div>')+'<div style="margin-top:16px">'+btn('＋ Add a gesture','add-gesture','secondary',!done||busy?'disabled':'')+(profile.modality==='combined'?' '+btn('Teach a writing movement','add-writing-movement','secondary',!done||busy?'disabled':''):'')+'</div></div><div id="record-area"></div>'+(model?'<div class="callout"><span class="circle-icon">✓</span><p><strong>Your recognizer is trained.</strong>Test it with new attempts before using it to write.</p></div>'+model.warnings.map(w=>'<div class="notice warn">'+esc(w)+'</div>').join('')+'<div class="button-row">'+btn('Check my gestures →','nav-check')+btn('Open keyboard','nav-write','secondary')+'</div>':'')+(profile.gestures.some(g=>g.samples.length>=3)&&modelError?'<div class="notice warn">'+esc(modelError)+'</div>':'')+'<p class="small-text muted">Input: '+(profile.modality==='combined'?'face + both hands together; held poses and recorded movements':profile.modality==='face'?'saved face & head profile':'saved one-hand profile')+'. Setup may be assisted. Recognition learns your examples; it does not recognize every possible movement.</p>';
 }
 function writeView(){
  return heading('Make yourself heard.','Choose letters, make corrections, and speak when you’re ready.')+'<div id="environment-picker"></div><div id="writer-status"></div><div class="card composer-card"><div class="composer-head"><span>YOUR MESSAGE <small id="draft-status"></small></span><span id="word-count">0 words</span></div><div id="message" class="message" role="log" aria-label="Composed message" aria-live="polite"></div><div class="composer-bottom"><span id="focus-label"></span><div class="button-row">'+btn('Copy','copy','small secondary')+btn('Speak ↗','speak','small')+'</div></div></div><div id="keyboard" class="keyboard" aria-label="Accessible keyboard"></div><div id="writer-help"></div><div class="button-row" id="writer-actions" style="margin-top:15px">'+btn('Next →','manual-next','secondary')+btn('Select ↵','manual-select','secondary')+btn('Keyboard settings','writer-settings','secondary')+btn('Focus view','focus','secondary')+'</div><p class="small-text muted" style="margin-top:14px">Pointer buttons are available for setup and preview. Camera input is labeled separately. Speech uses a local browser voice when one is available.</p><div class="speech-state" id="speech-status" role="status"></div>';
@@ -518,24 +519,20 @@ function endTask(token){if(token!==task)return;busy=false;teachingPhase=null;rec
 async function recordRest(){
  if(!requireCamera())return;const token=beginTask(),samples=[];
  try{
-  await waitPhase(3000,'Get comfortable','Rest naturally. Keep your '+(profile.modality==='hand'?'hand':'face')+' visible.',token);
+  await waitPhase(3000,'Get comfortable','Rest naturally. Keep the face or hands you plan to use comfortably in view.',token);
   const start=performance.now();recording={frames:[],total:0,tracked:0};let seen=0;
   while(performance.now()-start<12000){if(token!==task)throw new Error('Cancelled');progress('Just be yourself','Blink and move naturally. '+Math.ceil((12000-performance.now()+start)/1000)+' seconds remaining.',(performance.now()-start)/12000);await sleep(400);if(recording.frames.length-seen>=4){samples.push(summarizeCapture(recording.frames.slice(seen)));seen=recording.frames.length;}}
   if(samples.length<12||recording.tracked/Math.max(1,recording.total)<0.85)throw new Error('The camera lost tracking too often. Keep yourself visible and record rest again.');
   profile.rest=samples;changed();toast('Rest learned. Now teach your first deliberate movement.');
  }catch(e){if(token===task)toast(e.message);}finally{endTask(token);}
 }
-function summarizeCapture(frames){
- const sample=summarize(frames);
- if(profile?.modality==='combined')for(const c of CHANNELS)if(frames.some(v=>v[c.mask]<1)){sample.vector[c.mask]=0;for(const i of channelIndices(c)){sample.vector[i]=0;sample.spread[i]=0;}}
- return sample;
-}
+function summarizeCapture(frames){return profile?.modality==='combined'?summarizeVisible(frames):summarize(frames);}
 async function recordGesture(id){
  if(!requireCamera())return;const g=profile.gestures.find(g=>g.id===id);if(!g)return;const token=beginTask(),samples=[];
  try{
   for(let i=0;i<5;i++){
    recording={frames:[],total:0,tracked:0};
-   await waitPhase(2500,'Return to rest','Example '+(i+1)+' of 5 · Keep the parts you will use visible and relaxed. For swipes, use the same starting pose.',token);
+   await waitPhase(2500,'Return to rest','Example '+(i+1)+' of 5 · For hand symbols, keep your hands visible in a relaxed pose, different from your symbol. Wait for Now to make the symbol. For swipes, use the same starting pose.',token);
    const neutralFrames=recording.frames;recording=null;
    const neutral=neutralFrames.length>=6?summarizeCapture(neutralFrames.slice(-Math.max(6,Math.floor(neutralFrames.length*.6)))):null;
    await waitPhase(2000,'Get ready: '+g.name,g.kind==='motion'?'Wait for Now. Make one movement, then pause at its endpoint.':'Perform your movement when recording begins.',token);
@@ -552,10 +549,10 @@ async function recordGesture(id){
    }
    if(neutral)sample.neutral=neutral;samples.push(sample);
   }
-  const previous=g.samples;g.samples=samples;
-  try{if(profile.modality==='combined'&&profile.gestures.filter(x=>x.enabled!==false).every(x=>x.samples.length>=3))trainCombined(profile);}
-  catch(e){g.samples=previous;throw e;}
-  changed();toast('Five examples saved for '+g.name+'. Test fresh attempts next.');
+  const previous=g.samples,previousChannels=g.trainedChannels;g.samples=samples;
+  try{if(profile.modality==='combined'){const learned=trainCombined({...profile,gestures:[{...g,enabled:true}]});g.trainedChannels=learned.entries[0].channels.map(c=>c.name);if(profile.gestures.filter(x=>x.enabled!==false).every(x=>x.samples.length>=3))trainCombined(profile);}}
+  catch(e){g.samples=previous;g.trainedChannels=previousChannels;throw e;}
+  changed();toast('Five examples saved for '+g.name+(g.trainedChannels?.length?' · Learned: '+g.trainedChannels.join(' + '):'')+'. Test fresh attempts next.');
  }catch(e){if(token===task)toast(e.message);}finally{endTask(token);}
 }
 async function validateGesture(){
@@ -733,7 +730,7 @@ document.addEventListener('change',async e=>{
 
  if(e.target.name==='action'&&e.target.closest('#gesture-form'))$('#insert-text-field').hidden=e.target.value!=='insert';
  if(e.target.id==='profile-select')selectProfile(e.target.value);
- if(e.target.id==='import-file'){try{const file=e.target.files[0];if(!file)return;const p=importProfile(await file.text());profiles.push(p);persist();selectProfile(p.id);toast('Profile imported. Check recognition in your current camera setup.');}catch(err){toast('Import failed: '+err.message);}}
+ if(e.target.id==='import-file'){try{const file=e.target.files[0];if(!file)return;const p=upgradeFaceProfile(importProfile(await file.text()));profiles.push(p);persist();selectProfile(p.id);toast('Profile imported. Check recognition in your current camera setup.');}catch(err){toast('Import failed: '+err.message);}}
 });
 document.addEventListener('keydown',e=>{
  if(flowWriting()||chordWriting()||cirrinWriting()||airWriting()||fingerWriting()||view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;

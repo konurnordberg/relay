@@ -3,6 +3,16 @@
 
 Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held poses and short movements, then turns recognized signals into controls for writing and speaking original text.
 
+## Fixed in 1.7.1 — Teach hand symbols
+
+Teaching and Classic recognition now use the CPU hand detector already used by the hand environments. Old face-only profiles automatically expand to face + both hands, preserving their identifiers, actions, examples and drafts. The pre-upgrade collection is backed up in this browser; prior accuracy records remain historical because the recognizer revision changes.
+
+Held-pose recordings summarize each visible body part independently, retaining a channel with at least 75% coverage and three observations. Missing landmarks never become zero-valued training examples. A badly lost example produces a specific retry message. Hand shapes using the same channels train as competing classes; a learned two-hand combination takes precedence over a matching one-hand constituent. Unrelated simultaneous signals still abstain.
+
+To add a hand symbol: enable the camera in **Teach gestures**, check the hand indicator is green, add a gesture with **Hold a pose**, then alternate a visible relaxed hand with your symbol when prompted. Keep the hand visible during the relaxed portion as well. The saved gesture shows **Learned: Left hand / Right hand / Face**. Existing face rest is sufficient to start; each new symbol also records its own relaxed examples. Retrain hand symbols whose old recordings discarded the hands.
+
+Validation: unit regressions cover face-profile conversion, hand-only and two-hand classification, competing finger shapes, dropouts and rejection. `tests/hand-teaching-browser.mjs` exercises the complete five-example teaching flow, existing face gestures, camera writing and reload with controlled landmarks. Real bundled MediaPipe is separately checked on public hand photographs; these checks are not a measured user accuracy claim.
+
 ## New in 1.7 — Flow and a shared vision pen
 
 **Flow** is continuous word entry on a QWERTY layout. Trace the letters of an arbitrary dictionary word in one movement; lift to decode and insert it. It uses 20,000 local word/frequency pairs, arc-length resampling, endpoint and path-distance scoring, and banded dynamic time warping in a dedicated worker. Personal vocabulary joins the candidate set. There is no sentence-shortcut lookup or LLM-generated message.

@@ -14,7 +14,7 @@ function inferChannels(profile,g){
  const scores=CHANNELS.map(c=>{
   const samples=g.samples.filter(s=>hasChannels(s.vector,[c])&&(!moving||s.sequence?.every(v=>hasChannels(v,[c]))));
   const rest=neutral.filter(s=>hasChannels(s.vector,[c]));
-  if(samples.length!==g.samples.length||rest.length<3)return {c,score:0};
+  if(samples.length<3||rest.length<3)return {c,score:0};
   const center=mean(rest.map(s=>s.vector));
   const values=channelIndices(c).map(i=>{
    const noise=Math.sqrt(rest.reduce((t,s)=>t+(s.vector[i]-center[i])**2+(s.spread?.[i]||0)**2,0)/rest.length);
@@ -26,18 +26,33 @@ function inferChannels(profile,g){
  const best=Math.max(...scores.map(s=>s.score));
  const channels=scores.filter(s=>s.score>=Math.max(1.1,best*.3)).map(s=>s.c);
  if(!channels.length)throw new Error(g.name+': no distinct signal with visible resting examples. Keep the parts you use visible during rest and recording, then try again.');
+ for(const c of channels){
+  const missing=g.samples.findIndex(s=>!hasChannels(s.vector,[c])||(moving&&!s.sequence?.every(v=>hasChannels(v,[c]))));
+  if(missing>=0)throw new Error(g.name+': '+c.name+' lost tracking in example '+(missing+1)+'. Keep it visible for the whole recording and try again.');
+ }
  return channels;
 }
 export function trainCombined(profile){
  if(profile.rest.length<3)throw new Error('Record your resting behavior first.');
  const gestures=profile.gestures.filter(g=>g.enabled!==false);
  if(!gestures.length||gestures.some(g=>g.samples.length<3))throw new Error('Each enabled gesture needs at least 3 separate examples.');
- const entries=gestures.map(g=>{
-  const channels=inferChannels(profile,g),indices=channels.flatMap(channelIndices),neutral=neutralSamples(profile,g).filter(s=>hasChannels(s.vector,channels));
+ const definitions=gestures.map(g=>({g,channels:inferChannels(profile,g)}));
+ const sameChannels=(a,b)=>a.length===b.length&&a.every(c=>b.includes(c));
+ const poseModels=new Map();
+ const entries=definitions.map(({g,channels})=>{
+  const indices=channels.flatMap(channelIndices),neutral=neutralSamples(profile,g).filter(s=>hasChannels(s.vector,channels));
   if(neutral.length<3)throw new Error(g.name+': record rest with all contributing parts visible.');
   const entry={id:g.id,label:g.name,channels,kind:g.kind||'pose',examples:g.samples.length};
   if(entry.kind==='motion')return {...entry,...trainMotion(g,channels,neutral)};
-  const binary=trainPose({rest:neutral.map(s=>pickSample(s,indices)),gestures:[{...g,samples:g.samples.map(s=>pickSample(s,indices))}]});
+  // Learn competing hand shapes together. Independent gesture-vs-rest models
+  // can select only the shared extended fingers and confuse two with five.
+  const key=channels.map(c=>c.mask).join(',');
+  if(!poseModels.has(key)){
+   const peers=definitions.filter(d=>d.g.kind!=='motion'&&sameChannels(d.channels,channels)).map(d=>d.g);
+   const resting=peers.flatMap(p=>neutralSamples(profile,p)).filter(s=>hasChannels(s.vector,channels));
+   poseModels.set(key,trainPose({rest:resting.map(s=>pickSample(s,indices)),gestures:peers.map(p=>({...p,samples:p.samples.map(s=>pickSample(s,indices))}))}));
+  }
+  const binary=poseModels.get(key);
   return {...entry,indices,binary};
  });
  return {combined:true,dim:COMBINED_DIM,entries,warnings:entries.filter(e=>e.kind==='motion').length?['Movement gestures are experimental. Test new attempts and everyday rest before relying on them.']:[]};
@@ -47,7 +62,10 @@ export function predictCombined(model,vector){
  const available=model.entries.filter(e=>hasChannels(vector,e.channels));
  if(!available.length)return {id:UNKNOWN,reason:'Bring the parts used by a learned gesture into view',score:0};
  const poses=available.filter(e=>e.kind==='pose').map(e=>({e,result:predictPose(e.binary,project(vector,e.indices))}));
- const hits=poses.filter(p=>p.result.id===p.e.id);
+ const matches=poses.filter(p=>p.result.id===p.e.id);
+ // A deliberately learned combination takes precedence over its matching
+ // constituent pose. Unrelated simultaneous signals still abstain.
+ const hits=matches.filter(p=>!matches.some(q=>q.e.channels.length>p.e.channels.length&&p.e.channels.every(c=>q.e.channels.includes(c))));
  if(hits.length>1)return {id:UNKNOWN,reason:'More than one signal matches — return to rest',score:0};
  if(hits.length)return {...hits[0].result,label:hits[0].e.label};
  const resting=poses.some(p=>p.result.id===REST)||available.some(e=>e.kind==='motion'&&motionNeutral(e,vector));

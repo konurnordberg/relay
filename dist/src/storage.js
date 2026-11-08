@@ -17,6 +17,7 @@ export function validateProfile(p){
  const ids=new Set();
  for(const g of p.gestures){
   if((typeof g.id!=='string'||!/^[-a-zA-Z0-9_]{1,80}$/.test(g.id))||g.id.startsWith('__')||ids.has(g.id)||typeof g.name!=='string'||g.name.length>80||!Array.isArray(g.samples)||g.samples.length>40||!g.samples.every(sampleOK))throw new Error('Invalid gesture examples.');
+  if(g.trainedChannels!==undefined&&(!Array.isArray(g.trainedChannels)||g.trainedChannels.length>3||g.trainedChannels.some(c=>!['Face','Left hand','Right hand'].includes(c))))throw new Error('Invalid learned signal channels.');
   if(g.kind!==undefined&&!['pose','motion'].includes(g.kind))throw new Error('Invalid gesture kind.');
   if(g.kind==='motion'&&p.modality!=='combined')throw new Error('Movement gestures need an all-signals profile.');
   for(const s of g.samples){
@@ -47,3 +48,12 @@ export function loadProfiles(){const raw=localStorage.getItem(KEY);if(!raw)retur
 export function saveProfiles(profiles){profiles.forEach(validateProfile);localStorage.setItem(KEY,JSON.stringify(profiles));}
 export function exportProfile(profile){validateProfile(profile);return JSON.stringify(profile,null,2);}
 export function importProfile(text){if(text.length>5_000_000)throw new Error('Profile file is too large.');const p=validateProfile(JSON.parse(text));p.id=crypto.randomUUID();p.name=p.name.slice(0,65)+' (imported)';return p;}
+
+export function upgradeFaceProfile(profile){
+ validateProfile(profile);
+ if(profile.modality!=='face')return profile;
+ const embed=(values,mask)=>{const out=Array(201).fill(0);out[0]=mask;out.splice(3,60,...values);return out;};
+ const convert=s=>({...s,vector:embed(s.vector,1),spread:s.spread?embed(s.spread,0):undefined,...(s.neutral?{neutral:convert(s.neutral)}:{})});
+ return validateProfile({...profile,modality:'combined',featureVersion:2,upgradedFrom:'face',revision:(profile.revision||0)+1,
+  rest:profile.rest.map(convert),gestures:profile.gestures.map(g=>({...g,samples:g.samples.map(convert)}))});
+}

@@ -96,3 +96,78 @@ test('motion reports progress for scan freezing; a long pose lock needs sustaine
  assert.equal(faceGate.locked.id,'face');faceGate.updateFrame(base(),t+=70);
  assert.equal(faceGate.locked.id,'face');assert.equal(faceGate.armed,false);
 });
+import {summarizeVisible} from '../dist/src/teaching.js';
+import {upgradeFaceProfile} from '../dist/src/storage.js';
+import {hand} from './hand-fixture.mjs';
+import {extendedHandFeatures} from '../dist/src/camera.js';
+import {train,predict} from '../dist/src/core.js';
+
+test('a missed hand frame does not erase the symbol or average absent zeros into a pose',()=>{
+ const v=combineFeatures(Array(60).fill(.03),[extendedHandFeatures(hand(2)),null]);
+ const frames=Array.from({length:20},()=>[...v]);
+ for(const i of [4,9,16]){frames[i][1]=0;frames[i].fill(0,63,132);}
+ const s=summarizeVisible(frames);assert.equal(s.vector[1],1);assert.equal(s.coverage[1],.85);
+ for(let i=63;i<132;i++){assert.ok(Math.abs(s.vector[i]-v[i])<1e-10);assert.ok(s.spread[i]<1e-10);}
+ assert.equal(s.vector[2],0);assert.ok(s.vector.slice(132).every(x=>x===0));
+ for(let i=0;i<12;i++)frames[i][1]=0;
+ assert.equal(summarizeVisible(frames).vector[1],0);
+});
+
+test('existing face examples migrate losslessly, then hand symbols learn in the same profile',()=>{
+ const old=createProfile('Existing face vocabulary','face');
+ const rest=Array(60).fill(.03),smile=[...rest];smile[5]=.85;
+ old.rest=Array.from({length:5},()=>summary(rest));
+ old.gestures=[{id:'face',name:'Face signal',action:'select',value:'',samples:Array.from({length:5},()=>summary(smile))}];
+ old.trials=[{kind:'attempt',at:'2026-11-07',revision:0,passed:true}];
+ const before=JSON.stringify(old),upgraded=upgradeFaceProfile(old);
+ assert.equal(JSON.stringify(old),before);assert.equal(upgraded.id,old.id);assert.equal(upgraded.revision,1);
+ assert.deepEqual(upgraded.trials,old.trials);assert.deepEqual(upgraded.gestures[0].samples[0].vector.slice(3,63),smile);
+ assert.equal(upgradeFaceProfile(upgraded),upgraded);assert.equal(predict(train(old),smile).id,'face');
+ const neutral=combineFeatures(rest,[extendedHandFeatures(hand(0)),null]);
+ const symbol=combineFeatures(rest,[extendedHandFeatures(hand(2)),null]);
+ const samples=Array.from({length:5},()=>{
+  const frames=Array.from({length:20},()=>[...symbol]);frames[9][1]=0;frames[9].fill(0,63,132);
+  return {...summarizeVisible(frames),neutral:summarizeVisible(Array.from({length:20},()=>neutral))};
+ });
+ upgraded.gestures.push({id:'hand',name:'Peace sign',action:'insert',value:'hi',kind:'pose',samples});
+ const m=trainCombined(upgraded);assert.deepEqual(m.entries[1].channels.map(c=>c.name),['Left hand']);
+ assert.equal(predictCombined(m,symbol).id,'hand');assert.equal(predictCombined(m,combineFeatures(smile,[null,null])).id,'face');
+ assert.equal(predictCombined(m,neutral).id,REST);
+ const noFace=[...symbol];noFace[0]=0;noFace.fill(0,3,63);assert.equal(predictCombined(m,noFace).id,'hand');
+ noFace[1]=0;assert.notEqual(predictCombined(m,noFace).id,'hand');
+ assert.equal(importProfile(exportProfile(upgraded)).gestures.length,2);
+});
+
+test('two-hand teaching works without a face and tolerates brief independent dropouts',()=>{
+ const neutral=combineFeatures(null,[extendedHandFeatures(hand(0)),extendedHandFeatures(hand(0,{mirror:true}))]);
+ const symbol=combineFeatures(null,[extendedHandFeatures(hand(2)),extendedHandFeatures(hand(5,{mirror:true}))]);
+ const p=createProfile('Hands only');p.rest=Array.from({length:5},()=>summary(neutral));
+ const frames=Array.from({length:24},()=>[...symbol]);frames[8][1]=0;frames[15][2]=0;
+ p.gestures=[{id:'both',name:'Both hands',action:'next',value:'',samples:Array.from({length:5},()=>({...summarizeVisible(frames),neutral:summary(neutral)}))}];
+ const m=trainCombined(p);assert.deepEqual(m.entries[0].channels.map(c=>c.mask),[1,2]);
+ assert.equal(predictCombined(m,symbol).id,'both');
+ const missing=[...symbol];missing[2]=0;assert.notEqual(predictCombined(m,missing).id,'both');
+});
+
+test('one badly lost hand example produces a specific retry instead of learning incidental face motion',()=>{
+ const p=fixture([pose('hand',[75])]);
+ for(const s of p.gestures[0].samples)s.vector[8]=.18;
+ const lost=p.gestures[0].samples[2];lost.vector[1]=0;lost.vector.fill(0,63,132);
+ assert.throws(()=>trainCombined(p),/Left hand lost tracking in example 3/);
+});
+
+test('competing one-hand symbols distinguish each finger count rather than shared extended fingers',()=>{
+ const vector=n=>combineFeatures(null,[extendedHandFeatures(hand(n)),null]);
+ const p=createProfile('Finger shapes');p.rest=Array.from({length:5},()=>summary(vector(0)));
+ p.gestures=Array.from({length:5},(_,k)=>({id:'shape'+(k+1),name:'Shape '+(k+1),action:'insert',value:String(k+1),samples:Array.from({length:5},()=>({...summary(vector(k+1)),neutral:summary(vector(0))}))}));
+ const m=trainCombined(p);for(let n=1;n<=5;n++)assert.equal(predictCombined(m,vector(n)).id,'shape'+n);
+ assert.equal(predictCombined(m,vector(0)).id,REST);
+});
+
+test('a learned two-hand combination wins over a constituent; unrelated simultaneous signals abstain',()=>{
+ const p=fixture([pose('left',[75]),pose('both',[75,145]),pose('face',[8])]);
+ const m=trainCombined(p),both=base();both[75]=both[145]=.85;
+ assert.equal(predictCombined(m,both).id,'both');
+ both[2]=0;assert.equal(predictCombined(m,both).id,'left');
+ both[8]=.85;assert.equal(predictCombined(m,both).id,UNKNOWN);
+});

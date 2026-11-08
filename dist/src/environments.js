@@ -1,6 +1,6 @@
 // Registry keeps communication layouts independent of saved gesture vocabularies.
 export const ENVIRONMENTS=Object.freeze([
- {id:'classic',cameraMode:'profile',handDelegate:'GPU',name:'Classic keyboard',description:'Your learned gestures: Next, Select, and direct text.'},
+ {id:'classic',cameraMode:'profile',handDelegate:'CPU',name:'Classic keyboard',description:'Your learned gestures: Next, Select, and direct text.'},
  {id:'finger-grid',cameraMode:'combined',handDelegate:'CPU',name:'Finger grid',description:'Two hands, six counts each. Choose a row and a column.'},
  {id:'air-letters',cameraMode:'hands',handDelegate:'CPU',name:'Air letters',description:'Trace a letter with your fingertip. Local handwriting AI reads the strokes.'},
  {id:'cirrin',cameraMode:'hands',handDelegate:'CPU',name:'Cirrin ring',description:'One continuous stroke per word. Visit letters around the circular keyboard.'},
