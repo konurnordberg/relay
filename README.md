@@ -1,3 +1,9 @@
+## Relay 2.3.2 — Consistent signal analyzer
+
+Inside the recognizer now shows the same observed gesture as Current gesture beneath the camera. Hold/rest instructions still come from the action gate, so a recognized pose stays visible while waiting to rearm instead of being mislabeled uncertain. Recognition thresholds and action gating are unchanged.
+
+The browser regression covers legacy face recordings and combined face/hand poses before rest, during hold, after selection lock, through unknown input and tracking loss, and when the camera stops. The analyzer remains non-writing.
+
 ## Relay 2.3.1 — Deleted drafts stay deleted
 
 Deleting the currently remembered Creator draft now clears the editor document, undo history, preview, and publication state after storage deletion succeeds. Returning from Home opens the library, and sign-in cannot save the deleted in-memory copy again. Deleting another draft or uninstalling a separate installed copy preserves the active draft.

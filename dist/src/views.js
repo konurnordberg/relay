@@ -15,13 +15,18 @@ export function studioView(profile,model,report={excluded:[],readyIds:[]}){
  '<div class="button-row" style="margin-top:18px"><button class="button" data-action="nav-check">Measure new attempts →</button><button class="button secondary" data-action="nav-write">Write & speak</button></div></section>'+
  '<section class="local-architecture"><span>Camera</span><b>→</b><span>Visual features</span><b>→</b><span>Your examples</span><b>→</b><span>Intent gate</span><b>→</b><span>Your words</span></section>';
 }
-export function liveInsightHTML(model,vector,result,gate,latency){
+export function liveInsightHTML(model,vector,result,gate,latency,decision=result){
  if(!model)return '<div class="empty-state">Complete calibration to build your personal recognizer.</div>';
  const matches=rankedMatches(model,vector);
- const state=!vector?'Tracking lost':result.id===REST?'Rest — no selection':result.id===UNKNOWN?'Uncertain — no selection':gate.armed?'Hold to select':'Return to rest';
- return '<div class="decision-state '+(result.id===UNKNOWN?'uncertain':'')+'"><span class="eyebrow">CURRENT DECISION</span><strong>'+esc(state)+'</strong><p>'+esc(!vector?'Nothing will be selected until tracking and rest are recovered.':result.reason||'A learned pose or completed movement is required before an action.')+'</p></div>'+
+ // Recognition and permission to fire an action are separate: a held known pose
+ // remains recognized even while the gate requires a return to rest.
+ const matched=!!vector&&result.id!==REST&&result.id!==UNKNOWN;
+ const label=result.label||model.entries?.find(e=>e.id===result.id)?.label||model.classes?.find(c=>c.id===result.id)?.label||'Recognized gesture';
+ const state=!vector?'Tracking lost':result.id===REST?'Rest — no selection':!matched?'Uncertain — no selection':label;
+ const reason=!vector?'Nothing will be selected until tracking and rest are recovered.':matched?(decision.reason||(gate.armed?'Hold to select.':'Return to rest before selecting again.')):result.reason||decision.reason||'A learned pose or completed movement is required before an action.';
+ return '<div class="decision-state '+(vector&&result.id===UNKNOWN?'uncertain':'')+'"><span class="eyebrow">CURRENT GESTURE</span><strong>'+esc(state)+'</strong><p>'+esc(reason)+'</p></div>'+
  '<div class="match-list">'+(model.combined&&model.entries.some(e=>e.kind==='motion')?'<p class="small-text muted">Movement signals are matched over time. Pause at the endpoint, then return to the learned starting pose.</p>':'')+matches.map(m=>'<div class="match-row"><div><span>'+esc(m.label)+'</span><small>'+m.distance.toFixed(2)+' / '+m.limit.toFixed(2)+' limit</small></div><div class="match-track"><i style="width:'+Math.max(0,100*(1-m.distance/(m.limit*2)))+'%"></i></div></div>').join('')+'</div>'+
- '<div class="signal-pipeline"><span class="'+(vector?'lit':'')+'">1 · Tracking</span><span class="'+(result.id!==UNKNOWN&&result.id!==REST?'lit':'')+'">2 · Match</span><span class="'+(gate.armed?'lit':'')+'">3 · Armed</span></div>'+
+ '<div class="signal-pipeline"><span class="'+(vector?'lit':'')+'">1 · Tracking</span><span class="'+(matched?'lit':'')+'">2 · Match</span><span class="'+(gate.armed?'lit':'')+'">3 · Armed</span></div>'+
  '<p class="small-text muted" style="margin:14px 0 0">'+Math.round(latency||0)+' ms vision frame · Distances are not confidence probabilities.</p>';
 }
 export function vocabularyView(profile){

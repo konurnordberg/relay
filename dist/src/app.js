@@ -561,7 +561,7 @@ function onFrame(frame){
   $('#signal-name').textContent=!frame.vector?'No tracking':!model?'Ready to learn':observed.id===REST?'Resting':observed.id===UNKNOWN?'Uncertain — no action':observed.label||profile?.gestures.find(g=>g.id===observed.id)?.name||'Uncertain';
   $('#signal-detail').textContent=!frame.vector?'Move into view':model?(gate.armed?'Ready':'Return to rest'):Math.round(frame.latency)+' ms';
   $('#signal-meter').style.width=(gate.progress*100)+'%';
-  if(view==='studio'&&$('#live-insights'))$('#live-insights').innerHTML=liveInsightHTML(model,frame.vector,result,gate,frame.latency);
+  if(view==='studio'&&$('#live-insights'))$('#live-insights').innerHTML=liveInsightHTML(model,frame.vector,observed,gate,frame.latency,result);
  }
 }
 function dispatchGesture(g){if(customWriting()){customRuntime?.gesture(g.action,g.value);return;}const before=composer.text;let effect;if(g.action==='next')composer.next();else if(g.action==='select')effect=composer.select();else effect=composer.direct(g.action,g.value);if(g.action==='insert'&&composer.text!==before)lastGestureMessage='Wrote “'+g.value+'” with '+g.name+'.';handleEffect(effect);renderWriter();}
