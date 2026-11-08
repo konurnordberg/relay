@@ -1,52 +1,58 @@
-# Creator space and private environment feed
+# Creator space: components, mappings, and rules
 
-Relay now has two spaces. **User space** keeps the existing communication tools. **Creator space** builds reusable environments from layouts, controls, and local recognition models. **Environment feed** shares published environments inside the existing private app, with upvotes, downvotes, installation, and remixing.
+Creator now starts with a blank canvas. There is no dial, table, or swipe-keyboard component. Those interfaces are compositions of lower-level parts. Existing environments remain usable in User space; opening an old environment in Creator converts its layout to editable components without changing its installed copy.
 
-## First run: build the rotating dial
+## Build the hand-turned wheel from scratch
 
-1. Open **Creator space → New environment**.
-2. Name the environment, then add **Character dial**.
-3. Choose **Fill with → A–Z**.
-4. In Block settings, choose **Control with → Hand rotation**. The compatible MediaPipe Hands model is selected automatically.
-5. Start with a 1,000 ms hold and 120 degrees per full dial turn. Adjust the range and direction for comfort.
-6. Choose **Start camera preview**. Show a palm facing the camera, with the wrist and knuckles visible. Select **Center hand rotation**, then tilt the hand in the camera plane, as if turning a knob. The highlighted character sits under the top marker.
-7. Hold to select once; move to another choice before selecting again. Tracking loss cancels the pending hold. After a page or confirmation change, make a fresh movement.
-8. Test the separate preview message. **Use environment** installs a snapshot and opens User space; its text joins the normal message composer. Speaking and clearing still need confirmation.
-9. Return to the editor and choose **Publish to feed**, review what will be shared, and confirm. This does not change the app's private audience.
+1. Open **Creator space → New environment** and name it.
+2. In **Add choices**, choose **A–Z**. Each letter is a separate text choice in a group.
+3. Select **Arrange → Circle**, then **Arrange**. This places the letters once. You can still drag any letter anywhere afterward. Click a single letter before dragging it; Shift-select moves several choices together.
+4. Add a **Selection target** from Components. Drag the + marker near the top of the circle, or use Target X `0.5`, Target Y `0.14`, and reach `0.08`.
+5. In **Inputs → properties**, choose **Connect an input**. Set **Input signal → Hand rotation**, **Property → Group rotation**, and **Target group → Choices**.
+6. The default mapping uses a comfortable hand range of −60° to +60° to rotate the group from −180° to +180°. Reverse the output endpoints if the direction feels backward. These are ordinary editable signal ranges, not a dial-specific setting.
+7. Set **Selection rule → Choice nearest a fixed target** and begin with a 900–1,000 ms hold.
+8. Start camera preview. Show your palm and wrist, select **Center inputs**, then tilt your hand in the camera plane. The group rotates; the closest choice within the target's reach highlights. Hold to select once. Move away before another selection.
+9. **Use environment** installs a snapshot in User space. Text joins the existing message composer. Speaking and clearing still ask for confirmation.
 
-Start with six large choices while rehearsing if 26 dial targets feel too close together. The rotation range, timing, labels, order, and outputs are editable. The dial uses wrist-to-knuckle orientation, not gaze tracking or a brain interface.
+The same components can create a sliding strip: arrange choices in a horizontal line, put the target in the center, and map **Hand horizontal position → Group horizontal offset**. Or map finger count to **Highlighted choice index** while leaving the visual arrangement entirely free.
 
-## Building blocks
+## The visual language
 
-| Layout | Useful controls and behavior |
+| Part | What the creator controls |
 | --- | --- |
-| Character table | Learned Next/Select gestures, automatic scanning, one- or two-hand finger counts, rotation, fingertip hover, pointer |
-| Character dial | Rotation and dwell, exact letter-path tracing, hover, scanning, pointer |
-| Drawing pad | Local neural A–Z recognition or a personal sketch matcher trained with 2–5 examples per symbol |
-| Swipe keyboard | Local whole-word path recognition using the creator's actual key positions; additional vocabulary is editable |
-| Free layout | Position choices by dragging or numeric coordinates; combine with selection or path controls |
+| Text choice | Label, text or action, position, size, group, ordering |
+| Text label | Non-selectable display text |
+| Group | Pivot, position, rotation, scale, parent group; groups can be nested |
+| Selection target | Position and reach; it can be dragged independently of choices |
+| Drawing surface | Neural A–Z recognition or personal symbols taught with 2–5 examples |
+| Input mapping | Signal → property, input range → output range, optional range limiting |
+| Selection rule | Click/tap, nearest target, pointer hit, mapped index, Next/Select, exact path, or word path |
+| Optional condition | Allow camera selection only while another measured signal is in a specified range |
 
-A choice can insert arbitrary text, add space, delete, undo, change case, request speech, pause, open a page, or focus another block. Page links extend the number of choices. Drag blocks or choices to reorder them; keyboard-accessible move buttons are provided. Drafts have edit undo/redo. A page can display multiple blocks; only the active block receives camera input.
+Mappings can drive group rotation, horizontal/vertical offsets, scale, pointer coordinates, or a choice index. Signals include hand rotation, horizontal/vertical position, one-hand finger count, each side's count, and a combined two-hand index. Multiple mappings may control different properties; contradictory mappings to the same property are rejected. A primary-hand setting keeps position and rotation on a consistent hand.
 
-The seven editable starters cover the six existing input patterns plus the rotating dial. They use the same document format and runtime as blank creations. The original specialized environments remain available, including their extra prediction, timing, and benchmark features.
+Grid, line, column, and circle are **one-time arrangement operations**, not fixed layouts. Every position remains editable. Group operations preserve free positions; nested group transforms are resolved at runtime. Snap-to-grid, numeric fields, move-order buttons, keyboard arrows, and undo/redo complement dragging.
 
-Personal gesture scanning uses the selected person's existing calibration. Camera landmark extraction is always the bundled MediaPipe pipeline; the model selector chooses a compatible downstream function. The current registry contains built-in models, not arbitrary uploaded code or neural models. Personal sketch matching is geometric example matching, not neural-model training.
+Selection and appearance are separate. A circular arrangement may scan, a free arrangement may use finger counts, or a group may translate and rotate at the same time. Equal-distance target choices abstain. Missing required tracking cancels the hold; it never substitutes zero for an absent signal. Camera conditions can require, for example, a particular finger count while another input moves the choices.
 
-## Saving and sharing
+Page actions and surface-focus actions combine multiple canvases or drawing surfaces. Only the active surface receives camera input. Text actions include arbitrary Unicode, space, delete, undo, case, pause, speech requests, and page links. Pointer and keyboard interaction remain available while testing.
 
-- Drafts, installed snapshots, personal calibration, and communication messages remain in this browser. Export packages to move environments between devices or keep backups.
-- **Publish to feed** shares the environment document, text outputs, and any custom sketch examples with people allowed into this private app. It never includes camera video or face/hand calibration.
-- Feed documents and votes are stored in the site's D1 database. One signed-in account has one current vote per environment; clicking it again removes it. Only the publishing account can update or remove a listing. Installed copies survive removal.
-- The site remains owner-private for the demo. Other accounts cannot participate until the owner explicitly grants site access. There are no fabricated creators, downloads, or votes.
-- Publishing is explicit. Autosaving a draft does not publish it or update an installed copy. **Use environment** installs the latest edited copy.
-- Import/export uses a validated data format, with no executable scripts, external model URLs, or embedded profile recordings.
+## Recognition
 
-Current practical bounds: 12 pages, 8 blocks per page, 96 choices per block, 48 custom sketches per block, 80 local drafts/installed packages, 900 KB portable packages, 250 KB feed packages, 30 published environments per account. The feed shows the top 100 listings. This release supports many combinations of these primitives; it does not implement every conceivable interaction.
+All camera processing remains local through the bundled MediaPipe pipeline. The drawing surface selects either the bundled neural handwriting model or the local geometric personal-symbol matcher. Word-path rules decode against the existing 20,000-word vocabulary using the actual component coordinates. Exact-path rules concatenate the choices visited; they do not assume a circle or keyboard.
+
+Personal Next/Select gestures use the selected person's existing calibration. This is a typed visual configuration system. It has no executable expressions, arbitrary uploaded models, or user-defined scripts. New perception signals or property types still need implementation; the current building blocks do not cover every imaginable interaction.
+
+## Saving and private sharing
+
+Drafts, installed snapshots, personal calibration, and communication messages remain on the device. Export packages for backups or moving an environment to another device. Autosaving a draft does not publish or update an installed snapshot.
+
+**Publish to feed** explicitly shares the environment document, outputs, and any personal sketch examples with people allowed into this private app. Camera video and face/hand calibration are excluded. Feed documents and one reversible vote per signed-in account live in the site's database. Only the publisher can update or remove a listing; installed copies survive removal. Relay remains owner-private for this demo, with no fabricated users or votes.
+
+Canvas packages use format version 2; version 1 packages still import and run. Validation checks group references and cycles, typed signal/property names, unique identifiers, bounded values, and compatible rules. Bounds include 12 pages, 8 surfaces per page, 96 choices and 16 groups per canvas, 24 mappings per canvas, 900 KB portable packages, and 250 KB feed packages.
 
 ## Development and validation
 
-Node 24 is used for the local SQLite preview. Run `npm install`, then `npm start` (loopback-only preview). On Windows with a WSL checkout, run the server inside WSL so SQLite uses its native filesystem. Preview data is in ignored `.local/feed-preview.sqlite`; its local identity is never included in the deployed Worker.
+Run `npm test`, `npm run check`, and `npm run build`. Node 24 is used for the SQLite loopback preview. In a Windows/WSL checkout, run the server inside WSL so its ignored `.local/feed-preview.sqlite` uses the native filesystem. The hosted feed uses Sites identity and D1; local preview identity is not deployed.
 
-Run `npm test`, `npm run check`, and `npm run build`. The build preserves the existing buildless client source under `dist/`, copies deployable browser assets to `dist/client`, and bundles the feed Worker to `dist/server/index.js`. `.openai/hosting.json` retains the site ID and declares the logical D1 binding. Schema and immutable generated migrations are under `db/` and `drizzle/`; Sites applies hosted migrations during publication. The server authorizes writes with Sites' injected user identity and rejects cross-origin writes.
-
-Browser checks: `tests/creator-browser.mjs` and `tests/creator-editing-browser.mjs` expect the feed preview on port 4174. They exercise creation from scratch, real local handwriting/word workers, controlled hand geometry, publishing/voting/reloading/remixing, custom sketch teaching, drag/drop, and responsive layouts. Existing teaching, interface, Flow, and point-writing regressions also run. Synthetic hand fixtures validate software behavior; they are not measured live-user recognition accuracy.
+Browser checks use the updated preview on port 4175: `tests/creator-canvas-browser.mjs`, `tests/creator-browser.mjs`, and `tests/creator-editing-browser.mjs`. They cover component construction, arbitrary letter relocation, grouped rotation, translation, conditions, keyboard editing, real local recognition workers, private sharing, and layouts at 320–1440px. Controlled camera fixtures verify software behavior, not live-user recognition accuracy. Rehearse with the actual laptop camera before presenting.

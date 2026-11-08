@@ -3,6 +3,14 @@
 
 Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held poses and short movements, then turns recognized signals into controls for writing and speaking original text.
 
+## New in 2.1 — Composable canvas
+
+Creator starts with **components, input mappings, and selection rules**, rather than environment-specific builders. Place individual choices and labels anywhere, group them, arrange or drag them, and bind signals to group rotation, movement, size, pointer coordinates, or selection indices. Nested groups and optional input-range conditions support combined behaviors without code.
+
+A hand-turned wheel is now a composition: free letters + a group + a rotation mapping + a fixed target + dwell. The same primitives produce sliding strips, finger-indexed arrangements, and other interfaces. Circle/grid/line are one-time arrangement commands; every choice remains freely editable. Drawing surfaces retain selectable local recognition models. Existing version-1 environments still run and can be edited as version-2 component documents. The feed and app remain private.
+
+See [CREATOR.md](CREATOR.md) for the build-from-scratch walkthrough and supported primitives.
+
 ## New in 2.0 — Creator space and private feed
 
 Relay now separates **User space** from **Creator space**. Build communication environments with editable tables, dials, drawing pads, swipe keyboards and free layouts. Choose controls and compatible local models, train custom drawn symbols, preview separately, install, export, and remix. The new **Rotate & hold dial** uses hand orientation to turn a character dial and dwell to select.

@@ -59,5 +59,5 @@ export function hitItem(block,point,positions){
   return i;
  }
  if(block.layout==='grid'){if(point.x<0||point.x>=1||point.y<0||point.y>=1)return null;const i=Math.floor(point.y*block.rows)*block.columns+Math.floor(point.x*block.columns);return i<block.items.length?i:null;}
- const target=positions.find(p=>Math.abs(point.x-p.x)<=p.w/2&&Math.abs(point.y-p.y)<=p.h/2);return target?.i??null;
+ const target=positions.find(p=>p.item?.kind!=='label'&&Math.abs(point.x-p.x)<=p.w/2&&Math.abs(point.y-p.y)<=p.h/2);return target?.i??null;
 }

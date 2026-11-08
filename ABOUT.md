@@ -7,7 +7,7 @@ Built for the **Triangle AI Hackathon 2026 · Computer Vision track**.
 
 ## Creator and User spaces
 
-Relay also lets a helper create a communication environment for someone they know. In Creator space, arrange characters, phrases, pages and drawing areas visually; choose hand controls, learned gestures, or local drawing recognition; and test the result before installing it in User space.
+Relay also lets a helper create a communication environment for someone they know. In Creator space, place characters and phrases freely, group them, connect input signals to properties, and define selection rules; add drawing surfaces with local recognition; and test the result before installing it in User space.
 
 A private environment feed lets people with site access publish, remix, upvote and downvote these creations. The new rotating-hand dial demonstrates the approach: turn a hand like an imaginary knob, then hold a character to select it. Environments are portable, validated documents, so sharing a layout does not share someone's face or hand calibration.
 
