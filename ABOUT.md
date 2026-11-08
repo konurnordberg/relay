@@ -5,6 +5,14 @@ Relay is a camera-based communication prototype that helps people with limited s
 
 Built for the **Triangle AI Hackathon 2026 · Computer Vision track**.
 
+## Creator and User spaces
+
+Relay also lets a helper create a communication environment for someone they know. In Creator space, arrange characters, phrases, pages and drawing areas visually; choose hand controls, learned gestures, or local drawing recognition; and test the result before installing it in User space.
+
+A private environment feed lets people with site access publish, remix, upvote and downvote these creations. The new rotating-hand dial demonstrates the approach: turn a hand like an imaginary knob, then hold a character to select it. Environments are portable, validated documents, so sharing a layout does not share someone's face or hand calibration.
+
+The current builder combines a defined set of layouts and models. It is a foundation for a community of personalized communication tools, not a promise to support every possible language or movement.
+
 ## Inspiration
 
 People have different abilities, comfortable movements, and levels of control. A raised eyebrow might be reliable for one person; a hand movement might work better for another. Those abilities can also change with fatigue or over time.

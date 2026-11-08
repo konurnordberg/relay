@@ -1,5 +1,15 @@
 # Relay — demo and submission kit
 
+## Creator reveal: a focused 90-second extension
+
+1. Keep your proven personalized communication demo first. Show a short new message and confirm speech.
+2. Switch to **Creator space → New environment**. Add a Character dial, fill A–Z, and select Hand rotation. This demonstrates construction from primitives rather than editing a hardcoded screen.
+3. Use a rehearsed rotation range and hold time. Preview one or two characters, then choose **Use environment** to put the new input into the same message workflow.
+4. Publish the environment to the **private Environment feed**, cast a vote, then Remix it. Explain that layout sharing excludes personal face/hand calibration, and that the demo site remains private.
+5. If time permits, show a custom drawn symbol mapped to a phrase, using examples you actually taught. Do not claim arbitrary models or live user accuracy from automated tests.
+
+Keep a saved environment package and a short recorded walkthrough as fallback. Rehearse rotation with your actual laptop camera; begin with six large targets if a full alphabet feels cramped. The full creator guide is [CREATOR.md](CREATOR.md).
+
 ## Pitch
 “Most interfaces ask you to adapt to their controls. Relay lets you teach the computer the movements you can comfortably repeat. It learns your rest, learns your personal signals, and gives you an entire alphabet from just one or two gestures.”
 

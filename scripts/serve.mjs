@@ -1,17 +1,12 @@
 import http from 'node:http';
-import {readFile, stat} from 'node:fs/promises';
+import {readFile,stat,mkdir} from 'node:fs/promises';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
-const root = fileURLToPath(new URL('../dist/', import.meta.url));
+import {localDatabase} from './local-database.mjs';
+import worker from '../worker/index.js';
+const root=fileURLToPath(new URL('../dist/',import.meta.url));await mkdir(new URL('../.local/',import.meta.url),{recursive:true});
+const DB=localDatabase(fileURLToPath(new URL('../.local/feed-preview.sqlite',import.meta.url)));
 const types={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.mjs':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json','.wasm':'application/wasm','.svg':'image/svg+xml','.task':'application/octet-stream','.webmanifest':'application/manifest+json'};
 const port=Number(process.env.PORT||4173);
-http.createServer(async(req,res)=>{
- try{
-  const name=decodeURIComponent(new URL(req.url,'http://localhost').pathname);
-  const target=path.resolve(root,'.'+(name==='/'?'/index.html':name));
-  if(!target.startsWith(root)){res.writeHead(403);res.end();return;}
-  if(!(await stat(target)).isFile())throw new Error('Not a file');
-  res.writeHead(200,{'Content-Type':types[path.extname(target)]||'application/octet-stream','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'});
-  res.end(await readFile(target));
- }catch{res.writeHead(404);res.end('Not found');}
-}).listen(port,'127.0.0.1',()=>console.log('Relay is running at http://localhost:'+port));
+const ASSETS={async fetch(request){try{const name=decodeURIComponent(new URL(request.url).pathname),target=path.resolve(root,'.'+(name==='/'?'/index.html':name)),relative=path.relative(root,target);if(relative.startsWith('..')||path.isAbsolute(relative)||['server','client','.openai'].includes(relative.split(path.sep)[0]))return new Response('Not found',{status:404});if(!(await stat(target)).isFile())throw new Error('Not a file');return new Response(await readFile(target),{headers:{'Content-Type':types[path.extname(target)]||'application/octet-stream','Cache-Control':'no-cache','X-Content-Type-Options':'nosniff'}});}catch{return new Response('Not found',{status:404});}}};
+http.createServer(async(req,res)=>{try{const origin='http://localhost:'+port,headers=new Headers();for(const [key,value]of Object.entries(req.headers)){if(key.startsWith('oai-authenticated-user-'))continue;if(value)headers.set(key,String(value));}headers.set('oai-authenticated-user-id','local-preview-owner');let body;if(!['GET','HEAD'].includes(req.method)){const parts=[];let size=0;for await(const part of req){size+=part.length;if(size>260000){res.writeHead(413);res.end();return;}parts.push(part);}body=Buffer.concat(parts);}const response=await worker.fetch(new Request(origin+req.url,{method:req.method,headers,body}),{DB,ASSETS});res.writeHead(response.status,Object.fromEntries(response.headers));res.end(Buffer.from(await response.arrayBuffer()));}catch{res.writeHead(500);res.end('Preview error');}}).listen(port,'127.0.0.1',()=>console.log('Relay is running at http://localhost:'+port+' (local feed, preview identity only)'));

@@ -2,8 +2,8 @@ export const FLOW_KEYS=Array.from('qwertyuiopasdfghjklzxcvbnm',c=>c);
 export const FLOW_LAYOUT=Object.fromEntries(['qwertyuiop','asdfghjkl','zxcvbnm'].flatMap((row,r)=>Array.from(row,(c,i)=>[c,{x:.05+(i+[0,.5,1.5][r])*.1,y:[.32,.53,.74][r]}])));
 const dist=(a,b)=>Math.hypot(a.x-b.x,(a.y-b.y)*.55);
 const square=(a,b)=>(a.x-b.x)**2+((a.y-b.y)*.55)**2;
-export function wordPath(word){return Array.from(word.toLowerCase().replace(/[^a-z]/g,'')).filter((c,i,a)=>i===0||a[i-1]!==c).map(c=>FLOW_LAYOUT[c]);}
-export function nearestKey(p){return Object.entries(FLOW_LAYOUT).sort((a,b)=>square(a[1],p)-square(b[1],p))[0]?.[0];}
+export function wordPath(word,layout=FLOW_LAYOUT){return Array.from(word.toLowerCase().replace(/[^a-z]/g,'')).filter((c,i,a)=>i===0||a[i-1]!==c).map(c=>layout[c]).filter(Boolean);}
+export function nearestKey(p,layout=FLOW_LAYOUT){return Object.entries(layout).sort((a,b)=>square(a[1],p)-square(b[1],p))[0]?.[0];}
 export function resamplePath(path,n=32){
  if(!path.length)return [];if(path.length===1)return Array.from({length:n},()=>({...path[0]}));
  const lengths=[0];for(let i=1;i<path.length;i++)lengths.push(lengths.at(-1)+dist(path[i-1],path[i]));
@@ -17,13 +17,13 @@ function dtw(a,b){
  return prev[m]/n;
 }
 export class FlowDecoder{
- constructor(entries=[]){this.setWords(entries);}
- setWords(entries){this.entries=entries.map(([word,frequency],rank)=>{const p=wordPath(word);if(!p.length)return null;return {word,frequency,rank,raw:p,path:resamplePath(p),sparse:resamplePath(resamplePath(p,12)),start:p[0],end:p.at(-1),length:pathLength(p)};}).filter(Boolean);}
+ constructor(entries=[],layout=FLOW_LAYOUT){this.layout=layout;this.setWords(entries);}
+ setWords(entries){this.entries=entries.map(([word,frequency],rank)=>{const p=wordPath(word,this.layout);if(!p.length)return null;return {word,frequency,rank,raw:p,path:resamplePath(p),sparse:resamplePath(resamplePath(p,12)),start:p[0],end:p.at(-1),length:pathLength(p)};}).filter(Boolean);}
  decode(points,personal=[]){
   if(!points.length||points.some(p=>!Number.isFinite(p.x)||!Number.isFinite(p.y)))return {candidates:[],quality:'empty'};
   const path=resamplePath(points),len=pathLength(path);
-  if(len<.045){const word=nearestKey(path[0]);return {candidates:[{word,score:0}],quality:'tap',literal:true};}
-  const extras=personal.filter(w=>typeof w==='string'&&/^[a-z]+(?:'[a-z]+)?$/i.test(w)).map((w,i)=>{const word=w.toLowerCase(),p=wordPath(word);return {word,rank:i+30,raw:p,path:resamplePath(p),sparse:resamplePath(resamplePath(p,12)),start:p[0],end:p.at(-1),length:pathLength(p),personal:true};});
+  if(len<.045){const word=nearestKey(path[0],this.layout);return {candidates:[{word,score:0}],quality:'tap',literal:true};}
+  const extras=personal.filter(w=>typeof w==='string'&&/^[a-z]+(?:'[a-z]+)?$/i.test(w)).map((w,i)=>{const word=w.toLowerCase(),p=wordPath(word,this.layout);return {word,rank:i+30,raw:p,path:resamplePath(p),sparse:resamplePath(resamplePath(p,12)),start:p[0],end:p.at(-1),length:pathLength(p),personal:true};});
   const candidates=[],sparse=points.length<22;
   for(const entry of [...extras,...this.entries]){
    const endpoints=square(path[0],entry.start)+square(path.at(-1),entry.end);

@@ -1,11 +1,18 @@
 {
   "name": "relay-personal-voice",
-  "version": "1.8.0",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
     "start": "node scripts/serve.mjs",
-    "test": "node --test tests/core.test.mjs tests/enhancements.test.mjs tests/combined.test.mjs tests/trails.test.mjs tests/vision-lane.test.mjs tests/environments.test.mjs tests/air-writing.test.mjs tests/cirrin.test.mjs tests/chord.test.mjs tests/flow.test.mjs",
-    "check": "node scripts/check.mjs"
+    "test": "node --test tests/core.test.mjs tests/enhancements.test.mjs tests/combined.test.mjs tests/trails.test.mjs tests/vision-lane.test.mjs tests/environments.test.mjs tests/air-writing.test.mjs tests/cirrin.test.mjs tests/chord.test.mjs tests/flow.test.mjs tests/creator.test.mjs",
+    "check": "node scripts/check.mjs",
+    "build": "node scripts/build.mjs",
+    "db:generate": "drizzle-kit generate"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12",
+    "drizzle-kit": "0.31.10",
+    "drizzle-orm": "0.45.2"
   }
 }

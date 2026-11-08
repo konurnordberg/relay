@@ -3,3 +3,8 @@ node_modules/
 .local/
 *.tar.gz
 artifacts/
+
+dist/client/
+dist/server/
+dist/.openai/
+.wrangler/

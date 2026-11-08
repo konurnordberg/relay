@@ -1,3 +1,5 @@
+import {CreatorStudio} from './creator-ui.js';
+import {CreatorRuntime} from './creator-runtime.js';
 import {summarizeVisible} from './teaching.js';
 import {FlowInput} from './flow-input.js';
 import {drawFlow,flowCharacter,flowKeyLabel} from './flow-view.js';
@@ -57,11 +59,36 @@ const chordWriting=()=>view==='write'&&environment==='chord';
 const cirrinWriting=()=>view==='write'&&environment==='cirrin';
 const airWriting=()=>view==='write'&&environment==='air-letters';
 const fingerWriting=()=>view==='write'&&environment==='finger-grid';
-const cameraMode=()=>view==='write'&&environmentById(environment).cameraMode!=='profile'?environmentById(environment).cameraMode:profile?.modality||'combined';
+const cameraMode=()=>creatorView()||customWriting()?'combined':view==='write'&&environmentById(environment).cameraMode!=='profile'?environmentById(environment).cameraMode:profile?.modality||'combined';
 const handDelegate=()=>view==='write'?environmentById(environment).handDelegate:'CPU';
 const startCamera=()=>camera.start(cameraMode(),'',handDelegate());
-function resetInput(){gate.reset();fingerGate.reset();fingerTracker.reset();fingerStatus=null;air.reset();cirrin.reset();chordGate.reset();chordStatus=null;flow.reset();flowLastInsertion=null;}
+function resetInput(){customRuntime?.reset();creator?.runtime?.reset();gate.reset();fingerGate.reset();fingerTracker.reset();fingerStatus=null;air.reset();cirrin.reset();chordGate.reset();chordStatus=null;flow.reset();flowLastInsertion=null;}
 function syncCameraForContext(){if(camera.running&&(camera.mode!==cameraMode()||(camera.handDelegate!==undefined&&camera.handDelegate!==handDelegate())))startCamera();}
+
+let customRuntime=null,customRuntimeKey='';
+const creator=new CreatorStudio({notify:toast,onUse:env=>{setView('write');selectEnvironment('custom:'+env.id);},startPreview:async()=>{if(cameraState!=='ready'||camera.mode!=='combined')await startCamera();if(cameraState!=='ready')throw new Error('Enable the camera before starting a preview.');gate.reset();}});
+const creatorView=()=>view==='creator'||view==='feed';
+const customDocument=()=>environment.startsWith('custom:')?creator.library.get(environment.slice(7)):null;
+const customWriting=()=>view==='write'&&!!customDocument();
+function customAction(item){
+ if(!customWriting())return;
+ if(composer.confirm&&!['cancel','confirm'].includes(item.action)||composer.paused&&item.action!=='resume')return;
+ let type=item.action,value=item.value;
+ if(type==='space'){type='text';value=' ';}if(type==='text'&&composer.caps)value=value.toUpperCase();
+ handleEffect(composer.apply({type,value}));renderWriter();
+}
+function renderCustomWriter(){
+ const doc=customDocument();if(!doc)return;
+ renderMessage();$('#draft-status').textContent=draftNotice;$('#focus-label').textContent=composer.confirm?'Confirm '+composer.confirm:composer.paused?'Paused':doc.name;
+ $('#writer-status').innerHTML='<div class="input-strip"><span>'+esc(live?'Camera input active':'Camera input off')+'</span>'+btn(live?'Stop camera input':'Start camera input',live?'stop-live':'start-live',live?'secondary small':'small',cameraState==='loading'?'disabled':'')+'</div>';
+ const previousKey=customRuntimeKey;const key=doc.id+':'+doc.revision+':'+(composer.confirm||'')+':'+composer.paused;
+ if(customRuntimeKey!==key||!customRuntime){customRuntime?.destroy();let document=doc;
+  if(composer.confirm||composer.paused){document=structuredClone(doc);const base=customRuntime?.block||doc.pages[0].blocks[0],block=structuredClone(base);block.name=composer.paused?'Resume communication':'Confirm '+composer.confirm;block.items=(composer.paused?[{label:'Resume',action:'resume'}]:[{label:'Cancel',action:'cancel'},{label:composer.confirm==='speak'?'Speak now':'Clear message',action:'confirm'}]).map((x,i)=>({...x,id:'guard-'+i,value:'',x:.3+i*.4,y:.5}));block.rows=1;block.columns=block.items.length;block.input.behavior='select';if(block.input.source==='pen'){block.input.source='pointer-hand';block.input.model='hands';}if(!['ring','grid'].includes(block.layout))block.layout='grid';document.pages=[{id:'guard-page',name:block.name,blocks:[block]}];}
+  customRuntime=new CreatorRuntime(document,{onAction:customAction});customRuntimeKey=key;if(previousKey&&previousKey!==key){customRuntime.requireRelease();gate.reset();}
+ }
+ const keyboard=$('#keyboard');keyboard.classList.remove('finger-keyboard');keyboard.classList.add('custom-keyboard');keyboard.setAttribute('aria-label',doc.name);customRuntime.mount(keyboard);
+ $('#writer-help').innerHTML='';$('#writer-actions').innerHTML=btn('Focus view','focus','secondary')+btn('Creator space','nav-creator','secondary');$('#speech-status').textContent=speechStatus;
+}
 
 const actions={select:'Select',next:'Next',delete:'Delete',undo:'Undo',speak:'Speak',pause:'Pause',insert:'Insert text'};
 const navigation=[['home','Get started'],['write','Write & speak'],['teach','Teach gestures'],['check','Check accuracy'],['profiles','Settings'],['studio','Signal details']];
@@ -70,13 +97,13 @@ function persist(){try{saveProfiles(profiles);storageError='';return true;}catch
 function changed(){profile.revision=(profile.revision||0)+1;persist();rebuild();}
 function rebuild(){model=null;modelError='';gate=new EventGate(profile?.settings.holdMs,profile?.settings.restMs);if(profile){try{model=profile.modality==='combined'?trainCombined(profile):train(profile);if(model.combined)gate=new CombinedGate(model,profile.settings.holdMs,profile.settings.restMs);}catch(e){modelError=e.message;}}}
 rebuild();restoreDraft();if(model)view='write';
-$('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home" aria-label="Relay home"><img src="./favicon.svg" alt="">Relay</a><nav class="nav" aria-label="Main navigation">'+navigation.filter(([id])=>['write','teach','check','profiles'].includes(id)).map(([id,label])=>'<button data-action="nav-'+id+'" data-nav="'+id+'">'+label+'</button>').join('')+'</nav><details class="nav-more"><summary>Advanced</summary><nav class="nav" aria-label="Advanced tools"><button data-action="nav-studio" data-nav="studio">Signal details</button></nav></details><p class="side-bottom local-note">Video is processed on this device.</p></aside><div class="workspace"><header class="topbar"><span id="page-label" class="sr-only">Get started</span><div class="profile-switch"><label for="profile-select">Profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3 id="camera-heading">Camera</h3><span class="pill" id="camera-pill">Off</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><canvas id="air-overlay" aria-hidden="true" hidden></canvas><div class="camera-placeholder" id="camera-placeholder"><p>Camera off</p></div><div class="air-camera-hud" id="air-camera-hud" hidden></div><div class="finger-camera-hud" id="finger-camera-hud" hidden><span id="camera-row-count">Row —</span><span id="camera-col-count">Column —</span></div></div><div class="camera-prompt" id="camera-prompt" hidden><h3 id="camera-prompt-title"></h3><p id="camera-prompt-detail"></p><progress id="camera-prompt-progress" max="1" value="0" aria-label="Current recording phase"></progress><button class="button secondary" data-action="cancel-task" id="camera-prompt-cancel">Cancel recording</button></div><div class="camera-controls"><div class="finger-camera-message" id="finger-camera-message" hidden><span>Message</span><p id="finger-camera-text"></p></div><p class="camera-status" id="camera-status" role="status"></p><button class="button" id="camera-button" data-action="camera">Enable camera</button></div><div id="tracking-parts" class="tracking-parts" aria-label="Visible body parts"></div><div class="recognition"><div class="eyebrow">Recognition</div><div class="signal-name"><span id="signal-name">Camera off</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div><details class="camera-options"><summary>Camera options</summary><div class="trail-controls"><label class="trail-toggle"><input id="trails-toggle" type="checkbox" role="switch" aria-describedby="trails-help"><span class="trail-switch" aria-hidden="true"></span><span>Enable trails</span></label><p id="trails-help">Show a fading line behind your fingertip.</p></div><p id="camera-performance" class="camera-performance" hidden></p></details></section></aside></div><footer class="footer">Saved profiles and drafts stay in this browser.</footer></div></div><div id="phase-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>';
+$('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home" aria-label="Relay home"><img src="./favicon.svg" alt="">Relay</a><div class="space-switch" aria-label="Relay spaces"><button data-action="nav-write" data-space="user">User space</button><button data-action="nav-creator" data-space="creator">Creator space</button></div><nav class="nav creator-navigation" aria-label="Creator navigation"><button data-action="nav-creator" data-nav="creator">My environments</button><button data-action="nav-feed" data-nav="feed">Environment feed</button></nav><nav class="nav user-navigation" aria-label="Main navigation">'+navigation.filter(([id])=>['write','teach','check','profiles'].includes(id)).map(([id,label])=>'<button data-action="nav-'+id+'" data-nav="'+id+'">'+label+'</button>').join('')+'</nav><details class="nav-more"><summary>Advanced</summary><nav class="nav" aria-label="Advanced tools"><button data-action="nav-studio" data-nav="studio">Signal details</button></nav></details><p class="side-bottom local-note">Video is processed on this device.</p></aside><div class="workspace"><header class="topbar"><span id="page-label" class="sr-only">Get started</span><div class="profile-switch"><label for="profile-select">Profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3 id="camera-heading">Camera</h3><span class="pill" id="camera-pill">Off</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><canvas id="air-overlay" aria-hidden="true" hidden></canvas><div class="camera-placeholder" id="camera-placeholder"><p>Camera off</p></div><div class="air-camera-hud" id="air-camera-hud" hidden></div><div class="finger-camera-hud" id="finger-camera-hud" hidden><span id="camera-row-count">Row —</span><span id="camera-col-count">Column —</span></div></div><div class="camera-prompt" id="camera-prompt" hidden><h3 id="camera-prompt-title"></h3><p id="camera-prompt-detail"></p><progress id="camera-prompt-progress" max="1" value="0" aria-label="Current recording phase"></progress><button class="button secondary" data-action="cancel-task" id="camera-prompt-cancel">Cancel recording</button></div><div class="camera-controls"><div class="finger-camera-message" id="finger-camera-message" hidden><span>Message</span><p id="finger-camera-text"></p></div><p class="camera-status" id="camera-status" role="status"></p><button class="button" id="camera-button" data-action="camera">Enable camera</button></div><div id="tracking-parts" class="tracking-parts" aria-label="Visible body parts"></div><div class="recognition"><div class="eyebrow">Recognition</div><div class="signal-name"><span id="signal-name">Camera off</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div><details class="camera-options"><summary>Camera options</summary><div class="trail-controls"><label class="trail-toggle"><input id="trails-toggle" type="checkbox" role="switch" aria-describedby="trails-help"><span class="trail-switch" aria-hidden="true"></span><span>Enable trails</span></label><p id="trails-help">Show a fading line behind your fingertip.</p></div><p id="camera-performance" class="camera-performance" hidden></p></details></section></aside></div><footer class="footer">Saved profiles and drafts stay in this browser.</footer></div></div><div id="phase-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>';
 const camera=new VisionCamera($('#video'),$('#overlay'),onFrame,onCameraState);
 function updateTeachingPreview(){
  const teaching=view==='teach'||busy;document.body.classList.toggle('air-writing',airWriting()||cirrinWriting()||flowWriting());document.body.classList.toggle('cirrin-writing',cirrinWriting());document.body.classList.toggle('chord-writing',chordWriting());$('#air-overlay').hidden=!(airWriting()||cirrinWriting()||flowWriting());$('#air-camera-hud').hidden=!(airWriting()||cirrinWriting()||flowWriting());document.body.classList.toggle('finger-writing',fingerWriting()||airWriting()||cirrinWriting()||flowWriting()||chordWriting());$('#finger-camera-hud').hidden=!(fingerWriting()||chordWriting());$('#finger-camera-message').hidden=!(fingerWriting()||airWriting()||cirrinWriting()||flowWriting()||chordWriting());
  document.body.classList.toggle('teaching-view',teaching);
  document.body.classList.toggle('teaching-active',busy);
- document.body.classList.toggle('camera-docked',(teaching||fingerWriting()||airWriting()||cirrinWriting()||flowWriting()||chordWriting())&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
+ document.body.classList.toggle('camera-docked',(teaching||creatorView()||customWriting()||fingerWriting()||airWriting()||cirrinWriting()||flowWriting()||chordWriting())&&cameraState==='ready'&&matchMedia('(max-width:760px)').matches);
  $('#camera-heading').textContent='Camera';
  const prompt=$('#camera-prompt');prompt.hidden=!teaching;
  const phase=teachingPhase||{title:cameraState==='ready'?'Ready to record':'Enable your camera',detail:'Keep the face or hands you use visible. Instructions will appear here during recording.',fraction:0};
@@ -90,17 +117,17 @@ new ResizeObserver(syncCameraDock).observe($('.camera-card'));
 window.addEventListener('resize',updateTeachingPreview);
 
 function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>t.classList.remove('show'),6500);}
-function setView(next){flowRace.cancel();if(chordRace.active){chordRace.cancel();live=false;}if(busy){toast('Finish or cancel the current recording first.');return;}view=next;live=false;resetInput();render();syncCameraForContext();$('#main').focus({preventScroll:true});window.scrollTo({top:0,behavior:'auto'});}
+function setView(next){flowRace.cancel();if(chordRace.active){chordRace.cancel();live=false;}if(busy){toast('Finish or cancel the current recording first.');return;}creator.unmount();customRuntime?.destroy();customRuntime=null;customRuntimeKey='';view=next;live=false;resetInput();render();syncCameraForContext();$('#main').focus({preventScroll:true});window.scrollTo({top:0,behavior:'auto'});}
 function render(){
- document.body.dataset.view=view;updateTeachingPreview();
+ document.body.dataset.view=view;document.body.classList.toggle('creator-space',creatorView());document.querySelectorAll('[data-space]').forEach(b=>b.setAttribute('aria-pressed',String(b.dataset.space===(creatorView()?'creator':'user'))));updateTeachingPreview();
  $('#profile-select').innerHTML=profiles.length?profiles.map(p=>'<option value="'+esc(p.id)+'" '+(p===profile?'selected':'')+'>'+esc(p.name)+'</option>').join(''):'<option>No profile yet</option>';
  $('#profile-select').disabled=busy||!profiles.length;
  document.querySelectorAll('[data-nav]').forEach(b=>b.disabled=busy);
  if(view==='studio')$('.nav-more').open=true;
  document.querySelectorAll('[data-nav]').forEach(b=>{b.classList.toggle('active',b.dataset.nav===view);if(b.dataset.nav===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
  $('#page-label').textContent=navigation.find(n=>n[0]===view)?.[1]||'Get started';
- $('#main').innerHTML=(storageError?'<div class="notice error">Storage: '+esc(storageError)+'</div>':'')+({home:homeView,teach:teachView,write:writeView,check:checkView,studio:()=>studioView(profile,model),profiles:profilesView}[view]());
- updateCamera();if(view==='write')renderWriter();
+ $('#main').innerHTML=(storageError?'<div class="notice error">Storage: '+esc(storageError)+'</div>':'')+({creator:()=>'<div id="creator-root"></div>',feed:()=>'<div id="creator-root"></div>',home:homeView,teach:teachView,write:writeView,check:checkView,studio:()=>studioView(profile,model),profiles:profilesView}[view]());
+ updateCamera();if(creatorView())creator.mount($('#creator-root'),view==='feed'?'feed':creator.doc?'editor':'library');if(view==='write')renderWriter();
 }
 const heading=title=>'<div class="page-heading"><h1>'+title+'</h1></div>';
 function homeView(){
@@ -127,7 +154,7 @@ function writingGuide(capabilities){
 }
 function renderWriter(){
  if(view!=='write')return;
- composer.configure(profile);saveDraft();renderEnvironmentPicker();
+ composer.configure(profile);saveDraft();renderEnvironmentPicker();if(customWriting()){renderCustomWriter();return;}$('#keyboard').classList.remove('custom-keyboard');
  if(flowWriting()){renderFlowWriter();return;}
  if(chordWriting()){renderChordWriter();return;}
  if(cirrinWriting()){renderCirrinWriter();return;}
@@ -153,7 +180,7 @@ function renderMessage(){
 }
 function renderEnvironmentPicker(){
  if(document.activeElement?.id==='environment-select')return;
- $('#environment-picker').innerHTML='<label class="environment-choice"><span>Input method</span><select id="environment-select" aria-label="Communication environment">'+ENVIRONMENTS.map(e=>'<option value="'+e.id+'" '+(environment===e.id?'selected':'')+'>'+e.name+(e.id==='classic'?' · default':'')+'</option>').join('')+'</select></label>';
+ $('#environment-picker').innerHTML='<label class="environment-choice"><span>Input method</span><select id="environment-select" aria-label="Communication environment">'+[...ENVIRONMENTS,...creator.library.data.installed.map(e=>({id:'custom:'+e.id,name:e.name+' · custom'}))].map(e=>'<option value="'+e.id+'" '+(environment===e.id?'selected':'')+'>'+esc(e.name)+(e.id==='classic'?' · default':'')+'</option>').join('')+'</select></label>';
 }
 function renderFingerWriter(){
  const settings=environmentSettings(),keys=gridKeys(composer,fingerPage);
@@ -203,6 +230,9 @@ function saveEnvironmentSetting(key,value){
  if(profile)persist();else try{localStorage.setItem('relay.environment.v1',JSON.stringify(guestEnvironment));}catch{toast('Environment is available for this session; browser settings could not be saved.');}
 }
 function selectEnvironment(id){
+ customRuntime?.destroy();customRuntime=null;customRuntimeKey='';
+ if(id.startsWith('custom:')&&creator.library.get(id.slice(7))){environment=id;try{localStorage.setItem('relay.custom-environment.v1',id);}catch{}live=false;resetInput();render();syncCameraForContext();return;}
+ try{localStorage.removeItem('relay.custom-environment.v1');}catch{}
  flowRace.cancel();chordRace.cancel();chordBook.reset();
  environment=environmentById(id).id;saveEnvironmentSetting('environment',environment);live=false;resetInput();fingerPage='letters';composer.resetFocus();render();syncCameraForContext();
 }
@@ -472,9 +502,9 @@ function updateCamera(){
  $('#camera-button').textContent=cameraState==='loading'?'Loading vision…':cameraState==='ready'?'Turn camera off':'Enable camera';
  $('#camera-button').disabled=cameraState==='loading'||busy;
 }
-function onCameraState(state,message){if(state==='ready')queueMicrotask(syncCameraForContext);cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){flowRace.cancel('Trial cancelled because camera tracking stopped.');chordRace.cancel('Trial cancelled because camera tracking stopped.');live=false;resetInput();}updateCamera();if(view==='write')renderWriter();}
+function onCameraState(state,message){if(state==='ready')queueMicrotask(syncCameraForContext);cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){flowRace.cancel('Trial cancelled because camera tracking stopped.');chordRace.cancel('Trial cancelled because camera tracking stopped.');live=false;creator.live=false;resetInput();}updateCamera();if(view==='write')renderWriter();}
 function onFrame(frame){
- latest=frame;if(flowWriting()){if(!flow.pointerActive)flow.update(frame,live&&!activeDialog&&!flowComposer().confirm&&!flowComposer().paused);return;}if(chordWriting()){onChordFrame(frame);return;}if(cirrinWriting()){if(!cirrin.pointerActive)cirrin.update(frame,live&&!activeDialog&&!composer.confirm&&!composer.paused);return;}if(airWriting()){if(live)air.update(frame,!activeDialog&&!composer.confirm&&!composer.paused);return;}if(fingerWriting()){onFingerFrame(frame);return;}if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
+ latest=frame;if(creatorView()){creator.runtime?.frame(frame,creator.live&&!activeDialog);if(creator.runtime?.block?.input.source!=='scan')return;}if(customWriting()){customRuntime?.frame(frame,live&&!activeDialog);if(customRuntime?.block?.input.source!=='scan')return;}if(flowWriting()){if(!flow.pointerActive)flow.update(frame,live&&!activeDialog&&!flowComposer().confirm&&!flowComposer().paused);return;}if(chordWriting()){onChordFrame(frame);return;}if(cirrinWriting()){if(!cirrin.pointerActive)cirrin.update(frame,live&&!activeDialog&&!composer.confirm&&!composer.paused);return;}if(airWriting()){if(live)air.update(frame,!activeDialog&&!composer.confirm&&!composer.paused);return;}if(fingerWriting()){onFingerFrame(frame);return;}if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
  if(recording){recording.total++;if(frame.vector){recording.frames.push(frame.vector);recording.tracked++;}}
  let result=frame.vector?(model?.combined?predictCombined(model,frame.vector):predict(model,frame.vector)):{id:UNKNOWN,reason:'No tracking',score:0};
  let event=null;
@@ -482,6 +512,7 @@ function onFrame(frame){
  else if(!frame.vector)gate.reset();else if(model)event=gate.update(result.id,frame.now);
  if(restCheck){restCheck.total++;if(requiredTracking(model,frame.vector))restCheck.tracked++;if(event)restCheck.events.push(event);}
  if(attempt&&event)attempt.events.push(event);
+ if(event&&creatorView()&&creator.live&&!activeDialog){const g=profile?.gestures.find(g=>g.id===event);if(g)creator.runtime?.gesture(g.action,g.value);}
  if(event&&live&&view==='write'&&!activeDialog){const g=profile.gestures.find(g=>g.id===event);if(g){dispatchGesture(g);lastScan=frame.now;}}
  if(frame.now-lastUI>120){
   lastUI=frame.now;
@@ -500,7 +531,7 @@ function onFrame(frame){
   if(view==='studio'&&$('#live-insights'))$('#live-insights').innerHTML=liveInsightHTML(model,frame.vector,result,gate,frame.latency);
  }
 }
-function dispatchGesture(g){const before=composer.text;let effect;if(g.action==='next')composer.next();else if(g.action==='select')effect=composer.select();else effect=composer.direct(g.action,g.value);if(g.action==='insert'&&composer.text!==before)lastGestureMessage='Wrote “'+g.value+'” with '+g.name+'.';handleEffect(effect);renderWriter();}
+function dispatchGesture(g){if(customWriting()){customRuntime?.gesture(g.action,g.value);return;}const before=composer.text;let effect;if(g.action==='next')composer.next();else if(g.action==='select')effect=composer.select();else effect=composer.direct(g.action,g.value);if(g.action==='insert'&&composer.text!==before)lastGestureMessage='Wrote “'+g.value+'” with '+g.name+'.';handleEffect(effect);renderWriter();}
 function handleEffect(effect){if(effect==='focus')toggleFocus();if(effect==='bookmark')saveMessagePhrase();if(effect==='speak')say(composer.text);if(effect==='pause'){speakingMessage=false;window.speechSynthesis?.cancel();toast('Paused. Select Resume to continue.');}}
 function say(text,cue=false){
  if(cue&&speakingMessage)return;
@@ -585,6 +616,7 @@ function download(name,data){const url=URL.createObjectURL(new Blob([data],{type
 function exportOne(id){const p=profiles.find(p=>p.id===id);if(p)download('relay-'+p.name.replace(/[^a-z0-9]/gi,'-')+'.json',exportProfile(p));}
 function deleteProfile(id){const p=profiles.find(p=>p.id===id);if(!p)return;openDialog(dialogHeader('Delete this profile?')+'<p>'+esc(p.name)+' and its recordings will be removed from this browser. Export a backup first if you want to keep it.</p><div class="button-row">'+btn('Export backup','export-profile','secondary','data-id="'+p.id+'"')+btn('Delete profile','confirm-delete-profile','danger','data-id="'+p.id+'"')+'</div>');}
 async function startLive(){
+ if(customWriting()){const id=environment;if(customRuntime?.block?.input.source==='scan'&&!model){toast('Teach a Select gesture first, or use the on-screen Next and Select buttons.');return;}if(cameraState!=='ready')await startCamera();if(environment!==id||!customWriting()||cameraState!=='ready')return;resetInput();live=true;renderWriter();return;}
  if(flowWriting()){
   flowRace.cancel();resetInput();await flow.load();if(!flowWriting())return;
   if(cameraState!=='ready'){await startCamera();if(!flowWriting()||cameraState!=='ready')return;}
@@ -753,13 +785,14 @@ document.addEventListener('change',async e=>{
 document.addEventListener('keydown',e=>{
  if(e.key==='Escape'&&busy&&!activeDialog){e.preventDefault();cancelTask();return;}
  if(flowWriting()||chordWriting()||cirrinWriting()||airWriting()||fingerWriting()||view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;
- if(e.key==='ArrowRight'){e.preventDefault();composer.next();renderWriter();}
- if(e.key==='Enter'&&e.target===document.body){e.preventDefault();handleEffect(composer.select());renderWriter();}
+ if(e.key==='ArrowRight'){e.preventDefault();if(customWriting())customRuntime?.gesture('next');else{composer.next();renderWriter();}}
+ if(e.key==='Enter'&&e.target===document.body){e.preventDefault();if(customWriting())customRuntime?.gesture('select');else{handleEffect(composer.select());renderWriter();}}
 });
-document.addEventListener('visibilitychange',()=>{const wasFlow=flowRace.active;if(document.hidden&&wasFlow){flowRace.cancel('Trial cancelled while the app was hidden.');live=false;if(flowWriting())renderWriter();}const wasTrial=chordRace.active;if(document.hidden)chordRace.cancel('Trial cancelled while the app was hidden.');resetInput();if(document.hidden&&wasTrial&&chordWriting())renderWriter();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
-window.addEventListener('beforeunload',()=>{camera.stop();flow.close();air.model.close();});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)creator.live=false;const wasFlow=flowRace.active;if(document.hidden&&wasFlow){flowRace.cancel('Trial cancelled while the app was hidden.');live=false;if(flowWriting())renderWriter();}const wasTrial=chordRace.active;if(document.hidden)chordRace.cancel('Trial cancelled while the app was hidden.');resetInput();if(document.hidden&&wasTrial&&chordWriting())renderWriter();if(document.hidden&&live){live=false;toast('Camera input stopped while the app was hidden.');renderWriter();}if(document.hidden&&busy)cancelTask();});
+window.addEventListener('beforeunload',()=>{customRuntime?.destroy();creator.unmount();camera.stop();flow.close();air.model.close();});
 setInterval(()=>{
- if(!flowWriting()&&!chordWriting()&&!cirrinWriting()&&!airWriting()&&!fingerWriting()&&live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
+ const now=performance.now();if(creatorView())creator.runtime?.tick(now,creator.live&&!activeDialog);if(customWriting())customRuntime?.tick(now,live&&!activeDialog);
+ if(!customWriting()&&!flowWriting()&&!chordWriting()&&!cirrinWriting()&&!airWriting()&&!fingerWriting()&&live&&view==='write'&&writingCapabilities(profile).scanning&&profile.settings.mode==='auto'&&!composer.paused&&!activeDialog){
   const now=performance.now();if(now-lastTracking>700){lastScan=now;return;}
   // Stop the scanning highlight while a deliberate selection is in progress.
   if(gate.candidate||gate.progress>0||gate.motionActive){lastScan=now;return;}
@@ -774,6 +807,7 @@ function restoreDraft(){
  for(const pen of [air.pen,cirrin.pen,flow.pen])pen.setMode(environmentSettings().penMode||'point');
  chordRace.cancel();chordRace.results={};chordBook.reset();chordGate.holdMs=environmentSettings().chordHoldMs||180;
  cirrin.setGain(environmentSettings().cirrinGain||2.4);cirrin.centered=false;environment=environmentById(environmentSettings().environment).id;fingerPage='letters';fingerGate.holdMs=environmentSettings().gridHoldMs||850;resetInput();lastGestureMessage='';
+ try{const custom=localStorage.getItem('relay.custom-environment.v1');if(custom&&creator.library.get(custom.slice(7)))environment=custom;}catch{}
  draftSavedText=null;draftNotice='';
  try{composer.text=readDraft(profile);draftSavedText=composer.text;if(composer.text)draftNotice='· Draft restored';}
  catch{draftNotice='· Draft recovery unavailable';}
