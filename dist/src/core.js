@@ -97,7 +97,7 @@ export class Composer{
   if(key.type==='pause'){this.paused=true;effect='pause';}
   if(key.type==='resume'){this.paused=false;effect='resume';}
   if(key.type==='speak'&&this.text.trim())this.confirm='speak';
-  if(key.type==='clear'&&this.text)this.confirm='clear';
+  if(key.type==='clear'){if(this.text)this.change('');this.confirm=null;}
   if(key.type==='cancel')this.confirm=null;
   if(key.type==='confirm'){if(this.confirm==='clear')this.change('');if(this.confirm==='speak')effect='speak';this.confirm=null;}
   this.resetFocus();return effect;

@@ -41,9 +41,9 @@ try{
   await page.evaluate(({index,sign})=>window.__motion={index,sign,start:performance.now()},{index,sign});
   await page.waitForTimeout(1600);
  };
- await move(129,1);assert.equal(await page.locator('#message').innerText(),'h');
- await page.waitForTimeout(900);assert.equal(await page.locator('#message').innerText(),'h','held endpoint must not repeat text');
- await move(130,-1);assert.equal(await page.locator('#message').innerText(),'hi');
+ await move(129,1);assert.equal(await page.locator('#message').inputValue(),'h');
+ await page.waitForTimeout(900);assert.equal(await page.locator('#message').inputValue(),'h','held endpoint must not repeat text');
+ await move(130,-1);assert.equal(await page.locator('#message').inputValue(),'hi');
  await page.evaluate(()=>window.__motion=null);await page.waitForTimeout(700);
  await page.getByRole('button',{name:'Stop camera input',exact:true}).click();
  await page.screenshot({path:fileURLToPath(new URL('../artifacts/movement-writing.png',import.meta.url)),fullPage:true});
@@ -74,6 +74,6 @@ try{
  await page.getByRole('button',{name:'Turn camera off'}).click();
  assert.equal(await page.evaluate(()=>document.body.classList.contains('camera-docked')),false);
  await page.reload();await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
- assert.equal(await page.locator('#message').innerText(),'hi');
+ assert.equal(await page.locator('#message').inputValue(),'hi');
  assert.deepEqual(errors,[]);console.log('PASS: movement shortcut defaults, persistent camera/instructions at four viewport sizes, cancellation, dock cleanup and draft reload');
 }finally{await browser.close();}

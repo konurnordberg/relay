@@ -39,12 +39,12 @@ try{
  await page.getByRole('button',{name:'Use my gestures',exact:true}).click();
  const gesture=async n=>{await page.evaluate(()=>window.__inputClass=0);await page.waitForTimeout(500);await page.evaluate(n=>window.__inputClass=n,n);await page.waitForTimeout(650);};
  await gesture(1);await gesture(1);
- assert.equal(await page.locator('#message').innerText(),'a');
+ assert.equal(await page.locator('#message').inputValue(),'a');
  await gesture(1);await gesture(2);await gesture(1);
- assert.equal(await page.locator('#message').innerText(),'ab');
- await page.waitForTimeout(1000);assert.equal(await page.locator('#message').innerText(),'ab');
- await gesture(3);assert.equal(await page.locator('#message').innerText(),'ab');
- await gesture(4);await page.evaluate(()=>window.__inputClass=1);await page.waitForTimeout(800);assert.equal(await page.locator('#message').innerText(),'ab');
+ assert.equal(await page.locator('#message').inputValue(),'ab');
+ await page.waitForTimeout(1000);assert.equal(await page.locator('#message').inputValue(),'ab');
+ await gesture(3);assert.equal(await page.locator('#message').inputValue(),'ab');
+ await gesture(4);await page.evaluate(()=>window.__inputClass=1);await page.waitForTimeout(800);assert.equal(await page.locator('#message').inputValue(),'ab');
  console.log('PASS: trained gestures write ab; holds do not repeat; unknown and lost tracking do not type');
  await page.getByRole('button',{name:'Settings',exact:true}).click();
  const [download]=await Promise.all([page.waitForEvent('download'),page.getByRole('button',{name:'Export',exact:true}).click()]);

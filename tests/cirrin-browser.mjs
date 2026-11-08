@@ -30,14 +30,14 @@ try{
  await page.getByRole('button',{name:'z',exact:true}).click();
  await page.getByLabel('Communication environment').selectOption('cirrin');await page.locator('#pen-mode').selectOption('pinch');await page.getByRole('button',{name:'Start Cirrin input',exact:true}).click();
  await traceCamera('hello');
- assert.equal(await page.locator('#message').innerText(),'z','word preview must not insert');
+ assert.equal(await page.locator('#message').inputValue(),'z','word preview must not insert');
  assert.equal(await page.locator('#cirrin-word').innerText(),'hello');
  await page.evaluate(async()=>{const {hand}=await import('/__hands.mjs');window.__hand=hand(1,{thumbOnly:true});});
- await page.waitForFunction(()=>document.querySelector('#message').textContent==='z hello ');
- await page.waitForTimeout(1200);assert.equal(await page.locator('#message').textContent(),'z hello ');
- await page.getByRole('button',{name:'Undo',exact:true}).click();assert.equal(await page.locator('#message').innerText(),'z');
- await traceCamera('relay');await page.locator('.cirrin-choice').first().click();assert.equal(await page.locator('#message').textContent(),'z relay ');
- await page.getByRole('button',{name:'.',exact:true}).click();assert.equal(await page.locator('#message').textContent(),'z relay. ');
+ await page.waitForFunction(()=>document.querySelector('#message').value==='z hello ');
+ await page.waitForTimeout(1200);assert.equal(await page.locator('#message').inputValue(),'z hello ');
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();assert.equal(await page.locator('#message').inputValue(),'z');
+ await traceCamera('relay');await page.locator('.cirrin-choice').first().click();assert.equal(await page.locator('#message').inputValue(),'z relay ');
+ await page.getByRole('button',{name:'.',exact:true}).click();assert.equal(await page.locator('#message').inputValue(),'z relay. ');
  await page.getByRole('button',{name:'Speak message',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Speak now',exact:true}).isVisible());
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  // Pointer tracing must remain intact with a running camera.
@@ -51,7 +51,7 @@ try{
   await page.screenshot({path:fileURLToPath(new URL('../artifacts/cirrin-'+viewport.width+'.png',import.meta.url)),fullPage:viewport.width>500});
  }
  await page.setViewportSize({width:1366,height:900});
- await page.locator('.cirrin-choice').first().click();assert.equal(await page.locator('#message').textContent(),'z relay. hello ');
+ await page.locator('.cirrin-choice').first().click();assert.equal(await page.locator('#message').inputValue(),'z relay. hello ');
  await page.getByText('Movement range & positioning',{exact:true}).click();
  await page.getByLabel('Cirrin movement range').selectOption('1.8');
  assert.ok(await page.getByRole('button',{name:'Start Cirrin input',exact:true}).isVisible());
@@ -61,10 +61,10 @@ try{
  assert.match(await page.locator('#cirrin-status').innerText(),/Centered/);
  await page.getByLabel('Communication environment').selectOption('air-letters');assert.ok(await page.locator('#air-canvas').isVisible());
  await page.getByLabel('Communication environment').selectOption('finger-grid');assert.equal(await page.locator('.finger-key').count(),36);
- await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').textContent(),'z relay. hello ');
+ await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').inputValue(),'z relay. hello ');
  await page.getByLabel('Communication environment').selectOption('cirrin');await page.reload();
  await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
- assert.equal(await page.getByLabel('Communication environment').inputValue(),'cirrin');assert.equal(await page.locator('#message').textContent(),'z relay. hello ');
+ assert.equal(await page.getByLabel('Communication environment').inputValue(),'cirrin');assert.equal(await page.locator('#message').inputValue(),'z relay. hello ');
  assert.equal(await page.getByLabel('Cirrin movement range').inputValue(),'1.8');
  assert.deepEqual(errors,[]);console.log('PASS: camera and pointer Cirrin words, doubled L, deliberate confirmation, whole-word undo, spacing, speech, camera docking and saved environment/range');
 }finally{await browser.close();}

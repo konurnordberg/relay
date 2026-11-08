@@ -59,7 +59,7 @@ const chordWriting=()=>view==='write'&&environment==='chord';
 const cirrinWriting=()=>view==='write'&&environment==='cirrin';
 const airWriting=()=>view==='write'&&environment==='air-letters';
 const fingerWriting=()=>view==='write'&&environment==='finger-grid';
-const cameraMode=()=>creatorView()||customWriting()?'combined':view==='write'&&environmentById(environment).cameraMode!=='profile'?environmentById(environment).cameraMode:profile?.modality||'combined';
+const cameraMode=()=>creatorView()||customWriting()||model?.combined?'combined':view==='write'&&environmentById(environment).cameraMode!=='profile'?environmentById(environment).cameraMode:profile?.modality||'combined';
 const handDelegate=()=>view==='write'?environmentById(environment).handDelegate:'CPU';
 const startCamera=()=>camera.start(cameraMode(),'',handDelegate());
 function resetInput(){customRuntime?.reset();creator?.runtime?.reset();gate.reset();fingerGate.reset();fingerTracker.reset();fingerStatus=null;air.reset();cirrin.reset();chordGate.reset();chordStatus=null;flow.reset();flowLastInsertion=null;}
@@ -91,13 +91,13 @@ function renderCustomWriter(){
 }
 
 const actions={select:'Select',next:'Next',delete:'Delete',undo:'Undo',speak:'Speak',pause:'Pause',insert:'Insert text'};
-const navigation=[['home','Get started'],['write','Write & speak'],['teach','Teach gestures'],['check','Check accuracy'],['profiles','Settings'],['studio','Signal details']];
+const navigation=[['home','Get started'],['write','Write & speak'],['teach','Teach gestures'],['check','Check accuracy'],['profiles','Settings'],['studio','Signal analyzer']];
 const currentTrials=()=>profile?.trials.filter(t=>(t.revision||0)===(profile.revision||0))||[];
 function persist(){try{saveProfiles(profiles);storageError='';return true;}catch(e){storageError=e.message;toast('Could not save: '+e.message+'. Export a backup before closing.');return false;}}
 function changed(){profile.revision=(profile.revision||0)+1;persist();rebuild();}
 function rebuild(){model=null;modelError='';gate=new EventGate(profile?.settings.holdMs,profile?.settings.restMs);if(profile){try{model=profile.modality==='combined'?trainCombined(profile):train(profile);if(model.combined)gate=new CombinedGate(model,profile.settings.holdMs,profile.settings.restMs);}catch(e){modelError=e.message;}}}
 rebuild();restoreDraft();if(model)view='write';
-$('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home" aria-label="Relay home"><img src="./favicon.svg" alt="">Relay</a><div class="space-switch" aria-label="Relay spaces"><button data-action="nav-write" data-space="user">User space</button><button data-action="nav-creator" data-space="creator">Creator space</button></div><nav class="nav creator-navigation" aria-label="Creator navigation"><button data-action="nav-creator" data-nav="creator">My environments</button><button data-action="nav-feed" data-nav="feed">Environment feed</button></nav><nav class="nav user-navigation" aria-label="Main navigation">'+navigation.filter(([id])=>['write','teach','check','profiles'].includes(id)).map(([id,label])=>'<button data-action="nav-'+id+'" data-nav="'+id+'">'+label+'</button>').join('')+'</nav><details class="nav-more"><summary>Advanced</summary><nav class="nav" aria-label="Advanced tools"><button data-action="nav-studio" data-nav="studio">Signal details</button></nav></details><p class="side-bottom local-note">Video is processed on this device.</p></aside><div class="workspace"><header class="topbar"><span id="page-label" class="sr-only">Get started</span><div class="profile-switch"><label for="profile-select">Profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3 id="camera-heading">Camera</h3><span class="pill" id="camera-pill">Off</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><canvas id="air-overlay" aria-hidden="true" hidden></canvas><div class="camera-placeholder" id="camera-placeholder"><p>Camera off</p></div><div class="air-camera-hud" id="air-camera-hud" hidden></div><div class="finger-camera-hud" id="finger-camera-hud" hidden><span id="camera-row-count">Row —</span><span id="camera-col-count">Column —</span></div></div><div class="camera-prompt" id="camera-prompt" hidden><h3 id="camera-prompt-title"></h3><p id="camera-prompt-detail"></p><progress id="camera-prompt-progress" max="1" value="0" aria-label="Current recording phase"></progress><button class="button secondary" data-action="cancel-task" id="camera-prompt-cancel">Cancel recording</button></div><div class="camera-controls"><div class="finger-camera-message" id="finger-camera-message" hidden><span>Message</span><p id="finger-camera-text"></p></div><p class="camera-status" id="camera-status" role="status"></p><button class="button" id="camera-button" data-action="camera">Enable camera</button></div><div id="tracking-parts" class="tracking-parts" aria-label="Visible body parts"></div><div class="recognition"><div class="eyebrow">Recognition</div><div class="signal-name"><span id="signal-name">Camera off</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div><details class="camera-options"><summary>Camera options</summary><div class="trail-controls"><label class="trail-toggle"><input id="trails-toggle" type="checkbox" role="switch" aria-describedby="trails-help"><span class="trail-switch" aria-hidden="true"></span><span>Enable trails</span></label><p id="trails-help">Show a fading line behind your fingertip.</p></div><p id="camera-performance" class="camera-performance" hidden></p></details></section></aside></div><footer class="footer">Saved profiles and drafts stay in this browser.</footer></div></div><div id="phase-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>';
+$('#app').innerHTML='<div class="app-shell"><aside class="sidebar"><a class="brand" href="#" data-action="nav-home" aria-label="Relay home"><img src="./favicon.svg" alt="">Relay</a><div class="space-switch" aria-label="Relay spaces"><button data-action="nav-write" data-space="user">User space</button><button data-action="nav-creator" data-space="creator">Creator space</button></div><nav class="nav creator-navigation" aria-label="Creator navigation"><button data-action="nav-creator" data-nav="creator">My environments</button><button data-action="nav-feed" data-nav="feed">Environment feed</button></nav><nav class="nav user-navigation" aria-label="Main navigation">'+navigation.filter(([id])=>['write','teach','check','studio','profiles'].includes(id)).map(([id,label])=>'<button data-action="nav-'+id+'" data-nav="'+id+'">'+label+'</button>').join('')+'</nav><p class="side-bottom local-note">Video is processed on this device.</p></aside><div class="workspace"><header class="topbar"><span id="page-label" class="sr-only">Get started</span><div class="profile-switch"><label for="profile-select">Profile</label><select id="profile-select"></select></div></header><div class="main-grid"><main id="main" class="content" tabindex="-1"></main><aside class="rail"><section class="card camera-card" aria-label="Camera and recognition"><div class="card-header"><h3 id="camera-heading">Camera</h3><span class="pill" id="camera-pill">Off</span></div><div class="camera-view"><video id="video" autoplay muted playsinline aria-label="Mirrored camera preview"></video><canvas id="overlay" aria-hidden="true"></canvas><canvas id="air-overlay" aria-hidden="true" hidden></canvas><div class="camera-placeholder" id="camera-placeholder"><p>Camera off</p></div><div class="air-camera-hud" id="air-camera-hud" hidden></div><div class="finger-camera-hud" id="finger-camera-hud" hidden><span id="camera-row-count">Row —</span><span id="camera-col-count">Column —</span></div></div><div class="camera-prompt" id="camera-prompt" hidden><h3 id="camera-prompt-title"></h3><p id="camera-prompt-detail"></p><progress id="camera-prompt-progress" max="1" value="0" aria-label="Current recording phase"></progress><button class="button secondary" data-action="cancel-task" id="camera-prompt-cancel">Cancel recording</button></div><div class="camera-controls"><div class="finger-camera-message" id="finger-camera-message" hidden><span>Message</span><p id="finger-camera-text"></p></div><p class="camera-status" id="camera-status" role="status"></p><button class="button" id="camera-button" data-action="camera">Enable camera</button></div><div id="tracking-parts" class="tracking-parts" aria-label="Visible body parts"></div><div class="recognition" aria-label="Current gesture"><div class="eyebrow">Current gesture</div><div class="signal-name"><span id="signal-name">Camera off</span><span id="signal-detail">—</span></div><div class="meter"><div id="signal-meter" style="width:0"></div></div></div><details class="camera-options"><summary>Camera options</summary><div class="trail-controls"><label class="trail-toggle"><input id="trails-toggle" type="checkbox" role="switch" aria-describedby="trails-help"><span class="trail-switch" aria-hidden="true"></span><span>Enable trails</span></label><p id="trails-help">Show a fading line behind your fingertip.</p></div><p id="camera-performance" class="camera-performance" hidden></p></details></section></aside></div><footer class="footer">Saved profiles and drafts stay in this browser.</footer></div></div><div id="phase-announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>';
 const camera=new VisionCamera($('#video'),$('#overlay'),onFrame,onCameraState);
 function updateTeachingPreview(){
  const teaching=view==='teach'||busy;document.body.classList.toggle('air-writing',airWriting()||cirrinWriting()||flowWriting());document.body.classList.toggle('cirrin-writing',cirrinWriting());document.body.classList.toggle('chord-writing',chordWriting());$('#air-overlay').hidden=!(airWriting()||cirrinWriting()||flowWriting());$('#air-camera-hud').hidden=!(airWriting()||cirrinWriting()||flowWriting());document.body.classList.toggle('finger-writing',fingerWriting()||airWriting()||cirrinWriting()||flowWriting()||chordWriting());$('#finger-camera-hud').hidden=!(fingerWriting()||chordWriting());$('#finger-camera-message').hidden=!(fingerWriting()||airWriting()||cirrinWriting()||flowWriting()||chordWriting());
@@ -123,7 +123,6 @@ function render(){
  $('#profile-select').innerHTML=profiles.length?profiles.map(p=>'<option value="'+esc(p.id)+'" '+(p===profile?'selected':'')+'>'+esc(p.name)+'</option>').join(''):'<option>No profile yet</option>';
  $('#profile-select').disabled=busy||!profiles.length;
  document.querySelectorAll('[data-nav]').forEach(b=>b.disabled=busy);
- if(view==='studio')$('.nav-more').open=true;
  document.querySelectorAll('[data-nav]').forEach(b=>{b.classList.toggle('active',b.dataset.nav===view);if(b.dataset.nav===view)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
  $('#page-label').textContent=navigation.find(n=>n[0]===view)?.[1]||'Get started';
  $('#main').innerHTML=(storageError?'<div class="notice error">Storage: '+esc(storageError)+'</div>':'')+({creator:()=>'<div id="creator-root"></div>',feed:()=>'<div id="creator-root"></div>',home:homeView,teach:teachView,write:writeView,check:checkView,studio:()=>studioView(profile,model),profiles:profilesView}[view]());
@@ -146,7 +145,7 @@ function teachView(){
  (profile.gestures.some(g=>g.samples.length>=3)&&modelError?'<p class="notice warn">'+esc(modelError)+'</p>':'');
 }
 function writeView(){
- return '<div class="write-header">'+heading('Write & speak')+'<div id="environment-picker"></div></div><div id="writer-status"></div><section class="card composer-card" aria-label="Message"><div class="composer-head"><span>Message <small id="draft-status"></small></span><span id="word-count">0 words</span></div><div id="message" class="message" role="log" aria-label="Composed message" aria-live="polite"></div><div class="composer-bottom"><span id="focus-label"></span><div class="button-row">'+btn('Copy','copy','secondary')+btn('Speak','speak','','aria-label="Speak message"')+'</div></div></section><div id="keyboard" class="keyboard" aria-label="Accessible keyboard"></div><div id="writer-help"></div><div class="button-row" id="writer-actions">'+btn('Next','manual-next','secondary')+btn('Select','manual-select','secondary')+btn('Keyboard settings','writer-settings','secondary')+btn('Focus view','focus','secondary')+'</div><div class="speech-state" id="speech-status" role="status"></div>';
+ return '<div class="write-header">'+heading('Write & speak')+'<div id="environment-picker"></div></div><div id="writer-status"></div><section class="card composer-card" aria-label="Message"><div class="composer-head"><span>Message <small id="draft-status"></small></span><span id="word-count">0 words</span></div><textarea id="message" class="message" maxlength="20000" aria-label="Composed message" placeholder="Type here or use your gestures." rows="3" spellcheck="true"></textarea><div class="composer-bottom"><span id="focus-label"></span><div class="button-row">'+btn('Undo','message-undo','secondary')+btn('Clear','message-clear','secondary')+btn('Copy','copy','secondary')+btn('Speak','speak','','aria-label="Speak message"')+'</div></div></section><div id="keyboard" class="keyboard" aria-label="Accessible keyboard"></div><div id="writer-help"></div><div class="button-row" id="writer-actions">'+btn('Next','manual-next','secondary')+btn('Select','manual-select','secondary')+btn('Keyboard settings','writer-settings','secondary')+btn('Focus view','focus','secondary')+'</div><div class="speech-state" id="speech-status" role="status"></div>';
 }
 function writingGuide(capabilities){
  const direct=capabilities.direct;
@@ -175,7 +174,7 @@ function renderWriter(){
  if(live&&profile.settings.audio&&focus!==scanVoice){scanVoice=focus;say(focus,true);}
 }
 function renderMessage(){
- const m=$('#message');m.textContent=composer.text||'Your message will appear here.';m.classList.toggle('empty',!composer.text);if(composer.text){const c=document.createElement('span');c.className='cursor';c.setAttribute('aria-hidden','true');m.append(c);}m.scrollTop=m.scrollHeight;
+ const m=$('#message');if(m.value!==composer.text){m.value=composer.text;m.scrollTop=m.scrollHeight;}m.classList.toggle('empty',!composer.text);
  $('#word-count').textContent=(composer.text.trim()?composer.text.trim().split(/\s+/).length:0)+' words · '+Array.from(composer.text).length+' characters';
 }
 function renderEnvironmentPicker(){
@@ -211,8 +210,8 @@ function updateFingerDisplay(){
  const swap=environmentSettings().gridSwap;
  $('#camera-row-count').textContent=(swap?'Column ':'Row ')+(swap?pair.col??'—':pair.row??'—');
  $('#camera-col-count').textContent=(swap?'Row ':'Column ')+(swap?pair.row??'—':pair.col??'—');
- $('#signal-name').textContent='Row '+(pair.row??'—')+' · Column '+(pair.col??'—');
- $('#signal-detail').textContent=live?(out?.locked?'Release to repeat':'Hold to select'):'Preview';$('#signal-meter').style.width=(live?(out?.progress||0)*100:0)+'%';
+
+
 }
 function onFingerFrame(frame){
  const pair=fingerTracker.update(frame,environmentSettings().gridSwap);
@@ -288,8 +287,8 @@ function updateFlowDisplay(){
  drawFlow($('#flow-canvas'),flow,c.caps);drawFlow($('#air-overlay'),flow,c.caps,true);
  $('#flow-status').textContent=c.confirm?'Confirm or cancel '+c.confirm+' below before writing.':c.paused?'Paused · choose Resume below.':flow.status;$('#flow-detail').textContent=flow.tracing?'Drawing · open your hand to finish':flow.pending?'Word decoding on this device':flow.mode==='words'?'Swipe words; open-hand hover selects alternatives and controls.':'Point at a key, then open your hand to insert one character.';
  $('#air-camera-hud').textContent=flow.tracing?'● Word in progress':flow.review?'Review word':flow.pen.blocked?'Open hand to reset':'Point to write';
- $('#finger-camera-text').textContent=c.text.slice(-90)||'Your text appears here';$('#signal-name').textContent=flow.tracing?'Tracing word':flow.status;$('#signal-detail').textContent=flow.pending?'Decoding':'Flow';
- $('#signal-meter').style.width=(flow.hover?Math.min(100,(performance.now()-flow.hoverSince)/450*100):0)+'%';
+ $('#finger-camera-text').textContent=c.text.slice(-90)||'Your text appears here';
+
  const choices=$('#flow-choices'),stamp=JSON.stringify([flow.candidates,flow.review,flowRace.active]);
  if(choices.dataset.stamp!==stamp){choices.dataset.stamp=stamp;choices.innerHTML=flow.candidates.map((v,i)=>btn(esc(v.word)+'<small>'+(flow.review?'Insert word':'Replace last word')+'</small>','flow-accept','flow-choice '+(i?'secondary':''),'data-index="'+i+'" '+(flowRace.active?'disabled':''))).join('');}
  updateFlowBenchmark();
@@ -350,7 +349,7 @@ function updateChordDisplay(){
  const swap=environmentSettings().gridSwap;
  $('#camera-row-count').textContent=(swap?'Slot ':'Bank ')+(swap?pair.col??'—':pair.row??'—');
  $('#camera-col-count').textContent=(swap?'Bank ':'Slot ')+(swap?pair.row??'—':pair.col??'—');
- $('#signal-name').textContent=k?k.label:'Chord '+(out?.armed?'ready':'waiting');$('#signal-detail').textContent=k?'Close fists to send':live?'Form a code':'Preview';$('#signal-meter').style.width=(live?(out?.progress||0)*100:0)+'%';
+
 }
 function onChordFrame(frame){
  const pair=fingerPair(frame,environmentSettings().gridSwap),out=live&&!activeDialog?chordGate.update(pair,frame.handFrameAt,frame.now):null;
@@ -428,8 +427,8 @@ function updateCirrinDisplay(){
  if(el.dataset.stamp!==stamp){el.dataset.stamp=stamp;el.innerHTML=choices.map((c,i)=>btn(esc(composer.caps?c.word.toUpperCase():c.word)+'<small>'+c.kind+' · insert + space</small>','cirrin-accept','cirrin-choice '+(i===0?'primary':''),'data-word="'+esc(c.word)+'" '+(blocked?'disabled':''))).join('');}
  for(const action of ['cirrin-review','cirrin-back'])$('[data-action="'+action+'"]').disabled=!trace.word||blocked;
  const guide=$('#cirrin-guide-button');guide.textContent=cirrin.guide?'Hide HELLO route':'Show HELLO route';guide.setAttribute('aria-pressed',String(cirrin.guide));
- $('#signal-name').textContent=trace.word||'Cirrin ready';$('#signal-detail').textContent=trace.phase==='tracing'?'Tracing':trace.phase==='review'?'Thumbs-up to insert':'Start in center';
- $('#signal-meter').style.width=(cirrin.thumbSince===null?0:Math.min(100,(performance.now()-cirrin.thumbSince)/850*100))+'%';
+
+
 }
 
 function renderAirWriter(){
@@ -465,8 +464,8 @@ function updateAirDisplay(){
  if(el.dataset.stamp!==stamp){el.dataset.stamp=stamp;el.innerHTML=air.candidates.map((c,i)=>btn((composer.caps?c.letter:c.letter.toLowerCase())+'<small>'+(i===0?'FIRST CHOICE':'ALTERNATIVE')+'</small>','air-accept','air-choice '+(i===0?'primary':''),'data-letter="'+c.letter+'" aria-label="Insert '+c.letter+'"')).join('');}
  $('#air-correction').hidden=!air.candidates.length;
  const recognize=$('[data-action="air-recognize"]');recognize.disabled=!air.ink.usable||air.state==='recognizing'||!!composer.confirm||composer.paused;
- $('#signal-name').textContent=air.candidates.length?air.candidates.map(c=>c.letter).join(' · '):status;
- $('#signal-detail').textContent=air.ink.down?'Ink on':'Pen lifted';$('#signal-meter').style.width=(air.thumbSince===null?0:Math.min(100,(performance.now()-air.thumbSince)/850*100))+'%';
+
+
 }
 
 function checkView(){
@@ -504,16 +503,25 @@ function updateCamera(){
 }
 function onCameraState(state,message){if(state==='ready')queueMicrotask(syncCameraForContext);cameraState=state;cameraMessage=message;if(state==='error'||state==='off'){flowRace.cancel('Trial cancelled because camera tracking stopped.');chordRace.cancel('Trial cancelled because camera tracking stopped.');live=false;creator.live=false;resetInput();}updateCamera();if(view==='write')renderWriter();}
 function onFrame(frame){
- latest=frame;if(creatorView()){creator.runtime?.frame(frame,creator.live&&!activeDialog);if(creator.runtime?.block?.input.source!=='scan')return;}if(customWriting()){customRuntime?.frame(frame,live&&!activeDialog);if(customRuntime?.block?.input.source!=='scan')return;}if(flowWriting()){if(!flow.pointerActive)flow.update(frame,live&&!activeDialog&&!flowComposer().confirm&&!flowComposer().paused);return;}if(chordWriting()){onChordFrame(frame);return;}if(cirrinWriting()){if(!cirrin.pointerActive)cirrin.update(frame,live&&!activeDialog&&!composer.confirm&&!composer.paused);return;}if(airWriting()){if(live)air.update(frame,!activeDialog&&!composer.confirm&&!composer.paused);return;}if(fingerWriting()){onFingerFrame(frame);return;}if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
+ latest=frame;
+ const personalInput=creatorView()?creator.runtime?.block?.input.source==='scan':customWriting()?customRuntime?.block?.input.source==='scan':!flowWriting()&&!chordWriting()&&!cirrinWriting()&&!airWriting()&&!fingerWriting();
+ if(creatorView())creator.runtime?.frame(frame,creator.live&&!activeDialog);
+ else if(customWriting())customRuntime?.frame(frame,live&&!activeDialog);
+ else if(flowWriting()){if(!flow.pointerActive)flow.update(frame,live&&!activeDialog&&!flowComposer().confirm&&!flowComposer().paused);}
+ else if(chordWriting())onChordFrame(frame);
+ else if(cirrinWriting()){if(!cirrin.pointerActive)cirrin.update(frame,live&&!activeDialog&&!composer.confirm&&!composer.paused);}
+ else if(airWriting()){if(live)air.update(frame,!activeDialog&&!composer.confirm&&!composer.paused);}
+ else if(fingerWriting())onFingerFrame(frame);
+ if(requiredTracking(model,frame.vector,true,profile))lastTracking=frame.now;
  if(recording){recording.total++;if(frame.vector){recording.frames.push(frame.vector);recording.tracked++;}}
  let result=frame.vector?(model?.combined?predictCombined(model,frame.vector):predict(model,frame.vector)):{id:UNKNOWN,reason:'No tracking',score:0};
- let event=null;
- if(model?.combined){const out=gate.updateFrame(frame.vector,frame.now);result=out.result;event=out.event;}
+ let observed=result,event=null;
+ if(model?.combined){const out=gate.updateFrame(frame.vector,frame.now);result=out.result;event=out.event;if(result.id!==REST&&result.id!==UNKNOWN)observed=result;}
  else if(!frame.vector)gate.reset();else if(model)event=gate.update(result.id,frame.now);
  if(restCheck){restCheck.total++;if(requiredTracking(model,frame.vector))restCheck.tracked++;if(event)restCheck.events.push(event);}
  if(attempt&&event)attempt.events.push(event);
- if(event&&creatorView()&&creator.live&&!activeDialog){const g=profile?.gestures.find(g=>g.id===event);if(g)creator.runtime?.gesture(g.action,g.value);}
- if(event&&live&&view==='write'&&!activeDialog){const g=profile.gestures.find(g=>g.id===event);if(g){dispatchGesture(g);lastScan=frame.now;}}
+ if(event&&personalInput&&creatorView()&&creator.live&&!activeDialog){const g=profile?.gestures.find(g=>g.id===event);if(g)creator.runtime?.gesture(g.action,g.value);}
+ if(event&&personalInput&&live&&view==='write'&&!activeDialog){const g=profile.gestures.find(g=>g.id===event);if(g){dispatchGesture(g);lastScan=frame.now;}}
  if(frame.now-lastUI>120){
   lastUI=frame.now;
   const performanceLine=$('#camera-performance'),metrics=frame.metrics;
@@ -525,7 +533,7 @@ function onFrame(frame){
   }
   const tracking=$('#tracking-parts');if(tracking)tracking.innerHTML=profile?.modality==='combined'?CHANNELS.map(c=>'<span class="'+(frame.vector?.[c.mask]>.95?'visible':'')+'">'+c.name+(frame.vector?.[c.mask]>.95?' ✓':' —')+'</span>').join(''):'';
 
-  $('#signal-name').textContent=!frame.vector?'No tracking':!model?'Ready to learn':result.id===REST?'Resting':result.id===UNKNOWN?'Uncertain — no action':result.label;
+  $('#signal-name').textContent=!frame.vector?'No tracking':!model?'Ready to learn':observed.id===REST?'Resting':observed.id===UNKNOWN?'Uncertain — no action':observed.label||profile?.gestures.find(g=>g.id===observed.id)?.name||'Uncertain';
   $('#signal-detail').textContent=!frame.vector?'Move into view':model?(gate.armed?'Ready':'Return to rest'):Math.round(frame.latency)+' ms';
   $('#signal-meter').style.width=(gate.progress*100)+'%';
   if(view==='studio'&&$('#live-insights'))$('#live-insights').innerHTML=liveInsightHTML(model,frame.vector,result,gate,frame.latency);
@@ -721,6 +729,7 @@ document.addEventListener('click',async e=>{
   if(a==='inspect-gesture'){setView('teach');gestureDialog(id);return;}
   if(a==='writer-settings')return setView('profiles');
   if(a==='copy'){try{await navigator.clipboard.writeText(composer.text);toast('Message copied.');}catch{toast('Clipboard is unavailable in this browser.');}return;}
+  if(a==='message-clear'||a==='message-undo'){resetInput();handleEffect(composer.apply({type:a==='message-clear'?'clear':'undo'}));renderWriter();return;}
   if(a==='speak'){if(chordWriting())chordGate.reset();handleEffect(composer.apply({type:'speak'}));renderWriter();return;}
   if(['manual-next','manual-select','key','back-rows'].includes(a)){
    if(live){live=false;resetInput();toast('Switched to pointer preview. Use my gestures to resume camera input.');}
@@ -782,6 +791,9 @@ document.addEventListener('change',async e=>{
  if(e.target.id==='profile-select')selectProfile(e.target.value);
  if(e.target.id==='import-file'){try{const file=e.target.files[0];if(!file)return;const p=upgradeFaceProfile(importProfile(await file.text()));profiles.push(p);persist();selectProfile(p.id);toast('Profile imported. Check recognition in your current camera setup.');}catch(err){toast('Import failed: '+err.message);}}
 });
+document.addEventListener('focusin',e=>{if(e.target.id==='message'){live=false;resetInput();renderWriter();}});
+document.addEventListener('input',e=>{if(e.target.id==='message'&&view==='write'){if(e.target.value!==composer.text)composer.change(e.target.value);composer.confirm=null;composer.resetFocus();if(!e.isComposing)renderWriter();else{saveDraft();$('#draft-status').textContent=draftNotice;}}});
+document.addEventListener('compositionend',e=>{if(e.target.id==='message')renderWriter();});
 document.addEventListener('keydown',e=>{
  if(e.key==='Escape'&&busy&&!activeDialog){e.preventDefault();cancelTask();return;}
  if(flowWriting()||chordWriting()||cirrinWriting()||airWriting()||fingerWriting()||view!=='write'||live||activeDialog||/INPUT|SELECT|TEXTAREA/.test(e.target.tagName))return;

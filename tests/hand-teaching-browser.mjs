@@ -57,14 +57,14 @@ try{
  await page.screenshot({path:fileURLToPath(new URL('../artifacts/hand-teaching.png',import.meta.url)),fullPage:true});
  await page.getByRole('button',{name:'Write & speak',exact:true}).click();await page.getByRole('button',{name:'Use my gestures',exact:true}).click();
  const signal=async kind=>{await page.evaluate(()=>window.__signal='rest');await page.waitForTimeout(650);await page.evaluate(kind=>window.__signal=kind,kind);await page.waitForTimeout(800);};
- await signal('one');assert.equal(await page.locator('#message').innerText(),'hi');
- await signal('both');assert.equal(await page.locator('#message').innerText(),'hi there');
- await page.waitForTimeout(750);assert.equal(await page.locator('#message').innerText(),'hi there');
- await signal('missing');assert.equal(await page.locator('#message').innerText(),'hi there');
- await page.evaluate(()=>window.__noFace=false);await signal('face');assert.equal(await page.locator('#message').innerText(),'hi there!');
+ await signal('one');assert.equal(await page.locator('#message').inputValue(),'hi');
+ await signal('both');assert.equal(await page.locator('#message').inputValue(),'hi there');
+ await page.waitForTimeout(750);assert.equal(await page.locator('#message').inputValue(),'hi there');
+ await signal('missing');assert.equal(await page.locator('#message').inputValue(),'hi there');
+ await page.evaluate(()=>window.__noFace=false);await signal('face');assert.equal(await page.locator('#message').inputValue(),'hi there!');
  console.log('PASS: learned hand-only, two-hand, and preserved face signals compose hi there!; holds and lost hands do not type');
  await page.reload();await page.getByRole('button',{name:'Write & speak',exact:true}).click();
  assert.equal(await page.getByRole('button',{name:'Use my gestures',exact:true}).isEnabled(),true);
- assert.equal(await page.locator('#message').innerText(),'hi there!');assert.deepEqual(errors,[]);
+ assert.equal(await page.locator('#message').inputValue(),'hi there!');assert.deepEqual(errors,[]);
  console.log('PASS: saved gesture model and draft survive reload; no browser errors');
 }finally{await browser.close();}

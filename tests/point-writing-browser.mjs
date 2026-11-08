@@ -18,7 +18,7 @@ try{
   }
  });
  await page.waitForFunction(()=>document.querySelector('.air-choice')?.dataset.letter==='H',{},{timeout:12000});
- await page.locator('.air-choice').first().click();assert.equal(await page.locator('#message').textContent(),'h');
+ await page.locator('.air-choice').first().click();assert.equal(await page.locator('#message').inputValue(),'h');
  console.log('PASS: default point/open control → real neural H, multiple strokes, brief gaps and pen-up repositioning');
  await page.getByLabel('Communication environment').selectOption('cirrin');await page.getByRole('button',{name:'Start Cirrin input',exact:true}).click();
  await page.evaluate(async()=>{
@@ -32,6 +32,6 @@ try{
   window.__hands=[window.__pose(raw({x:.5,y:.5}),5)];await wait(180);
  });
  await page.waitForFunction(()=>document.querySelector('.cirrin-choice')?.dataset.word==='hello',{},{timeout:5000});
- await page.locator('.cirrin-choice').first().click();assert.equal(await page.locator('#message').textContent(),'h hello ');
+ await page.locator('.cirrin-choice').first().click();assert.equal(await page.locator('#message').inputValue(),'h hello ');
  assert.deepEqual(errors,[]);console.log('PASS: default point/open Cirrin spells HELLO with fast excursions, overshoot and doubled L');
 }catch(e){console.error(errors);console.error(await page.locator('#air-detail, #cirrin-status').allTextContents());await page.screenshot({path:fileURLToPath(new URL('../artifacts/point-failure.png',import.meta.url)),fullPage:true});throw e;}finally{await browser.close();}

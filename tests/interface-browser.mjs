@@ -14,7 +14,7 @@ const noOverflow=async label=>{const sizes=await page.evaluate(()=>({width:docum
 const screenshot=async name=>page.screenshot({path:fileURLToPath(new URL('../artifacts/ui/'+name+'.png',import.meta.url)),fullPage:true});
 try{
  await page.goto('http://localhost:4173/');assert.equal(await page.locator('h1').innerText(),'Get started');
- assert.equal(await page.locator('.nav-more').getAttribute('open'),null);
+ assert.equal(await page.getByRole('button',{name:'Signal analyzer',exact:true}).isVisible(),true);
  await page.getByRole('button',{name:'Create a profile',exact:true}).focus();await page.keyboard.press('Enter');
  assert.equal(await page.getByRole('dialog').getAttribute('aria-labelledby'),'dialog-title');
  assert.equal(await page.getByLabel('Profile name').evaluate(el=>el===document.activeElement),true);
@@ -55,8 +55,8 @@ try{
  await page.setViewportSize({width:1440,height:1000});await page.locator('[data-nav="teach"]').click();await screenshot('teach-ready');
  await page.locator('[data-nav="write"]').click();await page.getByLabel('Communication environment').selectOption('classic');await screenshot('write-final');
  await page.locator('[data-nav="profiles"]').click();await screenshot('settings');
- await page.locator('.nav-more summary').click();await page.locator('[data-nav="studio"]').click();await noOverflow('advanced');
- assert.equal(await page.locator('h1').innerText(),'Signal details');
+ await page.locator('[data-nav="studio"]').click();await noOverflow('advanced');
+ assert.equal(await page.locator('h1').innerText(),'Signal analyzer');
  const missingLabels=await page.locator('button:visible').evaluateAll(buttons=>buttons.filter(b=>!b.textContent.trim()&&!b.getAttribute('aria-label')).length);assert.equal(missingLabels,0);
  assert.deepEqual(errors,[]);console.log('PASS: visible controls have labels; advanced tools remain reachable; no browser errors');
 }finally{await browser.close();}

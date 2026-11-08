@@ -28,14 +28,14 @@ try{
  await page.locator('#pen-mode').selectOption('pinch');await page.getByRole('button',{name:'Start air writing',exact:true}).click();
  await trace('H');
  assert.equal(await page.locator('.air-choice').first().getAttribute('data-letter'),'H');
- assert.equal(await page.locator('#message').innerText(),'z','recognition cannot insert without confirmation');
+ assert.equal(await page.locator('#message').inputValue(),'z','recognition cannot insert without confirmation');
  await page.evaluate(async()=>{const {hand}=await import('/__hands.mjs');window.__hand=hand(1,{thumbOnly:true});});
- await page.waitForFunction(()=>document.querySelector('#message').textContent==='zh');
- await page.waitForTimeout(1100);assert.equal(await page.locator('#message').innerText(),'zh','held thumbs-up never repeats');
+ await page.waitForFunction(()=>document.querySelector('#message').value==='zh');
+ await page.waitForTimeout(1100);assert.equal(await page.locator('#message').inputValue(),'zh','held thumbs-up never repeats');
  await trace('I');assert.equal(await page.locator('.air-choice').first().getAttribute('data-letter'),'I');
- await page.locator('.air-choice').first().click();assert.equal(await page.locator('#message').innerText(),'zhi');
- await page.getByRole('button',{name:'Delete',exact:true}).click();assert.equal(await page.locator('#message').innerText(),'zh');
- await page.getByRole('button',{name:'Undo',exact:true}).click();assert.equal(await page.locator('#message').innerText(),'zhi');
+ await page.locator('.air-choice').first().click();assert.equal(await page.locator('#message').inputValue(),'zhi');
+ await page.getByRole('button',{name:'Delete',exact:true}).click();assert.equal(await page.locator('#message').inputValue(),'zh');
+ await page.getByRole('button',{name:'Undo',exact:true}).first().click();assert.equal(await page.locator('#message').inputValue(),'zhi');
  await page.getByRole('button',{name:'Speak message',exact:true}).click();assert.ok(await page.getByRole('button',{name:'Speak now',exact:true}).isVisible());
  await page.getByRole('button',{name:'Cancel',exact:true}).click();
  // The camera remains running while pointer drawing pauses camera input.
@@ -48,7 +48,7 @@ try{
   await page.mouse.up();
  }
  await page.waitForFunction(()=>document.querySelector('.air-choice')?.dataset.letter==='H',{},{timeout:12000});
- assert.equal(await page.locator('#message').innerText(),'zhi');
+ assert.equal(await page.locator('#message').inputValue(),'zhi');
  console.log('PASS: mouse multi-stroke drawing remains intact while the camera is running');
  for(const viewport of [{width:1366,height:900},{width:390,height:844}]){
   await page.setViewportSize(viewport);await page.locator('#air-canvas').scrollIntoViewIfNeeded();await page.waitForTimeout(150);
@@ -58,10 +58,10 @@ try{
   await page.screenshot({path:fileURLToPath(new URL('../artifacts/air-letters-'+viewport.width+'.png',import.meta.url)),fullPage:viewport.width>500});
  }
  await page.setViewportSize({width:1366,height:900});await page.getByLabel('Communication environment').selectOption('finger-grid');
- assert.equal(await page.locator('#message').innerText(),'zhi');assert.equal(await page.locator('.finger-key').count(),36);
- await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').innerText(),'zhi');
+ assert.equal(await page.locator('#message').inputValue(),'zhi');assert.equal(await page.locator('.finger-key').count(),36);
+ await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').inputValue(),'zhi');
  await page.getByLabel('Communication environment').selectOption('air-letters');await page.reload();
  await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
- assert.equal(await page.getByLabel('Communication environment').inputValue(),'air-letters');assert.equal(await page.locator('#message').innerText(),'zhi');
+ assert.equal(await page.getByLabel('Communication environment').inputValue(),'air-letters');assert.equal(await page.locator('#message').inputValue(),'zhi');
  assert.deepEqual(errors,[]);console.log('PASS: tracked pinch strokes → actual neural H/I → deliberate thumbs-up/click insertion; undo, confirmation, environments, persistence and camera visibility');
 }finally{await browser.close();}

@@ -18,18 +18,18 @@ try{
  assert.equal(await page.locator('.chord-key').count(),5);
  await page.getByRole('button',{name:'Start Chord input',exact:true}).click();
  assert.equal(await page.evaluate(()=>window.__cameraMode),'hands');assert.equal(await page.evaluate(()=>window.__cameraDelegate),'CPU');
- await pose(0,1);assert.equal(await page.locator('#message').textContent(),'z','initial code must not arm');
- await pose(0,0);await pose(3,0);assert.equal(await page.locator('#message').textContent(),'z','browsing must not write');
+ await pose(0,1);assert.equal(await page.locator('#message').inputValue(),'z','initial code must not arm');
+ await pose(0,0);await pose(3,0);assert.equal(await page.locator('#message').inputValue(),'z','browsing must not write');
  await pose(0,1);assert.match(await page.locator('#chord-stage').textContent(),/Armed 0·1/);
- await pose(0,0);assert.equal(await page.locator('#message').textContent(),'z Thanks for the update. ');
- await page.waitForTimeout(500);assert.equal(await page.locator('#message').textContent(),'z Thanks for the update. ');
- await chord(24);assert.equal(await page.locator('#message').textContent(),'z','whole block undo through camera');
- await pose(0,1);await pose(null,null);await pose(0,0);assert.equal(await page.locator('#message').textContent(),'z','lost tracking cancels armed text');
+ await pose(0,0);assert.equal(await page.locator('#message').inputValue(),'z Thanks for the update. ');
+ await page.waitForTimeout(500);assert.equal(await page.locator('#message').inputValue(),'z Thanks for the update. ');
+ await chord(24);assert.equal(await page.locator('#message').inputValue(),'z','whole block undo through camera');
+ await pose(0,1);await pose(null,null);await pose(0,0);assert.equal(await page.locator('#message').inputValue(),'z','lost tracking cancels armed text');
  // Manual preview stops input and updates its status.
  await page.getByRole('button',{name:'Bank 0',exact:true}).click();
  assert.ok(await page.getByRole('button',{name:'Start Chord input',exact:true}).isVisible());
- await pointer(2);assert.equal(await page.locator('#message').textContent(),"z I'll take a look and get back to you. ");
- const savedDraft=await page.locator('#message').textContent();
+ await pointer(2);assert.equal(await page.locator('#message').inputValue(),"z I'll take a look and get back to you. ");
+ const savedDraft=await page.locator('#message').inputValue();
  // Timed keyboard and camera drafts never modify the user's shared message.
  await page.getByText('Typing speed test',{exact:true}).click();await page.getByRole('button',{name:'Start keyboard trial',exact:true}).click();
  const target=await page.locator('.chord-target').textContent(),trial=page.locator('#chord-keyboard-trial');
@@ -37,14 +37,14 @@ try{
  await trial.pressSequentially('x');await trial.press('Backspace');
  await trial.pressSequentially(target,{delay:2});
  assert.match(await page.locator('#chord-race-status').textContent(),/Completed/);
- assert.equal(await page.locator('#message').textContent(),savedDraft);
+ assert.equal(await page.locator('#message').inputValue(),savedDraft);
  await page.getByRole('button',{name:'Start camera trial',exact:true}).click();
  assert.ok(await page.locator('.chord-key').first().isDisabled());
  await pose(0,0);for(const index of [0,2,7])await chord(index);
  assert.match(await page.locator('#chord-race-status').textContent(),/Completed/);
  assert.equal((await page.locator('#chord-trial-output').textContent()).trimEnd(),target);
  assert.match(await page.locator('#chord-race-results').textContent(),/×/);
- assert.equal(await page.locator('#message').textContent(),savedDraft);
+ assert.equal(await page.locator('#message').inputValue(),savedDraft);
  // A word-by-word target has no phrase shortcut in its initial palette.
  await page.locator('#chord-scenario').selectOption('words');await page.getByRole('button',{name:'Start camera trial',exact:true}).click();
  await pose(0,0);
@@ -61,7 +61,7 @@ try{
   assert.ok(index>=0,'word reachable '+word);await chord(index);
  }
  assert.match(await page.locator('#chord-race-status').textContent(),/Completed/);
- assert.equal(await page.locator('#message').textContent(),savedDraft);
+ assert.equal(await page.locator('#message').inputValue(),savedDraft);
  // Edit a fixed shortcut with literal code, persist it, and insert without spacing changes.
  await page.locator('[data-action="chord-mode"][data-mode="shortcuts"]').click();
  await page.getByRole('button',{name:'Edit shortcut 0·1',exact:true}).click();
@@ -69,10 +69,10 @@ try{
  await page.getByRole('textbox',{name:'Text to insert',exact:true}).fill(code);
  await page.getByLabel('Insert exactly, preserving whitespace (useful for code)',{exact:true}).check();
  await page.getByRole('button',{name:'Save shortcut',exact:true}).click();
- await pointer(0);assert.equal(await page.locator('#message').textContent(),savedDraft+code);
+ await pointer(0);assert.equal(await page.locator('#message').inputValue(),savedDraft+code);
  // Spell/prefix modes and confirmation are reachable through the same codebook.
  await pointer(20);await pointer(18);assert.match(await page.locator('#chord-filter').textContent(),/P–T/);
- await pointer(22);await pointer(0);assert.equal(await page.locator('#message').textContent(),savedDraft+code+'a');
+ await pointer(22);await pointer(0);assert.equal(await page.locator('#message').inputValue(),savedDraft+code+'a');
  await pointer(27);await pointer(29);
  assert.match(await page.locator('#chord-codebook').textContent(),/Speak now/);await pointer(0);
  for(const viewport of [{width:1366,height:900},{width:390,height:844}]){
@@ -85,11 +85,11 @@ try{
  }
  await page.setViewportSize({width:1366,height:900});
  await page.getByRole('button',{name:'Start camera trial',exact:true}).click();
- await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').textContent(),savedDraft+code+'a');
+ await page.getByLabel('Communication environment').selectOption('classic');assert.equal(await page.locator('#message').inputValue(),savedDraft+code+'a');
  await page.getByLabel('Communication environment').selectOption('chord');assert.match(await page.locator('#chord-race-status').textContent(),/cancelled/);
  await page.reload();await page.getByRole('button',{name:'Write & speak',exact:true}).first().click();
  assert.equal(await page.getByLabel('Communication environment').inputValue(),'chord');assert.match(await page.locator('.chord-key').first().textContent(),/Code block/);
- assert.equal(await page.locator('#message').textContent(),savedDraft+code+'a');
+ assert.equal(await page.locator('#message').inputValue(),savedDraft+code+'a');
  assert.deepEqual(errors,[]);
  console.log('PASS: Chord camera release-to-write, cancellation, words, code snippets, persistence, benchmark isolation/exact completion/paste prevention, mobile camera dock and environment switching. Controlled fixtures, not a human speed measurement.');
 }finally{await browser.close();}

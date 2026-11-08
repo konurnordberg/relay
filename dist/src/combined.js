@@ -180,9 +180,13 @@ export class CombinedGate extends EventGate{
 export function combinedDiagnostics(model){
  return model.entries.map(e=>{
   if(e.kind==='motion')return {id:e.id,label:e.label,examples:e.examples,nearest:'Motion templates',ratio:0,status:'motion',channels:e.channels.map(c=>c.name),kind:e.kind};
-  const a=e.binary.classes.find(c=>c.id===e.id),b=e.binary.classes.find(c=>c.id===REST);
-  const gap=Math.min(...a.vectors.flatMap(x=>b.vectors.map(y=>distance(e.binary,x,y)))),ratio=gap/(a.radius+b.radius);
-  return {id:e.id,label:e.label,examples:e.examples,nearest:'Rest',ratio,status:ratio<1?'overlap':ratio<1.5?'close':'separated',channels:e.channels.map(c=>c.name),kind:e.kind};
+  const a=e.binary.classes.find(c=>c.id===e.id);
+  const comparisons=e.binary.classes.filter(c=>c.id!==e.id).map(b=>{
+   const gap=Math.min(...a.vectors.flatMap(x=>b.vectors.map(y=>distance(e.binary,x,y))));
+   return {label:b.label,ratio:gap/(a.radius+b.radius)};
+  }).sort((x,y)=>x.ratio-y.ratio);
+  const nearest=comparisons[0],ratio=nearest?.ratio??0;
+  return {id:e.id,label:e.label,examples:e.examples,nearest:nearest?.label||'Rest',ratio,status:ratio<1?'overlap':ratio<1.5?'close':'separated',channels:e.channels.map(c=>c.name),kind:e.kind};
  });
 }
 export function combinedMatches(model,vector){

@@ -28,3 +28,8 @@ dialog{max-width:560px;width:calc(100% - 32px);max-height:calc(100dvh - 32px);pa
 button{min-height:44px;min-width:44px}
 .write-header{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:18px}.write-header .page-heading,body[data-view="write"] .write-header .page-heading{margin:0}.write-header #environment-picker{margin:0;padding:0;border:0}.write-header .environment-choice{gap:12px}.write-header .environment-choice>span{font-size:.85rem}.write-header .environment-choice select{max-width:100%}
 @media(max-width:600px){.write-header{gap:16px;margin-bottom:18px}.write-header #environment-picker{width:100%}.write-header .environment-choice{gap:6px}}
+
+/* Native message editing and persistent recognition feedback. */
+textarea.message{display:block;width:100%;border:0;border-radius:0;background:transparent;color:var(--ink);font-family:inherit;resize:vertical;letter-spacing:normal;white-space:pre-wrap}textarea.message.empty{font-size:1.5rem}textarea.message::placeholder{color:var(--muted)}textarea.message:focus-visible{outline:3px solid #719f60;outline-offset:-3px}
+body .camera-card .recognition{display:block;grid-column:1/-1;padding:12px 16px;border-top:1px solid var(--line)}.recognition #signal-name{overflow-wrap:anywhere}.recognition .meter{margin-top:8px}
+@media(max-width:760px){body.camera-docked .camera-card .recognition{padding:8px 12px}.camera-docked .recognition .eyebrow{font-size:.75rem;margin-bottom:3px}.camera-docked .recognition .signal-name{font-size:.9rem}.camera-docked .recognition .meter{margin-top:5px}.camera-docked .camera-card{overflow-y:auto}}

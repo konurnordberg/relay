@@ -1,3 +1,7 @@
+## Relay 2.1.1 — Demo controls
+
+The message is directly editable with a physical keyboard in every environment. Clear is immediate and Undo restores it. Signal analyzer is in the main navigation, with nearest competing pose comparisons. Current gesture feedback remains beneath the camera, independently of whether a command is armed. All-signals profiles keep face and hand tracking active across environments.
+
 # Relay
 **Your movement. Your words.**
 

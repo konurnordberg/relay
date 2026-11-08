@@ -17,15 +17,15 @@ test('every grid has 36 cells; pages reach all ASCII letters, numbers and punctu
  for(let i=32;i<=126;i++)assert.ok(characters.has(String.fromCharCode(i)),'unreachable ASCII '+String.fromCharCode(i));
  const order=[];let page='letters';for(let i=0;i<4;i++){order.push(page);page=applyGridKey(c,gridKeys(c,page)[35],page).page;}assert.deepEqual(order,GRID_PAGES);assert.equal(page,'letters');
 });
-test('grid actions share message, undo, phrase and explicit speech/clear confirmation',()=>{
+test('grid actions share message, undo, phrase and speech confirmation and immediate undoable clearing',()=>{
  const c=new RelayComposer();applyGridKey(c,gridKeys(c)[0],'letters');assert.equal(c.text,'a');
  applyGridKey(c,gridKeys(c)[30],'letters');assert.equal(c.text,'');applyGridKey(c,gridKeys(c)[31],'letters');assert.equal(c.text,'a');
  applyGridKey(c,gridKeys(c)[33],'letters');assert.equal(c.confirm,'speak');
  assert.equal(gridKeys(c).filter(k=>k.type!=='noop').length,2);
  applyGridKey(c,{type:'text',value:'X'},'letters');assert.equal(c.text,'a');
  assert.equal(applyGridKey(c,gridKeys(c)[1],'letters').effect,'speak');
- applyGridKey(c,gridKeys(c,'tools')[2],'tools');assert.equal(c.confirm,'clear');
- applyGridKey(c,gridKeys(c)[0],'letters');assert.equal(c.text,'a');
+ applyGridKey(c,gridKeys(c,'tools')[2],'tools');assert.equal(c.confirm,null);assert.equal(c.text,'');
+ applyGridKey(c,{type:'undo'},'letters');assert.equal(c.text,'a');
  applyGridKey(c,gridKeys(c,'phrases')[0],'phrases');assert.equal(c.text,'a Yes.');
  applyGridKey(c,gridKeys(c,'tools')[3],'tools');assert.equal(c.paused,true);assert.equal(gridKeys(c).filter(k=>k.type!=='noop').length,1);
  applyGridKey(c,gridKeys(c)[0],'letters');assert.equal(c.paused,false);
