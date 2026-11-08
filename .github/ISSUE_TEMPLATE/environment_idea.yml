@@ -1,0 +1,16 @@
+name: Environment idea
+description: Suggest an interaction or a missing Creator building block.
+body:
+  - type: textarea
+    id: interaction
+    attributes:
+      label: What should the interaction feel like?
+      description: Describe the movements, layout, selection, and correction flow.
+    validations:
+      required: true
+  - type: textarea
+    id: creator
+    attributes:
+      label: What can you already build in Creator, and what is missing?
+    validations:
+      required: true

@@ -1,328 +1,135 @@
-## Relay 2.3.2 — Consistent signal analyzer
+<div align="center">
+  <img src="dist/favicon.svg" width="64" height="64" alt="Relay logo" />
+  <h1>Relay</h1>
+  <p><strong>Build a way to communicate around the movements you can make.</strong></p>
+  <p>Personal gestures. Visual creation. Shared communication environments.</p>
+  <p><a href="https://relay-personal-voice.parlaygoat.chatgpt.site/">Try Relay</a> · <a href="CREATOR.md">Build an environment</a> · <a href="docs/ARCHITECTURE.md">Explore the architecture</a></p>
+</div>
 
-Inside the recognizer now shows the same observed gesture as Current gesture beneath the camera. Hold/rest instructions still come from the action gate, so a recognized pose stays visible while waiting to rearm instead of being mislabeled uncertain. Recognition thresholds and action gating are unchanged.
+![Relay home page introducing the communication platform](docs/images/relay-home.png)
 
-The browser regression covers legacy face recordings and combined face/hand poses before rest, during hold, after selection lock, through unknown input and tracking loss, and when the camera stops. The analyzer remains non-writing.
+I built Relay around a simple question: **what if the interface adapted to the person using it?**
 
-## Relay 2.3.1 — Deleted drafts stay deleted
+A raised eyebrow, an open hand, or a small movement can become a way to write. Relay learns personal signals through a webcam, turns them into text and speech, and lets someone build a different interface when the existing ones do not fit. A family member or creator can arrange characters, connect movements to controls, and share that environment for others to try and remix.
 
-Deleting the currently remembered Creator draft now clears the editor document, undo history, preview, and publication state after storage deletion succeeds. Returning from Home opens the library, and sign-in cannot save the deleted in-memory copy again. Deleting another draft or uninstalling a separate installed copy preserves the active draft.
+Built by **[Konur Nordberg](https://github.com/konurnordberg)** for the **Triangle AI Hackathon 2026 · Computer Vision track**.
 
-The browser regression reproduces the original navigation sequence and checks blank/edited drafts, sign-in, stale return URLs, reload, independent uninstallation, and failed storage deletion.
+## Three spaces, one communication platform
 
-## Relay 2.3.0 — Public launch
+- **User space:** calibrate comfortable gestures, choose an environment, and write, edit, undo, or speak a message. The same message travels with you between environments.
+- **Creator space:** place characters and phrases on a canvas, group them, connect measured inputs to properties, and define how a selection happens. Test the result, then use it immediately.
+- **Environment feed:** browse, try, remix, publish, and vote on shared environments. Browsing and local use need no account; publishing and voting use ChatGPT sign-in on the hosted app.
 
-Anyone can open Relay, use its local camera features, build environments, and browse, try, or remix the shared feed without an account. ChatGPT sign-in is required only to publish environments or vote. Sign-in and sign-out use the hosting platform's top-level redirects; creators return to their saved draft and must explicitly confirm publication.
+## Six ways to start
 
-Public publication explains which layout, output text, and custom sketch examples become downloadable. Personal profiles, calibration, message drafts, and camera video remain local. The six built-in examples are available for remix with attribution. Previously private user packages stay owner-only until explicitly republished with a public license. The former catalog-maintenance endpoint is removed.
+| Environment | How it works |
+| --- | --- |
+| **Classic** | Teach Next and Select gestures to navigate a full keyboard. One reliable selection gesture can also work with automatic scanning. |
+| **Finger grid** | Show 0–5 fingers on each hand to choose a row and column. Hold to select; switch pages for more than 36 characters and actions. |
+| **Air letters** | Draw with your index finger, lift with an open hand, and review suggestions from a local handwriting model. |
+| **Cirrin** | Trace through letters around a ring to spell a word in a continuous movement. |
+| **Flow** | Trace a word over QWERTY. A local decoder ranks candidates from a 20,000-word vocabulary. |
+| **Chord** | Select gesture shortcuts for phrases and code snippets, with spelling controls for other text. |
 
-Validation includes 135 unit tests, anonymous read/authenticated write checks, shared reversible votes across accounts, private-package isolation, safe sign-in return paths, and browser flows for guest browsing, saved-draft sign-in return, publication, voting, and sign-out. Browser authentication redirects are simulated locally; the actual public gateway is checked after access changes.
+![The environment feed, with six distinct layouts available to use or remix](docs/images/environment-feed.png)
 
-## Relay 2.2.1 — Creator showcase
+## The creator is the interesting part
 
-The Home page now presents all six editable environment templates together and explains how layouts, inputs, and selection rules can be combined in Creator space. This replaces the dial-specific example with a broader invitation to remix or start from a blank canvas.
+A hand-controlled dial does not need a dial-specific builder. It can be made from:
 
-## Relay 2.2.0 — Home
+**26 choices → a group → a circle arrangement → hand rotation mapped to group rotation → a fixed target → a dwell rule.**
 
-Home now opens above Get started for new and returning visitors. It explains User space, Creator space, and the private Environment feed, with six selectable previews rendered from Relay's existing environment layouts. A component-built dial illustrates how layout, input mappings, and a selection rule work together.
+Change the arrangement to a line and map hand position to horizontal movement: now it is a sliding character strip. Keep the layout and change the selection rule: now it can scan or use finger counts. Layout, control, and selection are separate parts.
 
-Home links directly to setup, writing, the creator, and the feed. Saved profiles and drafts remain available through Continue writing. The camera stays off on arrival and stops when returning Home. The existing green and cream palette is preserved, with responsive layouts and keyboard-operable preview controls.
+![Palm Writer in Creator space: independently placed letters arranged around a fixed selection target](docs/images/creator.png)
 
-The home browser check covers all six previews, navigation, camera lifecycle, saved profiles/messages, and 320–1440px layouts including large text.
+[Build Palm Writer from a blank canvas →](CREATOR.md)
 
-## Relay 2.1.6 — Stable camera feedback
+Creator supports free placement, nested groups, input ranges, conditions, multiple pages, drawing surfaces, and portable JSON packages. It combines a defined set of signals and local models; adding a new kind of sensor or model still requires code. The original six environments also have editable templates for remixing.
 
-Finger grid and the shared camera renderer no longer overwrite the same tracking section. Persistent face/hand badges follow the active camera mode, update only when status changes, and tolerate brief display dropouts without changing gesture recognition. Performance details refresh once a second.
+## Run locally
 
-The browser regression reproduces the old alternating text/height bug and checks stable badge nodes, panel height, and Current gesture position for guests and saved profiles across all six built-in environments. The 130 unit tests and existing laptop/mobile finger-grid and saved-gesture checks pass.
+Use **Node.js 24** and a current desktop Chrome or Edge browser.
 
-## Relay 2.1.5 — Creator interaction fixes
-
-Arrangement choices survive editor redraws. Arrange defaults to the whole active group, with an explicit selected-only option. Numeric target and group edits update the visible canvas, target reach is shown, and its drag handle no longer blocks letters.
-
-Camera preview is available on unfinished drafts without requiring a gesture profile. Status and missing setup appear next to the controls; only the active surface determines whether its camera selections run. Camera failure/retry, stopping, and navigation keep the preview control synchronized. Installation and publication still require a complete environment.
-
-Validation: 130 unit tests, source/asset checks, the original Creator/drawing/feed/demo workflows, and new browser regressions pass. Real bundled vision startup was checked with Chrome’s simulated camera; gesture selection tests use controlled landmarks.
-
-## Relay 2.1.4 — Accurate previews and a blank-canvas demo
-
-The feed, drafts, and installed cards render layout-specific SVG previews: Classic's scan keyboard, the numbered finger grid, handwriting ink, Cirrin paths, Flow's QWERTY keys, and Chord phrase cards. Custom layouts use their saved positions and group transforms. The shipped Rotate & hold dial is removed from the catalog and installed choices while user-created copies remain. [CREATOR.md](CREATOR.md) gives the tested component-by-component recording recipe for building it from scratch.
-
-Validation: 130 unit tests pass; the thumbnail browser check verifies six distinct previews, mobile layout, catalog retirement, and construction through a controlled camera selection and installation.
-
-## Relay 2.1.3 — Environment feed catalog
-
-The private feed includes seven existing environments, all credited to konurnordberg. Stable IDs prevent duplicates and preserve votes. The originals open in their existing user environments; remixes open as editable canvas components. Fixed catalog installation is a shared operation behind the owner-private Sites gateway and never overwrites user-owned records.
-
-## Relay 2.1.2 — Saved gestures and environment workspace
-
-Legacy face recordings retain their original feature channel after migration. Completed gestures stay active when another gesture is unfinished, and Signal analyzer lists saved/ready counts with specific recording issues. The selected profile persists across refreshes. Classic separates camera state from gesture control and can start both together; physical editing temporarily pauses gesture control.
-
-Environment cards replace the dropdown, highlight Classic as default and Finger grid as recommended, and show genuinely upvoted private-feed environments. Finger grid keeps counts, selection target, percentage and remaining hold time directly above the letters. Laptop layouts keep all 36 cells and the camera in view; mobile feedback stays pinned during scrolling.
-
-## Relay 2.1.1 — Demo controls
-
-The message is directly editable with a physical keyboard in every environment. Clear is immediate and Undo restores it. Signal analyzer is in the main navigation, with nearest competing pose comparisons. Current gesture feedback remains beneath the camera, independently of whether a command is armed. All-signals profiles keep face and hand tracking active across environments.
-
-# Relay
-**Your movement. Your words.**
-
-Relay is a camera-based assistive communication prototype for the Triangle AI Hackathon 2026, Computer Vision track. It learns a person's resting behavior and chosen held poses and short movements, then turns recognized signals into controls for writing and speaking original text.
-
-## New in 2.1 — Composable canvas
-
-Creator starts with **components, input mappings, and selection rules**, rather than environment-specific builders. Place individual choices and labels anywhere, group them, arrange or drag them, and bind signals to group rotation, movement, size, pointer coordinates, or selection indices. Nested groups and optional input-range conditions support combined behaviors without code.
-
-A hand-turned wheel is now a composition: free letters + a group + a rotation mapping + a fixed target + dwell. The same primitives produce sliding strips, finger-indexed arrangements, and other interfaces. Circle/grid/line are one-time arrangement commands; every choice remains freely editable. Drawing surfaces retain selectable local recognition models. Existing version-1 environments still run and can be edited as version-2 component documents. The feed and app remain private.
-
-See [CREATOR.md](CREATOR.md) for the build-from-scratch walkthrough and supported primitives.
-
-## New in 2.0 — Creator space and private feed
-
-Relay now separates **User space** from **Creator space**. Build communication environments with editable tables, dials, drawing pads, swipe keyboards and free layouts. Choose controls and compatible local models, train custom drawn symbols, preview separately, install, export, and remix. The new **Rotate & hold dial** uses hand orientation to turn a character dial and dwell to select.
-
-The **Environment feed** stores explicitly published environment documents and one reversible upvote/downvote per signed-in account in the site's database. The app remains owner-private. Personal calibration and communication drafts remain local; published packages include layouts, output text, and any custom sketch examples. No camera video is uploaded.
-
-See [CREATOR.md](CREATOR.md) for the exact build-from-scratch walkthrough, model choices, sharing rules, limits, and development commands. Original communication environments and profiles remain available. This is a configurable prototype, not a claim of unlimited interactions or clinically validated access.
-
-## New in 1.8 — Simplified interface
-
-The primary navigation is **Write & speak**, **Teach gestures**, **Check accuracy**, and **Settings**. Technical diagnostics are under **Advanced → Signal details**. Promotional headlines, illustrations and repeated subtitles have been removed; the existing cream and green palette is retained.
-
-Returning users with a trained profile start in the writing workspace, with the camera still off. Setup presents rest, gestures and checking in order; completed rest is collapsed but can be rerecorded. Camera options, gesture instructions and personal vocabulary remain available in labeled disclosures. All six input methods, existing profiles, calibration, editing, speech confirmation and backups are preserved.
-
-Controls are larger, text has stronger contrast, and **Settings → Text and controls → Large** persists on the device. Dialogs have accessible names, focus the form and restore focus on close. Recording announces phase changes instead of repeatedly replacing a live region; Escape cancels. The camera and cancellation control stay visible during mobile teaching. Reduced-motion preferences are respected.
-
-`tests/interface-browser.mjs` checks keyboard dialogs, display persistence, all input layouts at 320–1440px with large text, pinned recording controls, phase announcements and accessible control labels. These are automated usability checks, not a claim of accessibility certification or user-study results.
-
-## Fixed in 1.7.1 — Teach hand symbols
-
-Teaching and Classic recognition now use the CPU hand detector already used by the hand environments. Old face-only profiles automatically expand to face + both hands, preserving their identifiers, actions, examples and drafts. The pre-upgrade collection is backed up in this browser; prior accuracy records remain historical because the recognizer revision changes.
-
-Held-pose recordings summarize each visible body part independently, retaining a channel with at least 75% coverage and three observations. Missing landmarks never become zero-valued training examples. A badly lost example produces a specific retry message. Hand shapes using the same channels train as competing classes; a learned two-hand combination takes precedence over a matching one-hand constituent. Unrelated simultaneous signals still abstain.
-
-To add a hand symbol: enable the camera in **Teach gestures**, check the hand indicator is green, add a gesture with **Hold a pose**, then alternate a visible relaxed hand with your symbol when prompted. Keep the hand visible during the relaxed portion as well. The saved gesture shows **Learned: Left hand / Right hand / Face**. Existing face rest is sufficient to start; each new symbol also records its own relaxed examples. Retrain hand symbols whose old recordings discarded the hands.
-
-Validation: unit regressions cover face-profile conversion, hand-only and two-hand classification, competing finger shapes, dropouts and rejection. `tests/hand-teaching-browser.mjs` exercises the complete five-example teaching flow, existing face gestures, camera writing and reload with controlled landmarks. Real bundled MediaPipe is separately checked on public hand photographs; these checks are not a measured user accuracy claim.
-
-## New in 1.7 — Flow and a shared vision pen
-
-**Flow** is continuous word entry on a QWERTY layout. Trace the letters of an arbitrary dictionary word in one movement; lift to decode and insert it. It uses 20,000 local word/frequency pairs, arc-length resampling, endpoint and path-distance scoring, and banded dynamic time warping in a dedicated worker. Personal vocabulary joins the candidate set. There is no sentence-shortcut lookup or LLM-generated message.
-
-### Try Flow
-1. Open Write & speak → **Flow · swipe words**. Start Flow input and allow the camera.
-2. Keep the palm visible. With an open hand, move the cursor to the first letter. Extend the index finger and curl the other fingers, then trace through the word's letters. Open the hand to finish. Double letters need no extra loop.
-3. Matched words insert on lift by default. Turn off **Insert matched words when I lift** for explicit review. Uncertain paths always wait for review; a thumbs-up or open-hand hover over a candidate chooses it.
-4. To correct the latest inserted word, hover with an open hand over an alternative above the keys, or click it. Hover over bottom controls for Space, Undo, Delete, punctuation, case, or a mode change. A held control fires once until the pointer leaves it.
-5. **Spell**, **Symbols**, and **More symbols** support unfamiliar names, all printable ASCII, newline and tab. Point at a key, then lift to insert one literal character. The clickable key fallback is also available.
-6. Under **Positioning & writing preferences**, choose a comfortable movement range. Hold the fingertip near the middle of your comfortable workspace and select **Center on my finger**.
-7. **Compare with your keyboard** times identical ordinary-text targets, includes corrections, and ends on an exact match. Camera trials disable pointer text entry; keyboard trials block paste/drop. Export results before closing the browser.
-
-This version composes text inside Relay. Copy moves it into another application; it does not install a system-wide keyboard driver. It is intended for stationary use, not texting while driving. Faster-than-keyboard performance is an evaluation goal, not an achieved claim.
-
-### More robust Air letters and Cirrin
-All three drawing environments now share **VisionPen**. The default is **point to draw / open hand to lift**, keeping the thumb away from the index tip. Optional thumb–middle pinch keeps the index extended; thumb–index pinch remains available for comparison. Pen settings persist in profiles and guest preferences.
-
-The controller buffers stroke starts, excludes opening-hand motion from the endpoint, preserves short gaps up to 240 ms without inventing samples, rejects stale frames, tracks the nearest previous hand when detection order changes, and requires a reset after longer loss. Peripheral cropping does not discard an otherwise visible pointer and palm. Air ink retains short-gap continuity and uses smooth display curves. Cirrin registers inward-to-outward sector crossings without a per-letter dwell, tolerates moderate radial overshoot, and retains explicit word confirmation. Air letters and Cirrin now use the same local CPU two-hand worker as Flow; personalized Classic processing is unchanged.
-
-### Evidence and limits
-The new default pen passed controlled-hand browser tests through actual neural H recognition and fast HELLO ring spelling, including multiple strokes, brief gaps, and pen-up repositioning. The bundled MediaPipe model recognizes point/open poses in public static-image fixtures. Legacy pinch still passes its letter/ring checks.
-
-A fixed 200-word sample from the vocabulary, rendered as constructed paths with sinusoidal noise, produced 194 first choices and 200 top-three matches in the development smoke test. At 12 observations per constructed word, the sparse-path decoder returned 191 first choices and 200 top-three matches on the same sample; at 18 observations it returned 192 and 200. This is not live-user accuracy, a speed benchmark, or independent validation. Rapid queued word requests, late-result cancellation, profile import checks, camera-only corrections and full character coverage have automated checks. Physical movement, blur, occlusion, hardware and vocabulary ambiguity still require live evaluation.
-
-Run node tests/flow.test.mjs, node tests/flow-decoder.mjs, node tests/flow-browser.mjs and node tests/point-writing-browser.mjs. Decoder tests do not supply their target sentence to the recognizer. Existing Air/Cirrin browser tests explicitly exercise legacy pinch; the new point-writing test covers the default.
-
-Vocabulary attribution and the CC BY-SA 4.0 license are in dist/data/FLOW_WORDS_NOTICE.md and dist/data/CC-BY-SA-4.0.txt. The adapted vocabulary is under that license. The gesture-decoding design draws on [SHARK², Kristensson and Zhai (2004)](https://www.pokristensson.com/pubs/KristenssonZhaiUIST2004.pdf); no code or measured performance is copied from that work.
-
-## New in 1.6 — Chord speed writing
-
-Chord uses gesture shorthand to insert whole words or reusable text blocks. The speed hypothesis is **more text per deliberate action**, inspired by chorded input such as [Open Steno](https://www.openstenoproject.org/), not faster letter-by-letter finger tracing.
-
-1. Open **Write & speak → Chord · speed writing → Start Chord input**. No calibration or paid API is needed.
-2. Keep both whole hands visible on opposite sides of the mirrored preview. Close both fists to begin.
-3. The hand on the preview's left chooses **bank 0–5**. Keep the other hand closed while browsing. Raise **1–5 fingers** on that other hand to choose a slot.
-4. The selected text turns green after a short stable hold. **Close both fists to send it.** Intermediate finger counts while closing cannot change the armed choice. To cancel an armed choice, lower one hand for at least 0.3 seconds, then show both fists again.
-5. Twenty editable shortcuts keep fixed codes; edit one to contain a frequently used phrase or code snippet. **Insert exactly** preserves whitespace for code. Word palette offers local next-word choices and five ambiguous prefix groups in bank 3; Spell and Symbols reach the full printable ASCII set.
-6. **Race your keyboard** compares the same target with keyboard and camera input. The reusable-phrase scenario uses the starter codebook during the timed trial (0·1, 0·3, 1·3), even if personal shortcuts have been edited. The word scenario requires word selection/spelling. Practice first. Export the comparison to preserve session results.
-
-Each trial starts explicitly, ends only on an exact target match (trailing whitespace allowed), and includes correction time. WPM is target characters / 5 / elapsed minutes. Keyboard paste/drop and pointer text entry during camera trials are blocked. Separate trial drafts protect the regular message. Results are the most recent trial per method/scenario, not population averages. Exported results are a local practice log, not tamper-proof evidence.
-
-**We have not established that Chord beats a physical keyboard on novel prose.** Reusable phrase throughput measures text expansion, which also has keyboard-based alternatives. Learning time, camera latency, correction rate, fatigue and live recognition require user testing. No language model writes or guesses sentences for the user.
-
-Chord runs one local two-hand MediaPipe worker on CPU; no face model is loaded. Its release gate requires fresh frames and cancels on loss or staleness. Timing is configurable at 120/180/260 ms. Existing environments retain their camera settings. Shortcuts persist per profile (and in profile backups), or in a separate guest store. No video or landmark stream is saved.
-
-Validation: node tests/chord.test.mjs covers all 30 codes, cancellation, stale frames, text/undo, full ASCII, profile validation and timing math. node tests/chord-browser.mjs exercises controlled hand landmarks through phrases, word composition, editable literal snippets, benchmark isolation, mobile layout and persistence. node tests/chord-camera.mjs checks worker setup, startup/runtime fallback and real bundled MediaPipe initialization. These automated inputs are not live-user speed or accuracy measurements.
-
-## New in 1.5: Cirrin ring
-A fourth communication environment follows the word-level circular keyboard interaction introduced by Jennifer Mankoff and Gregory Abowd in 1998: https://sites.cc.gatech.edu/fce/pendragon/publications/cirrin98.pdf
-
-Relay uses an alphabetical A–Z ring, a webcam pinch as pen-down, visible word paths, and explicit review. Pinch in the center, visit each letter tile, travel through the center to skip unwanted letters, and release to review. Return inward before revisiting a letter to spell doubles. Hold thumbs-up to insert the exact spelling with a trailing space, or choose a displayed word button. One Undo removes the inserted word. Mouse/touch dragging and letter buttons also work.
-
-The HELLO guide labels a practice route. Movement range and Center on my finger adapt the dial to the drawing hand. Letter boundaries use a dead zone and fresh-frame stability; tracking loss interrupts a draft and never inserts text. Optional nearby-word suggestions use a small local vocabulary plus personal words. Literal spelling always remains available, including words absent from the vocabulary. Cirrin's decoder uses spatial letter visits, not the Air letters handwriting model. No new model download or API is required.
-
-Run node tests/cirrin-browser.mjs for controlled fingertip/pointer word input, doubled letters, confirmation, spacing, undo, speech, responsive camera docking, and persistence. Core tests are included in npm test. These checks do not measure real-user speed or accuracy.
-
-## New in 1.4
-- **Air letters environment:** index-tip trajectories become multi-stroke ink. Pinch thumb/index to draw, release to reposition, pause for three handwriting-model suggestions, and hold thumbs-up for 850 ms to insert the first choice (or click any choice). Mouse/touch drawing and correction buttons are available. No letter is automatically inserted.
-- **Local neural inference:** an MIT-licensed EMNIST Balanced CNN runs in a dedicated ONNX Runtime Web worker. Upright, aspect-preserving, centered 28×28 rasters at three stroke widths are averaged. Lower/uppercase classes are combined; digit lookalikes remain visibly ambiguous. No API key, video upload, or training is needed for this environment.
-- **More tolerant finger counts:** image-plane and 3D evidence combine tip reach, overall extension, bends and thumb separation. A single bent/noisy joint no longer vetoes a whole hand. Fresh-frame stability and short uncertainty pauses reduce flicker without allowing uncertain frames to select a cell.
-- **Shared workspace:** Classic, Finger grid and Air letters share message text, undo, speech confirmation and saved drafts. Switching environments stops active input.
-- **Limits:** air writing is one printed A–Z letter at a time, not cursive word recognition. Constructed trace/geometry checks are not evidence of accuracy on people; real-camera testing remains necessary.
-
-### Try Air letters
-Write & speak → Environment: Air letters → Start air writing. Keep one full hand in view. Touch thumb and index fingertips and move the index tip to draw. Separate them to lift the pen; pinch again for another stroke. After a roughly one-second pause, review the choices. Hold a thumbs-up to insert the first, or click the desired letter. Space, punctuation, Delete, Undo and case are below the pad. The camera stays visible while scrolling.
-
-### Additional checks
-Run node tests/letter-model.mjs for the actual bundled neural model on 26 constructed paths at two jitter levels (52 checks; not human accuracy). Run node tests/air-browser.mjs for tracked pinch paths through actual inference, deliberate insertion, editing, confirmation, environment switching and desktop/mobile camera visibility. Run node tests/finger-vision.mjs for actual MediaPipe inference on public hand photos, and node tests/finger-environment.mjs for coordinate typing. Model provenance and exact licenses are in dist/MODEL_NOTICES.md.
-
-## New in 1.2
-- **All signals by default:** one profile tracks facial expressions, head poses, and both hands together. There is no face-versus-hand choice during setup.
-- **Held poses and movements:** teach a held pose or record a short finger swipe/movement. Five motion sequences retain order and direction; temporal matching tolerates modest speed differences. This is experimental gesture-command recognition, not continuous swipe-to-word typing.
-- **Learned contributing parts:** each gesture learns which channels matter from its own examples and relaxed lead-ins. Missing hands do not block face-only commands; two-hand classes require both tracked hands.
-- **Shared intent protection:** each gesture needs its own neutral preparation; a command locks until its contributing parts return to rest. Scanning freezes during a motion and return strokes do not repeat commands.
-- **Visible tracking:** face, left-hand and right-hand indicators, plus both hand skeletons.
-- **Compatibility:** existing face/hand profiles, vocabulary, drafts and backups remain supported. Create a new all-signals profile to add these new capabilities.
-- **Cleaner form:** the Insert text box appears only for that action.
-
-## New in 1.1
-- **Signal studio:** live recognizer decisions, match distances, overlap diagnostics, and measured error breakdowns.
-- **My vocabulary:** personal phrases and local word completion, reachable with the same gesture controls. Names and personal words take priority. Suggestions never insert automatically.
-- **Draft recovery:** messages are saved locally per profile and restored after reload. Profile exports do not include drafts.
-- **Focus view:** larger communication controls for a live demonstration, also reachable from the gesture keyboard.
-- **Product plan:** see [PRODUCT.md](PRODUCT.md) for co-design, validation and commercialization hypotheses.
-
-## Run
-No API key, account, build step, or paid service is required.
-```sh
+```bash
+git clone https://github.com/konurnordberg/relay.git
 cd relay
-node scripts/serve.mjs
+npm ci
+npm start
 ```
-Open **http://localhost:4173** in current Chrome or Edge. The server binds only to this computer. Node 22+ is recommended. If Node is unavailable, run `python3 -m http.server 4173 --bind 127.0.0.1 --directory dist`.
 
-All computer-vision assets are bundled in `dist/` (including the local handwriting runtime). Once downloaded, the local application does not need a network connection. Browser speech requires an installed local system voice. Opening index.html directly with file:// will not work: use the local server or HTTPS.
+Open **[localhost:4173](http://localhost:4173)**. No API key, GPU, or paid service is needed. Vision models and runtimes are included in the repository, so the clone is larger than a typical static site.
 
-If models are absent, run `python3 scripts/download-assets.py`. Pinned download URLs and SHA-256 digests are in `dist/assets-manifest.json`.
+For a first session:
 
-## First successful session
-1. Create a profile. Face and both hands are available together automatically.
-2. Enable the camera and allow browser camera access.
-3. Record 12 seconds of natural rest. Keep your face visible, plus any hands you plan to use.
-4. Add a distinct, comfortable gesture and assign **Select**. Choose **Hold a pose** or **Make a swipe or movement**. Follow five guided recordings, keeping the parts you use visible during each neutral lead-in.
-5. Add a second gesture assigned **Next**, using the same or different body parts. The profile switches to two-gesture navigation.
-6. In **Check accuracy**, record new attempts for each gesture and run a rest check.
-7. In **Write & speak**, choose **Use my gestures**, return to rest, then navigate.
-8. **Next** advances rows; **Select** enters a row. Next advances keys; Select inserts one. For movements, pause at the endpoint, then return to the learned starting pose. Return to rest between signals. The final key in a selected row returns to row selection.
-9. Speak opens a confirmation. Choose **Speak now** to speak; choose Cancel to return.
-10. Export your profile under **My profiles**.
+1. Open **Get started**, create a profile, and allow the camera when requested.
+2. Record your resting state, then teach two distinct, comfortable gestures for **Next** and **Select**.
+3. Check the gestures on fresh attempts. In **User space**, choose **Classic** and start camera input.
+4. Write a short word, try Delete and Undo, and speak it. You can also edit the message with your physical keyboard.
+5. Open **Creator space** or the **Environment feed** to explore other layouts. Finger grid and hand-controlled canvas inputs do not require a personal gesture vocabulary.
 
-One-gesture access uses automatic scanning. Change scan rate, gesture hold duration, and neutral return duration in profile settings. Scanning freezes during a recognized hold and when tracking is lost. Pause exposes a Resume control accessible with the same Select signal.
+Local preview uses a simulated account and a local SQLite feed. It does not authenticate through ChatGPT. See [development setup](docs/DEVELOPMENT.md) for guest preview, browser checks, and hosting details.
 
-## Implemented
-- Face/head feature extraction (52 blendshapes + 4 normalized pose features + 4 experimental relative iris features).
-- Both-hand extraction (63 wrist-centered shape features plus wrist/index-tip image coordinates per hand); presence masks explicitly gate availability.
-- Combined 201-value schema, per-gesture channel inference, and order-preserving temporal template matching for motion gestures.
-- Legacy face (60) and hand (63) feature schemas retained.
-- Natural resting calibration; five independent recordings per gesture.
-- User-defined variable-size gesture vocabulary and editable action mappings.
-- Personal feature selection, normalized nearest-exemplar classification, distance and ambiguity rejection.
-- Sustained activation and neutral rearming; no repeated output from one held pose.
-- Alphabet, capitalization, digits, symbols, spaces, punctuation, newline, delete, undo, clear confirmation, speech confirmation, pause/resume.
-- One-signal automatic scanning or two-signal step navigation.
-- Local profile persistence, import/export, selective retraining and disabling gestures.
-- Independent attempt tests and rest checks; exported reports include timing, failures, and profile revision.
-- Explicit pointer preview, separate from camera-controlled writing.
-- Responsive interface and keyboard focus styles.
+## What runs under the hood
 
-## Architecture
 ```mermaid
 flowchart LR
-  A[Webcam frames] --> B[Local MediaPipe landmarks]
-  B --> C[Normalize + smooth features]
-  C --> D[Personal exemplar classifier]
-  E[Rest + separate gesture recordings] --> D
-  D --> F[Unknown / rest / learned signal]
-  F --> G[Hold + neutral event gate]
-  G --> H[Next / select / personal shortcut]
-  H --> I[Editable text]
-  I --> J[Explicit confirmation]
-  J --> K[Local browser speech]
+    A[Webcam] --> B[MediaPipe face and hand workers]
+    B --> C[Personal gestures and movement signals]
+    C --> D[Environment selection rules]
+    D --> E[Shared text editor]
+    E --> F[Speech synthesis]
+    C --> G[Finger paths]
+    G --> H[Local letter or word decoder]
+    H --> D
+    I[Creator document] --> D
 ```
-Pretrained vision locates body features. The personal recognizer learns from this user's recordings; it does not contain a fixed list of named gestures. Features are weighted by their separation across learned classes relative to within-class variability. A candidate must be close to its training exemplars and sufficiently separated from the next class. The similarity score is not a calibrated probability.
 
-Training units are summaries of separate gesture bouts. Neutral samples cover consecutive windows of natural rest. Validation uses later, prompted attempts, never adjacent-frame random train/test splitting. Results are reset for the active revision when calibration, mappings, or timing change; older results remain in exports.
+- **Personal recognition over pretrained vision.** MediaPipe locates landmarks; Relay learns examples of a person's rest, poses, and short movements. It does not retrain the vision model or ask an LLM to guess what someone wants to say.
+- **Intent before activation.** Confidence checks, tracking freshness, hold times, and release requirements separate a detected movement from a committed action. The signal analyzer exposes competing matches.
+- **Responsive local inference.** Face, hand, handwriting, and word decoding use workers. Vision processes the latest frame instead of building a queue. Visual trail repair stays separate from recognition.
+- **Environments as data.** Validated documents describe components, mappings, and rules. The same documents power preview, installation, export, and the shared feed.
 
-## Test
-```sh
-npm test
-node scripts/check.mjs
+Read the [architecture walkthrough](docs/ARCHITECTURE.md) for the data flow and the most useful source entry points.
+
+## Privacy and sharing
+
+Camera frames are processed in the browser. Relay does not upload camera video. Personal calibration, profiles, and message drafts stay on the device unless you explicitly export them.
+
+Publishing an environment shares its layout, output text, and any custom sketch examples with the public feed. It does **not** include personal face/hand calibration. Published environments and votes live in the server database. Speech uses the browser's available voices; voice availability and offline behavior depend on the device and browser.
+
+## Check the project
+
+```bash
+npm test       # Recognition, editing, environments, creator, and feed logic
+npm run check  # JavaScript syntax and bundled model/runtime checksums
+npm run build  # Static client and feed worker bundles
 ```
-Optional browser checks (Chrome must be installed):
-```sh
-python3 scripts/setup-browser-tests.py
-# In another terminal: node scripts/serve.mjs
-node tests/browser.mjs
-node tests/integration.mjs
-node tests/enhanced-browser.mjs
-node tests/combined-browser.mjs
-node tests/vision.mjs
-```
-The first browser test uses a synthetic camera to check real MediaPipe initialization. The integration test substitutes synthetic feature vectors to exercise guided calibration, training, event gating, writing and profile restoration. These tests do **not** measure recognition accuracy on people. Do not present synthetic results as user performance.
 
-## Privacy and storage
-No backend, analytics, video upload, or raw-video recording. Word completion uses a small built-in local vocabulary plus explicitly supplied personal words; it is not an LLM. Features, labels, settings, personal vocabulary, drafts and validation records are saved in localStorage on the current origin. Exported JSON includes movement-derived features; treat it as personal data. Different browsers, computers, local URLs and hosted URLs have separate storage. Clearing site data erases local profiles. Export backups.
+Browser regression scripts additionally cover camera lifecycle, saved-profile compatibility, Creator editing, responsive layouts, and feed flows. See [testing instructions](docs/DEVELOPMENT.md#validation).
 
-## Scope and limitations
-This is a research prototype, not a validated medical device or a guarantee of communication access. We have not yet conducted user testing with people who use AAC. Calibration may be assisted. The communication phase can run with the learned signals.
+## Where to look in the code
 
-New profiles support observable facial/head poses, one- or two-hand poses, and recorded short movements. Complex sign-language interpretation, continuous swipe typing, arbitrary whole-body gestures, and universal disability access are not supported. Iris features are coarse and experimental; this is not calibrated screen gaze tracking. Any hand used by a gesture needs to remain visible during its neutral lead-in and gesture. Crossed/occluded hands and changing camera position can interrupt recognition.
+| Area | Start here |
+| --- | --- |
+| Camera and worker scheduling | [camera.js](dist/src/camera.js), [vision-lane.js](dist/src/vision-lane.js), [vision-worker.js](dist/src/vision-worker.js) |
+| Personal gesture recognition | [features.js](dist/src/features.js), [core.js](dist/src/core.js), [combined.js](dist/src/combined.js) |
+| Finger counting and pen tracking | [finger-index.js](dist/src/finger-index.js), [vision-pen.js](dist/src/vision-pen.js) |
+| Handwriting and word paths | [letter-recognizer.js](dist/src/letter-recognizer.js), [flow-core.js](dist/src/flow-core.js) |
+| Visual environment language | [creator-schema.js](dist/src/creator-schema.js), [creator-scene.js](dist/src/creator-scene.js), [creator-scene-input.js](dist/src/creator-scene-input.js) |
+| Canvas editor and runtime | [creator-canvas-editor.js](dist/src/creator-canvas-editor.js), [creator-runtime.js](dist/src/creator-runtime.js) |
+| Shared feed and ownership | [worker/index.js](worker/index.js), [db/schema.ts](db/schema.ts) |
 
-Lighting, camera angle, glasses, fatigue, involuntary movements and camera changes can affect performance. Recheck after changing conditions. Unknown and lost tracking generate no selection. Repeatedly rejected movements may need retraining or replacement. Gesture count is limited by distinguishability, data size and user comfort; 26 gestures are not required.
+**`dist/` contains the browser source.** Only `dist/client/`, `dist/server/`, and `dist/.openai/` are generated build output. The name is historical; the source has been kept in place to preserve the working app.
 
-The keyboard covers English letters and common digits/symbols; it is not a full multilingual OS input method. There is no global computer control, arbitrary app integration, or AI-authored sentence generation. The user chooses the message.
+## Current stage
 
-## Attribution and prior work
-- [MediaPipe Face Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/face_landmarker?tab=Web) and [Hand Landmarker](https://developers.google.com/edge/mediapipe/solutions/vision/hand_landmarker?tab=Web): pretrained perception, runtime version 0.10.32.
-- [MediaPipe source and license](https://github.com/google-ai-edge/mediapipe): runtime distributed under Apache-2.0.
-- [ASHA AAC guidance](https://www.asha.org/practice-portal/professional-issues/augmentative-and-alternative-communication/): established scanning access methods.
-- [GazeSpeak](https://www.microsoft.com/en-us/research/wp-content/uploads/2017/01/gazespeakUpdated.pdf) and [user-defined gesture research](https://link.springer.com/article/10.1007/s10209-024-01139-6): relevant prior art. We do not claim the broad concept is first-ever.
-- Playwright 1.56.1 is an optional development test dependency, not shipped with the application.
+Relay is a working hackathon prototype. In an early real-camera session, I wrote **“hi” with an eyebrow raise for Next and an open-mouth gesture for Select**, then tested deletion, undo, and speech. That is a useful first demonstration, not evidence of reliability across people.
 
-Original application source is in `dist/src/`; presentation in `dist/index.html` and `dist/styles.css`. No build is needed to inspect or modify it.
+The next step is co-design and repeated-session evaluation with people who use alternative communication. Recognition still depends on visibility, lighting, movement, and camera quality. There is no claim of universal accessibility, clinical validation, or typing faster than a physical keyboard. Relay currently writes inside the app, rather than acting as a system-wide keyboard.
 
-For held poses, Signal studio separation is a heuristic calculated from training samples and model radii. Movement cards report temporal matching instead of a pose-separation score. It is not held-out accuracy. Its four practice milestones are introductory checks, not clinical validation or the demo readiness targets. Evidence exports preserve this distinction.
+## More
 
-## Combined recognition details
-Presence flags are never classifier features. Each gesture automatically selects contributing channels from its five examples versus neutral recordings. Held poses use a per-gesture rest/pose exemplar model; conflicting simultaneous matches abstain. Motion samples retain 24 frames and use selected changing dimensions, time resampling and banded dynamic time warping. Candidate movement windows must preserve tracking, start near the taught neutral, have enough displacement, end briefly still, and be separated from competing motion templates. Runtime rearming and readiness are tracked per gesture. No training runs on a server.
+[Project story](ABOUT.md) · [Creator guide](CREATOR.md) · [Demo walkthrough](DEMO.md) · [Product direction](PRODUCT.md) · [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md)
 
-The new motion and two-hand paths have software and static-image checks, but have not yet been measured on the user's live webcam. Use Check accuracy and rest checks for each new gesture. The user's earlier successful face-only session is not evidence of accuracy for this upgrade.
-
-## Fingertip trails (1.2.3)
-Turn on **Enable trails** below the camera to draw neon paths with your index fingers. Left and right hand tracks use cyan and pink, and each path fades over 1.4 seconds. It works before gesture calibration in combined and hand profiles. Trails are only a visual aid; they do not change recognition or interpret drawn letters. The browser remembers the toggle, but paths are not saved. Brief, plausible tracking gaps up to 320 ms reconnect; longer losses or large jumps start a separate stroke. Speed-adaptive filtering and bounded cubic curves reduce jitter and rigid corners. Turning trails off or stopping the camera clears it.
-Fast-motion tracking requests up to 60 camera frames per second where the webcam supports it. Separate local workers process hands and face, with one in-flight image per model and no frame backlog. Face processing is capped during combined tracking to leave capacity for hands; unsupported or failed workers fall back automatically. Hand tracking tolerates more inter-frame box motion while preserving detection/presence thresholds. The camera card reports measured camera and hand/face processing rates; these are not recognition-accuracy scores. Blur, occlusion, lighting and hardware still limit real performance. No reconstructed trail point feeds the recognizer.
-
-Additional camera checks: `node tests/trails-browser.mjs`, `node tests/camera-pipeline.mjs`, `node tests/worker-probe.mjs`, and `node tests/camera-failure.mjs`. Worker-probe uses the public fixtures prepared for `tests/vision.mjs`. `node tests/performance.mjs after` records a local synthetic-camera measurement; it is not a live user benchmark.
-
-
-## Writing with a learned movement (1.2.4)
-In an all-signals profile, learn rest, then choose **Teach a writing movement**. Movement and Insert text are selected for you. Enter a name and the exact letter, word or phrase to write; record five examples of the stroke, pausing at its endpoint each time. In **Write & speak**, enable the camera and choose **Use my gestures**. Perform the learned movement, pause, and return to its starting pose before repeating. Direct text gestures work without Next or Select; those controls remain available for keyboard navigation. Recognition uses your taught vocabulary and does not automatically transcribe untrained handwriting.
-
-During teaching, the camera is larger and stays beside the current instruction and progress. On narrow screens it docks at the top. The camera panel includes Cancel recording, so you can stop without finding the original instructions below. The existing rest and validation workflows use the same persistent preview.
-
-`node tests/movement-writing.mjs` verifies direct motion-to-text writing without navigation gestures, no repeated insertion at a held endpoint, a stationary scan highlight, shortcut defaults, scrolling visibility at four screen sizes, cancellation, camera-stop cleanup and saved drafts. Its camera stream is a controlled test fixture, not a human accuracy measurement.
-
-
-## Communication environments (1.3)
-The selector in **Write & speak** chooses a communication method. **Classic keyboard** remains the default and keeps learned poses, movements, Next/Select and direct text. **Finger grid** is a separate 6×6 coordinate keyboard. Both share the message, undo history, phrases, speech confirmation and saved draft. Environment changes stop live input; start it explicitly in the new environment. Profile backups retain environment, hold-time and hand-role preferences. Guest Finger grid also works without training or creating a profile.
-
-### Finger grid
-1. Choose **Finger grid**, then **Start finger input** and allow the camera.
-2. Face both palms toward the camera, separated on the left and right sides of the mirrored preview. A fist is 0; the number of extended fingers, including the thumb, is 1–5. The thumb counts when extended away from the palm.
-3. By default, the hand on the preview's left supplies the row; the other supplies the column. For example, row 1 / column 1 writes **h**, and 1 / 2 writes **i** on Letters. Preview readouts highlight the target before selection.
-4. Hold a stable pair to select once. Change the pair for the next cell. To repeat the same cell, lower either hand briefly (at least 0.3 seconds), then show the pair again. Brief tracking glitches and ambiguous folds do not rearm a held key. Hold duration defaults to 0.85 seconds; settling after a previous selection can add a short delay. Timing & hand roles lets you adjust it or swap hands.
-5. The bottom row stays consistent: **Delete, Undo, Case, Speak, Tools, Page →**. Row 5 / column 5 cycles **Letters → Numbers → Symbols → My phrases**. This reserves 30 content cells per page and removes the 36-symbol limit. Tools contains new line, clear, pause, page shortcuts and phrase saving. Speak and Clear open a separate confirmation grid; Cancel is 0/0, Confirm is 0/1. Resume is 0/0 when paused.
-
-Finger counting uses the existing local hand landmarks and conservative finger-joint geometry, not personalized learned gestures or language-model interpretation. Hand roles are assigned by preview position, independent of the detector's handedness labels. Missing, overlapping, edge-on, cropped or uncertain hands produce no selection. Keep the whole hands visible. No raw hand images or landmark streams are saved. The communication environment registry, page definitions and finger controller live in separate modules; future layouts such as a dial can share the same composer.
-
-The Finger grid hand worker uses CPU inference: on this development machine, the GPU path missed one hand in an official two-hand static fixture while the CPU path detected both at the same thresholds. Classic retains GPU tracking. Both use workers where supported, with existing compatibility fallback; actual laptop performance still needs checking.
-
-Additional tests: `node tests/environments.test.mjs`, `node tests/finger-environment.mjs`, `node tests/finger-vision.mjs`, and `node tests/worker-probe.mjs CPU`. The vision test uses ignored public [MediaPipe test fixtures](https://github.com/google-ai-edge/mediapipe/blob/master/mediapipe/tasks/testdata/vision/BUILD): two-hands.jpg (existing right_hands.jpg fixture), fist.jpg, pointing_up.jpg, victory.jpg, thumb_up.jpg from storage.googleapis.com/mediapipe-assets. These are engineering checks, not measured live-user accuracy.
+Relay builds on MediaPipe, ONNX Runtime Web, an EMNIST handwriting model, the FrequencyWords vocabulary, and prior work including Cirrin. See [third-party credits and licenses](THIRD_PARTY_NOTICES.md). This repository does not currently grant an open-source license for Relay's original application code; third-party assets retain their own licenses.

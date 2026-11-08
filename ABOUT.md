@@ -1,99 +1,25 @@
-# Relay
-**Your movement. Your words.**
+# About Relay
 
-Relay is a camera-based communication prototype that helps people with limited speech or mobility turn movements they control into written and spoken words. Using an ordinary webcam, it learns personal gestures and offers multiple ways to compose a message—all processed on the user's device.
+Relay is a browser-based platform for creating and using communication interfaces controlled by movement. I built it for the Triangle AI Hackathon 2026, Computer Vision track.
 
-Built for the **Triangle AI Hackathon 2026 · Computer Vision track**.
+The starting point was personal gesture control: learn what someone's rest looks like, record movements they can comfortably repeat, and turn those movements into useful actions. Two gestures can navigate a complete keyboard. One can select while the keyboard scans automatically. A person does not need to invent 26 gestures to write a sentence.
 
-## Creator and User spaces
+That became a larger idea: let people build the interface as well as teach the gestures. Relay's Creator separates the layout, input signals, and selection rules. Characters can become a grid, a freely arranged canvas, or a hand-turned ring. Drawing surfaces can recognize letters or personal symbols. A helper can build an environment for someone they know, test it, and install it in the same writing space.
 
-Relay also lets a helper create a communication environment for someone they know. In Creator space, place characters and phrases freely, group them, connect input signals to properties, and define selection rules; add drawing surfaces with local recognition; and test the result before installing it in User space.
+The public environment feed makes these configurations shareable. Anyone can browse, try, and remix them. Signed-in creators can publish environments and vote on the ones they find useful. Sharing a layout does not share a person's face or hand calibration.
 
-A private environment feed lets people with site access publish, remix, upvote and downvote these creations. The new rotating-hand dial demonstrates the approach: turn a hand like an imaginary knob, then hold a character to select it. Environments are portable, validated documents, so sharing a layout does not share someone's face or hand calibration.
+## What makes it work
 
-The current builder combines a defined set of layouts and models. It is a foundation for a community of personalized communication tools, not a promise to support every possible language or movement.
+MediaPipe provides face and hand landmarks. Relay's personal recognition layer compares calibrated examples, handles uncertainty, and waits for deliberate activation. A local ONNX model reads drawn letters; a separate geometric decoder recognizes paths through a word keyboard. Camera processing happens on the device, without a remote language model interpreting the person's intent.
 
-## Inspiration
+The six starting environments are Classic, Finger grid, Air letters, Cirrin, Flow, and Chord. Each uses the same text editor, undo, and speech workflow. Creator exposes reusable components and compatible local models for further experiments.
 
-People have different abilities, comfortable movements, and levels of control. A raised eyebrow might be reliable for one person; a hand movement might work better for another. Those abilities can also change with fatigue or over time.
+## What has been demonstrated
 
-Relay starts with a simple idea: **communication tools should adapt to the person using them.** Our goal is to make personalized communication possible with hardware people already have.
+In an early real-camera test, I typed “hi” using an eyebrow raise for Next and an open-mouth gesture for Select, then tested deletion, undo, and speech. Automated checks cover recognition logic, saved profiles, input gating, Creator behavior, and feed permissions.
 
-## What it does
+Relay is a prototype. The next meaningful milestone is repeated-session testing and co-design with people who use alternative communication, measuring setup effort, correction rate, fatigue, and accidental activation. It is not yet a clinically validated aid or a proven replacement for every existing access method.
 
-Relay organizes communication into interchangeable **environments**, each sharing the same message, editing controls, and speech output.
+Built by **[Konur Nordberg](https://github.com/konurnordberg)**.
 
-### Classic keyboard: your own gesture vocabulary
-
-Users first record their natural resting state, then teach Relay comfortable facial expressions, hand poses, or short movements. Each signal can navigate the keyboard, select a letter, insert a phrase, delete, undo, or request speech.
-
-Two gestures can navigate and select across a full keyboard. One reliable selection gesture can work with automatic scanning. Users do not need a separate gesture for every letter.
-
-### Finger grid: two hands, one coordinate
-
-One hand chooses a row and the other chooses a column by showing zero to five fingers. A 6 × 6 grid provides 36 positions per page, with additional pages for letters, numbers, symbols, and personal phrases.
-
-The counter combines image-plane and 3D hand measurements with temporal stability checks. Selection requires a deliberate hold, and repeated input requires a change or release.
-
-### Air letters: handwriting without a surface
-
-Users point with their index finger to draw and open their hand to lift the pen, allowing letters with multiple strokes. Optional thumb–middle and thumb–index pinch controls are available. A shared pen tracker tolerates short gaps and excludes opening-hand motion from strokes.
-
-A local neural handwriting model reads the drawing and presents three suggestions. Users confirm the first with a thumbs-up or choose another letter. Persistent neon ink makes the captured movement visible on both the drawing pad and camera preview.
-
-### Cirrin ring: a continuous stroke for a word
-
-An alphabetical ring lets users spell words by visiting letter tiles in one continuous pointing stroke. The open center provides room to move between letters. Users open their hand to review the captured spelling and confirm with a thumbs-up or a word button. A practice route, adjustable movement range, and optional local vocabulary suggestions support learning and correction.
-
-This environment adapts the [Cirrin interaction introduced by Jennifer Mankoff and Gregory Abowd in 1998](https://sites.cc.gatech.edu/fce/pendragon/publications/cirrin98.pdf) to Relay's webcam controls. It shares the same message, undo history, and speech output as the other environments.
-
-### Flow: whole words from continuous movement
-
-A familiar QWERTY layout turns a continuous finger path into a word. A local worker compares the stroke against 20,000 word templates using geometry, frequency and dynamic time warping. Users can correct the latest word with a camera-controlled alternative, spell unfamiliar text, and enter symbols. No predefined sentences are needed.
-
-A keyboard comparison uses ordinary-text targets and includes correction time. Flow is an implemented prototype for investigating keyboard replacement; live-user speed superiority and system-wide text injection are not established. It is for stationary use.
-
-### Chord: gesture shorthand for everyday productivity
-
-Chord explores a broader use for Relay: typing chunks instead of individual characters. One hand browses six banks; the other selects one of five slots. A brief stable pose arms the text, and closing both fists sends it. Twenty fixed shortcuts can contain personal phrases or whitespace-preserving code snippets; a local word palette and spelling pages handle other text.
-
-A built-in keyboard/camera comparison uses the same target and includes correction time. Reusable phrase results measure text expansion, not general prose speed. The interface is implemented and covered by controlled-input tests; faster-than-keyboard performance has not yet been demonstrated by a live user.
-
-## How we built it
-
-- **MediaPipe Tasks Vision** locates facial features and hand landmarks from webcam frames.
-- **Personal gesture learning** uses calibrated examples, selected features, and temporal matching to recognize held poses and short movements.
-- **ONNX Runtime Web** runs a pretrained EMNIST handwriting classifier locally. Relay normalizes each drawing and combines predictions from three stroke widths.
-- **Web Workers** keep vision and handwriting inference separate from the interface.
-- **JavaScript, HTML, and CSS** power the browser application, with local profile and draft storage.
-- **Browser speech synthesis** reads confirmed messages using an installed local voice.
-
-Camera frames are processed on the device. Personal gesture profiles remain in the browser and can be exported for backup. Model attribution and licenses are documented in [Model notices](dist/MODEL_NOTICES.md).
-
-## The hardest parts
-
-**Separating intention from ordinary movement.** Rest calibration, activation timing, uncertainty handling, and release requirements help prevent casual motion from becoming unwanted text.
-
-**Tracking motion without losing responsiveness.** Independent vision workers and bounded frame processing keep the interface responsive while following moving hands.
-
-**Making recognition understandable.** Visible ink, finger-count readouts, editable letter suggestions, and a persistent camera preview help users see what Relay detected and correct mistakes.
-
-## What we have demonstrated
-
-In an initial live-camera test, a user wrote **“hi” using an eyebrow raise for Next and an open-mouth gesture for Select**, and reported that delete, undo, and speech worked.
-
-Automated checks cover gesture recognition, coordinate typing, editing, confirmation, profile persistence, and responsive layouts. The handwriting model also correctly ranked all 26 constructed uppercase letter paths at two jitter levels in a 52-case smoke test.
-
-These results demonstrate prototype functionality. They do not establish recognition accuracy across people or clinical effectiveness. Performance still depends on the user's movements, camera, lighting, and positioning.
-
-## What's next
-
-- Co-design and test with people with varied communication and mobility needs.
-- Measure communication speed, correction rate, fatigue, and accidental activations.
-- Improve recognition using consented real-world feedback and optional personal adaptation.
-- Refine the circular writing interface and develop additional communication environments with user feedback.
-- Make setup, recovery, and daily use easier for users and support partners.
-
-**The vision: a communication interface built around the movements a person can make and the words they choose to say.**
-
-[Open the private prototype](https://relay-personal-voice.parlaygoat.chatgpt.site/)
+[Try Relay](https://relay-personal-voice.parlaygoat.chatgpt.site/) · [Read the code](README.md#where-to-look-in-the-code) · [Build an environment](CREATOR.md)

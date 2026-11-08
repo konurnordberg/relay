@@ -1,74 +1,42 @@
-# Relay — demo and submission kit
+# Demo walkthrough
 
-## Creator reveal: a focused 90-second extension
+A good Relay demo shows a complete communication loop, then shows that the interface itself can change.
 
-1. Keep your proven personalized communication demo first. Show a short new message and confirm speech.
-2. Switch to **Creator space → New environment**. Add A–Z choices, arrange them in a circle, add a Selection target, and connect Hand rotation to Group rotation. Move one letter off the circle to demonstrate that every position is independent; undo, then preview. The dial is a composition, not a built-in component.
-3. Use a rehearsed rotation range and hold time. Preview one or two characters, then choose **Use environment** to put the new input into the same message workflow.
-4. Publish the environment to the **private Environment feed**, cast a vote, then Remix it. Explain that layout sharing excludes personal face/hand calibration, and that the demo site remains private.
-5. If time permits, show a custom drawn symbol mapped to a phrase, using examples you actually taught. Do not claim arbitrary models or live user accuracy from automated tests.
+## Before recording
 
-Keep a saved environment package and a short recorded walkthrough as fallback. Rehearse rotation with your actual laptop camera; begin with six large targets if a full alphabet feels cramped. The full creator guide is [CREATOR.md](CREATOR.md).
+- Open the app on the laptop and camera you will use. Check lighting, framing, and browser camera permission.
+- Keep a working, personally calibrated profile ready. Verify each gesture on fresh attempts.
+- Rehearse a short original message, Delete, Undo, and speech. Check the system volume and selected voice.
+- Export the profile and a Creator environment as backups. Keep a short recording of a successful real-camera run.
+- Rehearse any hand-controlled environment before including it live. Use comfortable targets and hold times rather than chasing speed.
 
-## Pitch
-“Most interfaces ask you to adapt to their controls. Relay lets you teach the computer the movements you can comfortably repeat. It learns your rest, learns your personal signals, and gives you an entire alphabet from just one or two gestures.”
+## Three-minute route
 
-Avoid claiming universal access, clinical reliability, first-ever personalized gesture control, or thought-speed typing.
+| Time | Show | Explain |
+| --- | --- | --- |
+| 0:00–0:20 | Home, then User space | Relay adapts communication interfaces to the movements a person can make. |
+| 0:20–1:05 | A calibrated Classic profile writing a short message | Rest and personal signals become Next and Select. State when the profile was prepared. |
+| 1:05–1:20 | Delete, Undo, then speech | Communication includes correction and control over what is spoken. |
+| 1:20–1:40 | Finger grid or another rehearsed environment | Different movement abilities can use different interfaces while keeping the same message. |
+| 1:40–2:30 | Creator: build or edit Palm Writer | Choices, a group, rotation mapping, target, and hold rule compose a new interface. |
+| 2:30–2:50 | Environment feed and Remix | People can share layouts without sharing personal camera calibration. |
+| 2:50–3:00 | The working environment | The next step is co-design and testing with intended users. |
 
-## Current 1.7 rehearsal priority
+The full blank-canvas recipe is in [CREATOR.md](CREATOR.md). A fresh complete calibration takes longer than a short pitch slot; use a clearly identified saved profile when needed.
 
-Use the proven personal face-gesture profile as the primary demo. Rehearse the new point/open-hand control in Air letters and Cirrin on the actual laptop before including either live. Pinch is now optional in Pen control.
+## Useful technical explanations
 
-Flow traces ordinary words over QWERTY and has a local 20,000-word decoder. Show one fresh sentence and a correction if it works reliably in rehearsal. Its comparison records keyboard versus camera throughput on ordinary text. Do not substitute Chord phrase-expansion results, constructed-path test results, or automated browser timings for real-user speed. Flow currently writes inside Relay; Copy transfers text to another app.
+- MediaPipe detects landmarks. Relay learns the user's examples and gates actions; it does not train a vision model from scratch.
+- Camera inference runs locally. Published environment documents and votes use the server.
+- Drawn letters use a local neural classifier. Flow uses geometric word-path matching. Neither depends on a remote LLM.
+- Creator packages are validated configuration, with supported signals and rules, rather than arbitrary uploaded code.
 
-## Three-minute live demonstration
-- 0:00–0:20: Explain the communication problem and the one/two-signal keyboard.
-- 0:20–1:15: Open a fresh profile. Show resting capture and one new personal signal. Explain that each gesture has five separate examples. Use a saved, genuinely calibrated profile for the remaining demo if time is short; clearly identify the switch.
-- 1:15–2:05: Activate camera input. Write a short unprepared word or phrase. Delete a character, restore it with Undo, then confirm speech.
-- 2:05–2:30: Open Signal studio and show how rest, a learned signal, and an unfamiliar movement lead to different decisions. Show the fresh-attempt breakdown.
-- 2:30–3:00: Show a different profile / input family if it has been validated. Finish with the next step: co-design and test with AAC users and practitioners.
+## Feed access
 
-A fresh full rest + two-gesture calibration takes roughly 85 seconds plus setup. Rehearse against the actual pitch time; do not pretend a preloaded profile is freshly trained.
+The live app is public. Anyone can browse, try, or remix. ChatGPT sign-in is required to publish and vote. Publishing shares the layout, output text, and custom sketch examples, so use a package you intend to make public.
 
-## All-signals rehearsal (1.2)
-1. Keep the proven face profile as a backup. Create a new all-signals profile.
-2. Teach an open-mouth Select as a held pose, a one-finger swipe Next as a movement, and optionally a two-hand pose as a phrase shortcut.
-3. Keep the hand visible in its relaxed starting pose before every movement example. Make one swipe and pause at its endpoint; return only when prompted.
-4. Verify the learned parts in Signal studio, run fresh attempts and rest checks, then write and correct a short message.
-5. Treat motion/two-hand input as experimental until real-camera tests pass. Do not imply continuous swipe-to-word input or full sign-language interpretation.
+## Evidence to keep separate
 
-## Your remaining real-camera rehearsal
-1. Open localhost:4173 in Chrome or Edge. Use a stable camera at face height, even lighting, and a plain background.
-2. Face/head is the first input to try. Choose two distinct movements that are comfortable and observable. A deliberate eyebrow raise and a brief open-mouth pose are example candidates, not required gestures. Avoid ordinary blinks as an initial command.
-3. Calibrate rest and both gestures, then test each on new attempts. If they overlap, replace one.
-4. Adjust hold time only after observing misses or accidental selections; rerun checks after timing changes.
-5. Record at least 40 fresh attempts per profile and a five-minute natural-rest check. Aim for 95% correct, with no accidental selection in that rest check. These are targets, not achieved claims.
-6. Write an original short sentence, demonstrate correction, speak, export, reload, and repeat three times.
-7. Record a 60–90 second backup video of the actual camera demo. Do not use the synthetic integration test as performance evidence.
-8. Bring the local folder and exported profile. Disconnect Wi-Fi once to confirm the models and system voice work locally.
+Show actual camera use as actual camera use. Controlled browser fixtures establish software behavior, not accuracy across people. Phrase shortcuts measure expansion, not unrestricted typing speed. There is no established clinical effectiveness or universal-access claim.
 
-If recognition is inconsistent, narrow to the best-performing profile and fewer gestures. If face/head fails, try the hand profile. Do not label head tracking as eye tracking.
-
-## Submission draft
-**Name:** Relay — Your movement. Your words.
-**Track:** Computer Vision
-**What it does:** Learns a person's resting behavior and chosen held movements from a webcam, then maps those personal signals to a complete keyboard and confirmed text-to-speech. One reliable signal supports automatic scanning; two support user-directed next/select.
-**What we built:** Guided calibration; a per-user exemplar recognizer with learned feature weights and uncertainty rejection; a temporal gate preventing repeated activations; accessible text composition; local profiles; independent attempt and rest-check reports.
-**AI contribution:** MediaPipe supplies pretrained visual landmarks. Our personal recognition layer learns the user's vocabulary. No language model decides what the user wants to say.
-**Impact:** A prototype for lowering the hardware and customization burden of alternative communication access.
-**Differentiation:** Make personalized training, ambiguity feedback, and repeatable validation part of one accessible workflow on an ordinary computer.
-**Evidence:** Add your actual camera results and sample count here. Automated software tests do not establish human recognition accuracy.
-**Limitations:** Brief held movements in supported modalities; coarse eye features experimental; no clinical evaluation or universal accessibility claim.
-**Next:** Co-design with AAC users, accessible self-calibration, robust session adaptation, and evaluation across changing real-world conditions.
-
-## Before submission
-- Confirm current Devpost requirements, judging duration, and earlier of posted deadlines.
-- Source repository / ZIP, live URL or local launch instructions, README and architecture.
-- Real demo video and exported validation report.
-- Library/model attribution and honest prior-art comparison.
-- Public access must be explicitly enabled if using the private hosted preview as a judge link.
-
-## Stronger 1.1 demonstration
-Prepare one personal word (such as your name) and one phrase that you authored in My vocabulary. Spell the first two letters and explicitly select the suggested completion. Switch to My phrases through the gesture keyboard. Use Focus view for readability. Show that the draft survives a reload. Explain that the model’s visible separation diagnostic is different from actual held-out test results; show both if you have measured them.
-
-The credible closing line: “Our next milestone is showing that intended users can set this up, communicate comfortably, and return to it tomorrow. We’ve built the calibration, recovery, and measurement loop to test that.”
+For the submission, include the live URL, repository, real demo video, attribution, and the most relevant limitations. Add measured outcomes only when you have recorded the attempts and conditions behind them.

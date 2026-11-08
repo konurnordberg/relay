@@ -1,0 +1,33 @@
+name: Bug report
+description: Report a reproducible problem in Relay.
+title: "[Bug] "
+body:
+  - type: markdown
+    attributes:
+      value: "Please leave out private messages, camera recordings, calibration exports, and credentials."
+  - type: input
+    id: setup
+    attributes:
+      label: Browser and operating system
+      placeholder: Chrome on Windows 11
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment or screen
+      placeholder: Finger grid, Creator, Teach gestures, etc.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include what you expected and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Camera position, lighting, timing, or a screenshot with personal details removed.

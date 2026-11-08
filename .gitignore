@@ -8,3 +8,15 @@ dist/client/
 dist/server/
 dist/.openai/
 .wrangler/
+
+# Local machines and demo exports
+.DS_Store
+Thumbs.db
+Desktop.ini
+*.log
+*.zip
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+relay-validation*.json
+relay-profile*.json

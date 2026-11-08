@@ -1,0 +1,6 @@
+# Keep dependency/runtime bundles out of GitHub's application-language statistics.
+dist/vendor/** linguist-vendored
+dist/models/** linguist-vendored
+dist/data/flow-words.json linguist-vendored
+package-lock.json linguist-generated
+docs/images/** binary

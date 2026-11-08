@@ -60,4 +60,4 @@ No outreach, public case study, or user-data sharing has been performed.
 [ASHA AAC guidance](https://www.asha.org/practice-portal/professional-issues/augmentative-and-alternative-communication/) emphasizes individualized access and meaningful vocabulary. [AssistiveWare's personalization guidance](https://www.assistiveware.com/learn-aac/personalize-vocabulary-and-system) describes personal words and user-specific phrases. These inform product direction; they do not validate Relay's implementation or effectiveness.
 
 ## Next concrete decision
-Run the founder's real-camera session first to find obvious implementation problems. Then use that working prototype to recruit co-design partners. Additional visual polish cannot replace either step.
+The founder's initial real-camera session established basic writing, correction, and speech. Next, use the working prototype to recruit co-design partners and measure repeat-session performance. Additional visual polish cannot replace that evidence.
