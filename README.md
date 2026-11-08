@@ -1,3 +1,9 @@
+## Relay 2.3.1 — Deleted drafts stay deleted
+
+Deleting the currently remembered Creator draft now clears the editor document, undo history, preview, and publication state after storage deletion succeeds. Returning from Home opens the library, and sign-in cannot save the deleted in-memory copy again. Deleting another draft or uninstalling a separate installed copy preserves the active draft.
+
+The browser regression reproduces the original navigation sequence and checks blank/edited drafts, sign-in, stale return URLs, reload, independent uninstallation, and failed storage deletion.
+
 ## Relay 2.3.0 — Public launch
 
 Anyone can open Relay, use its local camera features, build environments, and browse, try, or remix the shared feed without an account. ChatGPT sign-in is required only to publish environments or vote. Sign-in and sign-out use the hosting platform's top-level redirects; creators return to their saved draft and must explicitly confirm publication.

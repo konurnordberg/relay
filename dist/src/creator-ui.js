@@ -21,6 +21,12 @@ export class CreatorStudio{
  mount(root,tab='library'){this.root=root;this.tab=tab;this.draw();if(tab==='feed')this.loadFeed();}
  unmount(){this.stopPreview();this.runtime?.destroy();this.runtime=null;this.root=null;}
  notify(message){this.options.notify?.(message);}
+ closeEditor(){
+  this.stopPreview();this.runtime?.destroy();this.runtime=null;this.doc=null;this.tab='library';
+  this.history=[];this.future=[];this.pageIndex=this.blockIndex=this.itemIndex=0;this.trainIndex=null;
+  this.previewText='';this.previewHistory=[];this.trainingStrokes=[];this.previewError='';
+  this.publishOpen=false;this.publishStatus='';this.saved='';this.selectedIds?.clear();this.groupIndex=0;
+ }
  update(fn,render=true){if(!this.doc)return;const previous=structuredClone(this.doc);this.history.push(JSON.stringify(this.doc));if(this.history.length>40)this.history.shift();this.future=[];fn();this.doc.revision++;this.doc.updatedAt=new Date().toISOString();try{this.doc=this.library.save(this.doc);this.saved='Saved on this device';}catch(e){this.saved='Not saved';this.notify(e.message);if(!/quota|storage|space/i.test(e.message)){this.doc=previous;this.history.pop();this.draw();return;}}this.live=false;this.previewError='';if(render)this.draw();else{this.refreshPreview();const start=this.root?.querySelector('[data-create="stop-preview"]');if(start){start.dataset.create='start-preview';start.textContent='Start camera preview';}const status=this.root?.querySelector('[data-saved]');if(status)status.textContent=this.saved;const blocked=environmentIssues(this.doc).length>0;for(const el of this.root?.querySelectorAll('[data-create="install"],[data-create="publish"]')||[])el.disabled=blocked;}this.refreshPreviewControls();}
  open(doc){this.stopPreview();this.previewError='';this.doc=structuredClone(doc);this.pageIndex=this.blockIndex=this.itemIndex=0;this.history=[];this.future=[];this.trainIndex=null;this.previewText='';this.live=false;this.tab='editor';this.draw();}
  setIdentity(signedIn){this.identity=signedIn===true;this.options.onIdentity?.(this.identity);}
@@ -77,7 +83,7 @@ export class CreatorStudio{
  if(command==='remix-feed'||command==='remix-installed'){const doc=command==='remix-feed'?this.feedRows.find(r=>r.document.id===id)?.document:this.library.get(id);this.open(this.library.remix(doc));return;}
  if(command==='upvote'||command==='downvote'){const row=this.feedRows.find(r=>r.document.id===id),value=command==='upvote'?1:-1;el.disabled=true;try{Object.assign(row,await this.feed.vote(id,row.myVote===value?0:value));if(this.root&&this.tab==='feed')this.draw();}catch(error){if(error.status!==401)throw error;this.setIdentity(false);this.draw();this.notify('Sign in with ChatGPT to vote.');this.root.querySelector('.feed-account a')?.focus();}finally{el.disabled=false;}return;}
  if(command==='unpublish'){await this.feed.remove(id);this.feedRows=this.feedRows.filter(r=>r.document.id!==id);this.draw();this.notify('Removed from the public feed. Installed copies are unchanged.');return;}
- if(command==='remove'){this.library.remove(id,kind==='draft'?'drafts':'installed');this.draw();return;}
+ if(command==='remove'){this.library.remove(id,kind==='draft'?'drafts':'installed');if(kind==='draft'&&this.doc?.id===id)this.closeEditor();this.draw();return;}
  if(command==='publish'){try{this.setIdentity(await loadAccount());}catch{this.setIdentity(false);}this.publishStatus='';this.publishOpen=true;this.draw();this.root.querySelector('.publish-panel').focus();this.root.querySelector('.publish-panel').scrollIntoView({block:'center'});return;}if(command==='cancel-publish'){this.publishOpen=false;this.draw();return;}
  if(command==='confirm-publish'){el.disabled=true;this.publishStatus='Publishing…';try{await this.feed.publish(this.doc);this.publishOpen=false;this.notify('Published to the public environment feed.');this.tab='feed';await this.loadFeed();}catch(error){this.publishStatus=error.message;if(error.status===401)this.setIdentity(false);if(this.root){this.draw();this.root.querySelector('.publish-panel')?.focus();}}finally{el.disabled=false;}return;}
  if(command==='start-preview'){
