@@ -1,6 +1,5 @@
 import {environmentThumbnail} from './environment-thumbnail.js';
-import {fromTemplate,blankEnvironment,makeCanvasBlock,makeItem} from './creator-schema.js';
-import {arrangeItems,newBinding,syncSceneInput} from './creator-scene.js';
+import {fromTemplate,makeItem} from './creator-schema.js';
 import {gridKeys} from './environments.js';
 import {RelayComposer} from './communication.js';
 const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -17,13 +16,6 @@ const documents=new Map(examples.map(example=>{
  if(example.id==='finger-grid')doc.pages[0].blocks[0].items=gridKeys(new RelayComposer(),'letters').map(k=>({...makeItem(k.value||'',k.label),label:k.label}));
  return [example.id,doc];
 }));
-const composition=(()=>{
- const doc=blankEnvironment(),block=makeCanvasBlock();doc.version=2;doc.name='Hand rotation composition';doc.pages[0].blocks=[block];
- block.items=Array.from('abcdefghijklmnopqrstuvwxyz',c=>({...makeItem(c),kind:'choice',group:block.scene.groups[0].id,w:.08,h:.08}));
- arrangeItems(block,block.items.map(i=>i.id),'circle');
- block.scene.bindings=[{...newBinding(block.scene.groups[0].id),signal:'hand.angle',target:'rotation',inputMin:-60,inputMax:60,outputMin:-180,outputMax:180}];
- block.scene.selection={mode:'target',x:.5,y:.14,radius:.08};syncSceneInput(block);return doc;
-})();
 let selected='finger-grid';
 function exampleHTML(){
  const item=examples.find(e=>e.id===selected);
@@ -54,13 +46,13 @@ export function relayHomeView({returning=false}={}){
  '<article class="home-path home-path-creator"><p class="home-kicker">Creator space</p><h2>Build around a person.</h2>'+
  '<p>Drag choices onto a canvas. Arrange and group them, connect inputs to their properties, and decide when a choice is selected.</p><p>Use dropdowns and visual controls. Test your idea, save it, and use it as your own environment.</p>'+
  '<button class="button" data-action="nav-creator">Open Creator space <span aria-hidden="true">→</span></button></article></section>'+
- '<section class="home-composition" aria-labelledby="home-composition-title"><div class="home-composition-preview"><div class="home-preview-bar"><span>Example composition</span><span>Canvas + input + rule</span></div>'+
- environmentThumbnail(composition)+'<div class="home-mapping"><span>Hand rotation</span><span aria-hidden="true">→</span><span>Group rotation</span></div>'+
- '<p class="home-composition-caption">Hold a letter at the target → insert it</p></div>'+
- '<div class="home-composition-copy"><p class="home-kicker">From an idea to an interface</p><h2 id="home-composition-title">A dial is something you can build.</h2>'+
- '<p>Arrange individual letters in a circle. Connect hand rotation to the rotation of their group. Add a fixed target and a hold time.</p>'+
- '<p>Those same components can also make a sliding row, a layout controlled by finger counts, or a page of personal phrases. Drawing surfaces can recognize handwriting or symbols you teach.</p>'+
- '<button class="home-text-link" data-action="nav-creator">Explore the building tools <span aria-hidden="true">→</span></button></div></section>'+
+ '<section class="home-creator-showcase" aria-labelledby="home-creator-title"><div class="home-creator-examples" aria-label="Editable environment templates">'+
+ examples.map(example=>'<figure class="home-template-preview">'+environmentThumbnail(documents.get(example.id))+'<figcaption>'+esc(example.name)+'</figcaption></figure>').join('')+'</div>'+
+ '<div class="home-creator-copy"><p class="home-kicker">Made for your ideas</p><h2 id="home-creator-title">Turn your idea into an environment.</h2>'+
+ '<p>Arrange letters, words, and controls any way you like. Connect gestures, hand movements, and drawing to what they do—with visual controls, without writing code.</p>'+
+ '<p>All six built-in environments have editable Creator templates. Remix a familiar layout, combine the available components, or start with a blank canvas.</p>'+
+ '<p>Choose how someone moves, what they can select, and how their message takes shape. Build, try it, and keep making it their own.</p>'+
+ '<button class="home-text-link" data-action="nav-creator">Open Creator space <span aria-hidden="true">→</span></button></div></section>'+
  '<section class="home-feed" aria-labelledby="home-feed-title"><div><p class="home-kicker">Environment feed</p><h2 id="home-feed-title">Find an idea. Make it your own.</h2>'+
  '<p>Browse environments, try them, and remix a copy in Creator space. Publish your own layouts and vote for the ones you like using.</p>'+
  '<p class="home-feed-note">The feed is shared inside this private Relay app.</p></div><button class="button" data-action="nav-feed">Browse the feed <span aria-hidden="true">↗</span></button></section>'+

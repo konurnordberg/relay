@@ -1,3 +1,7 @@
+## Relay 2.2.1 — Creator showcase
+
+The Home page now presents all six editable environment templates together and explains how layouts, inputs, and selection rules can be combined in Creator space. This replaces the dial-specific example with a broader invitation to remix or start from a blank canvas.
+
 ## Relay 2.2.0 — Home
 
 Home now opens above Get started for new and returning visitors. It explains User space, Creator space, and the private Environment feed, with six selectable previews rendered from Relay's existing environment layouts. A component-built dial illustrates how layout, input mappings, and a selection rule work together.
