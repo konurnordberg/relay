@@ -1,3 +1,9 @@
+## Relay 2.1.6 — Stable camera feedback
+
+Finger grid and the shared camera renderer no longer overwrite the same tracking section. Persistent face/hand badges follow the active camera mode, update only when status changes, and tolerate brief display dropouts without changing gesture recognition. Performance details refresh once a second.
+
+The browser regression reproduces the old alternating text/height bug and checks stable badge nodes, panel height, and Current gesture position for guests and saved profiles across all six built-in environments. The 130 unit tests and existing laptop/mobile finger-grid and saved-gesture checks pass.
+
 ## Relay 2.1.5 — Creator interaction fixes
 
 Arrangement choices survive editor redraws. Arrange defaults to the whole active group, with an explicit selected-only option. Numeric target and group edits update the visible canvas, target reach is shown, and its drag handle no longer blocks letters.

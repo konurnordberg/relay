@@ -1,3 +1,4 @@
+import {CameraTrackingPanel} from './camera-panel.js';
 import {buildPersonalModel,chooseProfile,rememberProfile} from './profile-runtime.js';
 import {CreatorStudio} from './creator-ui.js';
 import {CreatorRuntime} from './creator-runtime.js';
@@ -15,7 +16,6 @@ import {AirWriter} from './air-writing.js';
 import {ENVIRONMENTS,environmentById,GRID_PAGES,PAGE_NAMES,gridKeys,applyGridKey} from './environments.js';
 import {fingerPair,FingerPairTracker,FingerIndexGate} from './finger-index.js';
 import {trainCombined,predictCombined,CombinedGate,resample,requiredTracking} from './combined.js';
-import {CHANNELS} from './features.js';
 import {REST,UNKNOWN,train,predict,summarize,EventGate,Composer,trialSummary} from './core.js';
 import {createProfile,loadProfiles,saveProfiles,exportProfile,importProfile,upgradeFaceProfile} from './storage.js';
 import {VisionCamera} from './camera.js';
@@ -39,7 +39,7 @@ let draftSavedText=null,draftNotice='',speakingMessage=false;
 let guestEnvironment={environment:'classic',gridHoldMs:850,gridSwap:false,cirrinGain:2.4,chordHoldMs:180,penMode:'point',flowGain:2.4,flowAuto:true};
 try{const saved=JSON.parse(localStorage.getItem('relay.environment.v1')||'{}');if(ENVIRONMENTS.some(e=>e.id===saved.environment))guestEnvironment.environment=saved.environment;if([600,850,1200,1600].includes(saved.gridHoldMs))guestEnvironment.gridHoldMs=saved.gridHoldMs;if([1.3,1.8,2.4].includes(saved.cirrinGain))guestEnvironment.cirrinGain=saved.cirrinGain;if([120,180,260].includes(saved.chordHoldMs))guestEnvironment.chordHoldMs=saved.chordHoldMs;if(PEN_MODES.includes(saved.penMode))guestEnvironment.penMode=saved.penMode;if([1.3,1.8,2.4,3].includes(saved.flowGain))guestEnvironment.flowGain=saved.flowGain;if(typeof saved.flowAuto==='boolean')guestEnvironment.flowAuto=saved.flowAuto;if(typeof saved.gridSwap==='boolean')guestEnvironment.gridSwap=saved.gridSwap;}catch{}
 const environmentSettings=()=>profile?.settings||guestEnvironment;
-let lastFingerUI=0;
+let lastFingerUI=0,lastPerformanceUI=-Infinity;
 let environment=environmentById(environmentSettings().environment).id,fingerPage='letters',fingerStatus=null;
 const fingerTracker=new FingerPairTracker();
 const air=new AirWriter(()=>{if(airWriting())updateAirDisplay();},letter=>{if(!airWriting()||composer.confirm||composer.paused)return;handleEffect(composer.apply({type:'text',value:composer.caps?letter:letter.toLowerCase()}));renderWriter();});
@@ -241,11 +241,7 @@ function onFingerFrame(frame){
  const out=live&&!activeDialog?fingerGate.update(pair,frame.handFrameAt,frame.now):null;
  fingerStatus={pair,out};
  if(out?.index!==null&&out?.index!==undefined)useFingerKey(out.index);
- if(frame.now-lastFingerUI>80){lastFingerUI=frame.now;updateFingerDisplay();
-  $('#tracking-parts').textContent=frame.hands?.length===2?'Both hands visible':'Show both hands';
-  const metrics=frame.metrics;$('#camera-performance').hidden=!metrics;
-  if(metrics)$('#camera-performance').textContent='Camera '+metrics.cameraFps+' fps · Hands '+metrics.handFps+' fps';
- }
+ if(frame.now-lastFingerUI>80){lastFingerUI=frame.now;updateFingerDisplay();}
 }
 function saveEnvironmentSetting(key,value){
  environmentSettings()[key]=value;
@@ -507,6 +503,7 @@ function gestureDialog(id,writing=false){
  openDialog(dialogHeader(g?'Edit gesture':writing?'Teach a writing movement':'Add a gesture')+'<p>Name the gesture and choose what it does. Keep the parts you use visible during rest and recording.</p><form id="gesture-form" data-id="'+(g?.id||'')+'"><label class="field">Gesture name<input name="name" maxlength="65" placeholder="Name your movement" value="'+esc(g?.name||'')+'" required></label>'+(profile.modality==='combined'?'<label class="field">How do you perform it?<select name="kind"><option value="pose" '+((g?.kind||defaultKind)!=='motion'?'selected':'')+'>Hold a pose</option><option value="motion" '+((g?.kind||defaultKind)==='motion'?'selected':'')+'>Make a swipe or movement</option></select><small>Hold a pose: a face or hand shape. Movement: a short motion with a pause at the end.</small></label>':'')+'<label class="field">What should it do?<select name="action">'+Object.entries(actions).map(([v,l])=>'<option value="'+v+'" '+((g?.action||defaultAction)===v?'selected':'')+'>'+l+'</option>').join('')+'</select></label><label class="field" id="insert-text-field" '+((g?.action||defaultAction)==='insert'?'':'hidden')+'>Text for “Insert text”<input name="value" maxlength="300" placeholder="A letter, word, or personal phrase" value="'+esc(g?.value||'')+'"><small>Enter the letter, word, or phrase this gesture should write.</small></label>'+(g?'<label class="toggle"><input name="enabled" type="checkbox" '+(g.enabled!==false?'checked':'')+'> Enable this gesture</label>':'')+'<div class="button-row"><button class="button" type="submit">'+(g?'Save changes':'Add & record')+'</button>'+(g?btn('Delete gesture','delete-gesture','danger','data-id="'+g.id+'"'):'')+'</div></form>');
 }
 function selectProfile(id){lastGestureMessage='';if(busy)return;const p=profiles.find(p=>p.id===id);if(!p)return;camera.stop();cameraState='off';cameraMessage='Profile changed. Enable the camera when you’re ready.';profile=p;rememberProfile(profile);composer=new RelayComposer(profile);restoreDraft();live=false;latest=null;rebuild();render();}
+const cameraTracking=new CameraTrackingPanel($('#tracking-parts'));
 function updateCamera(){
  document.body.dataset.camera=cameraState;
  updateTeachingPreview();
@@ -515,9 +512,10 @@ function updateCamera(){
  $('#trails-help').textContent=cirrinWriting()?'Your word path stays visible until you insert or clear it.':airWriting()?'Fading trails are optional. Letter ink stays until you insert or clear it.':trailsAllowed?'Trace with your index fingers. Brief tracking gaps reconnect; trails fade in 1.4 seconds.':'Use an all-signals or hand profile for fingertip trails.';
  camera.setTrails?.(trailsEnabled&&trailsAllowed);
 
- if(cameraState!=='ready')$('#camera-performance').hidden=true;
+ if(cameraState!=='ready'){$('#camera-performance').hidden=true;lastPerformanceUI=-Infinity;}
+ cameraTracking.setCamera(cameraState==='ready'?camera.mode:cameraMode(),cameraState==='ready');
  if(cameraState!=='ready'){if(view==='studio'&&$('#live-insights'))$('#live-insights').innerHTML='<div class="empty-state">Enable your camera to see the recognizer work.</div>';$('#signal-name').textContent='Camera off';$('#signal-detail').textContent='—';$('#signal-meter').style.width='0';}
- $('#camera-status').textContent=cameraMessage;if(cameraState!=='ready'&&$('#tracking-parts'))$('#tracking-parts').textContent='';
+ if($('#camera-status').textContent!==cameraMessage)$('#camera-status').textContent=cameraMessage;
  $('#camera-pill').textContent=cameraState==='ready'?'On':cameraState==='loading'?'Starting':cameraState==='error'?'Check permission':'Off';
  $('#camera-pill').classList.toggle('green',cameraState==='ready');
  $('#camera-placeholder').classList.toggle('hidden',cameraState==='ready');
@@ -548,13 +546,14 @@ function onFrame(frame){
  if(frame.now-lastUI>120){
   lastUI=frame.now;
   const performanceLine=$('#camera-performance'),metrics=frame.metrics;
-  performanceLine.hidden=!metrics||cameraState!=='ready';
-  if(metrics){
-   const rate=profile?.modality==='face'?'Face '+metrics.faceFps:'Hands '+metrics.handFps;
-   performanceLine.textContent=metrics.warming?'Warming up tracking…':'Camera '+metrics.cameraFps+' fps · '+rate+' fps'+(trailsEnabled&&profile?.modality!=='face'&&!metrics.handVisible?' · Hand out of view':'');
-   performanceLine.title='Camera frames and vision frames processed in the last second.';
+  if(metrics&&cameraState==='ready'&&frame.now-lastPerformanceUI>=1000){
+   lastPerformanceUI=frame.now;performanceLine.hidden=false;
+   const rate=camera.mode==='face'?'Face '+metrics.faceFps:'Hands '+metrics.handFps;
+   const text=metrics.warming?'Warming up tracking…':'Camera '+metrics.cameraFps+' fps · '+rate+' fps';
+   if(performanceLine.textContent!==text)performanceLine.textContent=text;
+   if(!performanceLine.title)performanceLine.title='Camera frames and vision frames processed in the last second.';
   }
-  const tracking=$('#tracking-parts');if(tracking)tracking.innerHTML=profile?.modality==='combined'?CHANNELS.map(c=>'<span class="'+(frame.vector?.[c.mask]>.95?'visible':'')+'">'+c.name+(frame.vector?.[c.mask]>.95?' ✓':' —')+'</span>').join(''):'';
+  cameraTracking.update(frame);
 
   $('#signal-name').textContent=!frame.vector?'No tracking':!model?'Ready to learn':observed.id===REST?'Resting':observed.id===UNKNOWN?'Uncertain — no action':observed.label||profile?.gestures.find(g=>g.id===observed.id)?.name||'Uncertain';
   $('#signal-detail').textContent=!frame.vector?'Move into view':model?(gate.armed?'Ready':'Return to rest'):Math.round(frame.latency)+' ms';
